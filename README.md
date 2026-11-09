@@ -200,6 +200,14 @@ tag (`@v0` or `@v0.36.0`) once you rely on it; `@main` always tracks the latest 
 To also gate MCP tool-definition drift, set `mcp-snapshot` and `mcp-lock` and include
 `toolpin` in `tools`. The action will run `toolpin check` against those files.
 
+## Guides
+
+Three short writeups live on the site:
+
+- [Prompt injection through tool results](https://dunkleschitz.github.io/agentsec/guides/prompt-injection-through-tool-results/)
+- [Pinning MCP tools against drift](https://dunkleschitz.github.io/agentsec/guides/pinning-mcp-tools-against-drift/)
+- [A 10-minute security audit for your AI agent](https://dunkleschitz.github.io/agentsec/guides/ten-minute-agent-security-audit/)
+
 ## How this was built
 
 - **AI-built.** The tools, tests and documentation were written by an AI coding agent working
@@ -234,7 +242,7 @@ To also gate MCP tool-definition drift, set `mcp-snapshot` and `mcp-lock` and in
 agentsec/
 ├── agentsec/            unified CLI package (`pip install .` → `agentsec <tool>`)
 ├── tools/<name>/        one folder per tool: <name>.py, README.md, tests/, examples/
-├── docs/                GitHub Pages site (https://dunkleschitz.github.io/agentsec/)
+├── docs/                GitHub Pages site, including /guides/ (https://dunkleschitz.github.io/agentsec/)
 ├── tests/               tests for the unified CLI
 ├── action.yml           reusable composite Action (`uses: dunkleschitz/agentsec@v0`)
 ├── pyproject.toml       packaging (stdlib-only; no publish until you follow PUBLISHING.md)

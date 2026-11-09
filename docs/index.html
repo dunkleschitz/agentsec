@@ -40,96 +40,15 @@
   }
   </script>
 
-  <style>
-    :root {
-      --bg: #0d0f12;
-      --fg: #ece8df;
-      --muted: #9ca3af;
-      --accent: #e8a838;
-      --panel: #161a20;
-      --line: #2a3038;
-      --link: #e8a838;
-    }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
-    body {
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.55;
-      min-height: 100vh;
-      border-left: 8px solid var(--accent);
-    }
-    a { color: var(--link); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-    .wrap { max-width: 920px; margin: 0 auto; padding: 48px 24px 80px; }
-    .kicker {
-      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-      font-size: 12px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin: 0 0 18px;
-    }
-    h1 {
-      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-      font-size: clamp(42px, 8vw, 72px);
-      font-weight: 700;
-      letter-spacing: -0.04em;
-      margin: 0 0 12px;
-      line-height: 1;
-    }
-    .rule { width: 120px; height: 3px; background: var(--accent); margin: 16px 0 24px; border: 0; }
-    .lede { font-size: 1.25rem; max-width: 38em; margin: 0 0 28px; }
-    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 56px; }
-    .btn {
-      display: inline-block;
-      padding: 10px 16px;
-      border: 1px solid var(--accent);
-      background: var(--accent);
-      color: #111;
-      font-weight: 650;
-      border-radius: 4px;
-      text-decoration: none;
-    }
-    .btn:hover { text-decoration: none; filter: brightness(1.05); }
-    .btn.ghost {
-      background: transparent;
-      color: var(--fg);
-      border-color: var(--line);
-    }
-    h2 { font-size: 1.15rem; margin: 0 0 12px; letter-spacing: 0.02em; }
-    pre, code { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
-    pre {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      padding: 16px 18px;
-      overflow-x: auto;
-      font-size: 0.9rem;
-      margin: 0 0 40px;
-    }
-    .tools {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 10px 16px;
-      margin: 0 0 48px;
-    }
-    .tool {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      padding: 12px 14px;
-    }
-    .tool strong { display: block; font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 0.95rem; }
-    .tool p { margin: 4px 0 0; color: var(--muted); font-size: 0.88rem; }
-    .note { color: var(--muted); font-size: 0.95rem; max-width: 46em; }
-    footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.9rem; }
-    @media (max-width: 600px) {
-      body { border-left-width: 5px; }
-      .wrap { padding: 32px 18px 56px; }
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="./" aria-current="page">Home</a>
+      <a href="guides/">Guides</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
     <p class="kicker">Offline · stdlib-only · MIT</p>
     <h1>agentsec</h1>
     <hr class="rule">
@@ -138,9 +57,13 @@
       <a class="btn" href="https://github.com/dunkleschitz/agentsec">View on GitHub</a>
       <a class="btn ghost" href="https://github.com/dunkleschitz/agentsec#quick-start">Quick start</a>
       <a class="btn ghost" href="https://github.com/dunkleschitz/agentsec/releases">Releases</a>
+      <a class="btn ghost" href="guides/">Guides</a>
     </div>
 
     <h2>Try it in 30 seconds</h2>
+    <pre><code>pip install git+https://github.com/dunkleschitz/agentsec.git
+agentsec mcpposture ~/.cursor/mcp.json</code></pre>
+    <p class="note">Or clone and run a tool as a standalone script, no install required:</p>
     <pre><code>git clone https://github.com/dunkleschitz/agentsec.git
 cd agentsec/tools/mcpposture
 python3 mcpposture.py examples/risky_claude_desktop_config.json</code></pre>
@@ -184,10 +107,17 @@ python3 mcpposture.py examples/risky_claude_desktop_config.json</code></pre>
       <div class="tool"><strong><a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/secretflow">secretflow</a></strong><p>Secrets flowing from tool results into later tool args</p></div>
     </div>
 
+    <h2>Guides</h2>
+    <div class="cards">
+      <div class="card"><strong><a href="guides/prompt-injection-through-tool-results/">Prompt injection through tool results</a></strong><p>Tool results sit next to the system prompt. Scan them before the next turn.</p></div>
+      <div class="card"><strong><a href="guides/pinning-mcp-tools-against-drift/">Pinning MCP tools against drift</a></strong><p>Treat tools/list like a lockfile. Fail CI when a tool quietly changes.</p></div>
+      <div class="card"><strong><a href="guides/ten-minute-agent-security-audit/">A 10-minute security audit for your AI agent</a></strong><p>No red team required. Six offline scanners, standard library only.</p></div>
+    </div>
+
     <p class="note">Heuristic scanners, not a security boundary. A clean result does not mean something is safe. Mappings to the OWASP Top 10 for LLM Applications (2025) and the OWASP Top 10 for Agentic Applications (2026) are in the <a href="https://github.com/dunkleschitz/agentsec#mapping-to-owasp">README</a>. All example secrets in the repository are fake.</p>
 
     <footer>
-      <p>MIT License · Python 3.10–3.13 · 1572 tests · no third-party dependencies · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+      <p>MIT License · Python 3.10–3.13 · 1605 tests · no third-party dependencies · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
     </footer>
   </main>
 </body>

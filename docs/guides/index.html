@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guides — agentsec</title>
+  <meta name="description" content="Practical guides to scanning AI agents for prompt injection, MCP tool drift, secret leaks, and other agentic risks, using the agentsec toolkit.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/guides/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="Guides — agentsec">
+  <meta property="og:description" content="Practical guides to scanning AI agents for prompt injection, MCP tool drift, secret leaks, and other agentic risks, using the agentsec toolkit.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/guides/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Guides — agentsec">
+  <meta name="twitter:description" content="Practical guides to scanning AI agents for prompt injection, MCP tool drift, secret leaks, and other agentic risks, using the agentsec toolkit.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+  {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "agentsec guides",
+  "url": "https://dunkleschitz.github.io/agentsec/guides/",
+  "description": "Practical guides to scanning AI agents with the agentsec toolkit.",
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  }
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>Guides</h1>
+    <hr class="rule">
+    <p class="lede">Practical writeups on scanning AI agents for prompt injection, MCP tool drift, secret leaks, and other agentic risks. Offline, standard library only.</p>
+    <div class="cards">
+      <div class="card"><strong><a href="https://dunkleschitz.github.io/agentsec/guides/prompt-injection-through-tool-results/">Prompt injection through tool results: how to detect it in your agent</a></strong><p>Tool results sit next to the system prompt. Scan them before the next turn.</p></div>
+      <div class="card"><strong><a href="https://dunkleschitz.github.io/agentsec/guides/pinning-mcp-tools-against-drift/">Pinning MCP tools: catching silent tool drift and rug-pulls</a></strong><p>Treat tools/list like a lockfile. Fail CI when a tool quietly changes.</p></div>
+      <div class="card"><strong><a href="https://dunkleschitz.github.io/agentsec/guides/ten-minute-agent-security-audit/">A 10-minute security audit for your AI agent</a></strong><p>No red team required. Six offline scanners, standard library only.</p></div>
+    </div>
+    <p class="note">These guides ship with the <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> toolkit. The scanners are experimental heuristics meant to help a human reviewer. A clean result does not mean something is safe.</p>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A 10-minute security audit for your AI agent — agentsec</title>
+  <meta name="description" content="Run a 10-minute, dependency-free security audit of your AI agent: tool-result injection, secret flow, PII, SSRF, and MCP drift.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/guides/ten-minute-agent-security-audit/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="A 10-minute security audit for your AI agent — agentsec">
+  <meta property="og:description" content="Run a 10-minute, dependency-free security audit of your AI agent: tool-result injection, secret flow, PII, SSRF, and MCP drift.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/guides/ten-minute-agent-security-audit/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="A 10-minute security audit for your AI agent — agentsec">
+  <meta name="twitter:description" content="Run a 10-minute, dependency-free security audit of your AI agent: tool-result injection, secret flow, PII, SSRF, and MCP drift.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+  {
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "A 10-minute security audit for your AI agent",
+  "description": "Run a 10-minute, dependency-free security audit of your AI agent: tool-result injection, secret flow, PII, SSRF, and MCP drift.",
+  "datePublished": "2026-11-09",
+  "dateModified": "2026-11-09",
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "url": "https://dunkleschitz.github.io/agentsec/guides/ten-minute-agent-security-audit/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a> · A 10-minute security audit for your AI agent</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>A 10-minute security audit for your AI agent</h1>
+    <hr class="rule">
+    <p class="lede">No red team required. Six offline scanners, standard library only.</p>
+    <p class="meta">Published 9 November 2026 · About a 5-minute read</p>
+    <article>
+<p>You do not need a red team engagement to find the boring, high-severity failures in an AI agent: prompt injection in tool results, secrets hopping into webhooks, PII in shared transcripts, shell commands that should never have been allowed, and MCP tool definitions that drifted since last week.</p>
+<p>This walkthrough uses <a href="https://github.com/dunkleschitz/agentsec">agentsec</a> — 35 small Python scanners, <strong>standard library only</strong>, no network, no telemetry. Budget: about ten minutes if you already save transcripts.</p>
+<h2 id="minute-0-1-clone-and-pick-your-inputs">Minute 0–1: clone and pick your inputs</h2>
+<pre><code class="language-sh">git clone https://github.com/dunkleschitz/agentsec.git
+cd agentsec</code></pre>
+<p>You need one or more of:</p>
+<ul>
+<li>An <strong>agent transcript</strong> (OpenAI chat JSON, Anthropic messages, or generic JSONL with tool calls)</li>
+<li>An <strong>MCP <code>tools/list</code> snapshot</strong> (for pinning / poisoning checks)</li>
+<li>Optional: shell-command lists, URL lists, memory dumps</li>
+</ul>
+<p>If you have nothing yet, use the bundled fixtures — every command below runs against fake data shipped in the repo.</p>
+<h2 id="minute-1-3-tool-result-injection-resultguard">Minute 1–3: tool-result injection (resultguard)</h2>
+<p>Untrusted content returns through tools. Scan it first.</p>
+<pre><code class="language-sh">cd tools/resultguard
+python3 resultguard.py examples/poisoned_openai.json --fail-on high</code></pre>
+<p>Expect HIGH findings: override phrasing (TR01), tool-chaining bait (TR04), webhook callbacks (TR05), credential harvest (TR07). Exit <code>1</code> = gate fail. Clean control:</p>
+<pre><code class="language-sh">python3 resultguard.py examples/clean_openai.json --fail-on high; echo exit=$?
+# exit=0</code></pre>
+<p><strong>Pass criteria for your real runs:</strong> no TR01–TR05 / TR07 at high+, or every hit reviewed and <code>--disable</code>d with a reason.</p>
+<h2 id="minute-3-5-secret-propagation-secretflow">Minute 3–5: secret propagation (secretflow)</h2>
+<p>Presence of a secret in a log is bad. <strong>Reuse of that same value in a later outbound tool</strong> is how exfil happens (<code>read .env</code> → <code>http_post</code>).</p>
+<pre><code class="language-sh">cd ../secretflow
+python3 secretflow.py examples/risky_openai.json --disable FL10 --fail-on high</code></pre>
+<p>Typical hits on the fixture:</p>
+<ul>
+<li><strong>FL01</strong> critical — env secret from <code>read_file</code> into <code>http_post</code></li>
+<li><strong>FL02</strong> critical — session-like secret into <code>bash</code></li>
+<li><strong>FL05 / FL07</strong> — assistant echo or labeled <code>api_key=</code> reuse</li>
+<li><strong>FL09</strong> — secret written via a sink tool</li>
+</ul>
+<p>Matches are masked in the report (<code>FAKE…9c2e</code>). On your transcripts: any FL01/FL02/FL04 is a stop-ship until the tool policy blocks that hop.</p>
+<h2 id="minute-5-6-pii-before-you-share-the-run-piiguard">Minute 5–6: PII before you share the run (piiguard)</h2>
+<p>About to paste a transcript into a ticket or training set? Redact first.</p>
+<pre><code class="language-sh">cd ../piiguard
+python3 examples/make_examples.py   # regenerates fake fixtures
+python3 piiguard.py examples/risky_openai.json --redact /tmp/redacted.json --fail-on high</code></pre>
+<p>Flags emails (PG01), phones (PG02), SSNs (PG03), Luhn-valid cards (PG04), bank/IBAN (PG06), and more. The <code>--redact</code> copy is what you attach to the ticket; keep the original in a restricted store.</p>
+<h2 id="minute-6-8-paths-shells-fetches-pathfence-shellfence-fetchfence">Minute 6–8: paths, shells, fetches (pathfence / shellfence / fetchfence)</h2>
+<p>Three quick passes over the same transcript shape:</p>
+<pre><code class="language-sh">cd ../pathfence
+python3 pathfence.py examples/risky_openai.json --disable PF12 --fail-on high
+
+cd ../shellfence
+python3 shellfence.py examples/risky_openai.json --disable SF12 --fail-on high
+
+cd ../fetchfence
+python3 fetchfence.py examples/risky_openai.json --fail-on high</code></pre>
+<p>What you are looking for:</p>
+<table>
+<thead><tr><th>Tool</th><th>Stop-ship examples</th></tr></thead>
+<tbody>
+<tr><td>pathfence</td><td><code>.env</code>, <code>~/.ssh/id_rsa</code>, <code>.aws/credentials</code>, <code>/etc/shadow</code>, <code>docker.sock</code></td></tr>
+<tr><td>shellfence</td><td>`curl \</td><td>sh<code>, </code>rm -rf /`, reverse shells, force-push, env exfil</td></tr>
+<tr><td>fetchfence</td><td><code>169.254.169.254</code>, <code>webhook.site</code>, <code>file://</code>, private Redis URLs</td></tr>
+</tbody>
+</table>
+<p>Disable the inventory rules (PF12 / SF12) in CI so info noise does not fail the gate.</p>
+<h2 id="minute-8-9-human-in-the-loop-gaps-hitlguard">Minute 8–9: human-in-the-loop gaps (hitlguard)</h2>
+<p>Did the agent pay, delete, deploy, or send mail without a nearby confirmation?</p>
+<pre><code class="language-sh">cd ../hitlguard
+python3 hitlguard.py examples/risky_openai.json --disable HG08 --fail-on high</code></pre>
+<p>Pair with a policy that requires an approval tool for consequential actions; hitlguard checks whether the transcript actually shows that approval.</p>
+<h2 id="minute-9-10-pin-mcp-tools-toolpin">Minute 9–10: pin MCP tools (toolpin)</h2>
+<p>If you use MCP, freeze today&#x27;s definitions and catch tomorrow&#x27;s rug-pull.</p>
+<pre><code class="language-sh">cd ../toolpin
+python3 toolpin.py check examples/drifted.json -l examples/toolpin.lock.json --fail-on high</code></pre>
+<p>Description injection, loosened enums, <code>readOnlyHint</code> flips, and cross-server shadowing all show up here. Re-pin only after review:</p>
+<pre><code class="language-sh">python3 toolpin.py pin examples/baseline.json -l toolpin.lock.json</code></pre>
+<h2 id="optional-bonus-posture-and-loops">Optional bonus: posture and loops</h2>
+<p>If you still have a minute:</p>
+<pre><code class="language-sh">cd ../mcpposture &amp;&amp; python3 mcpposture.py examples/risky_claude_desktop_config.json
+cd ../loopguard &amp;&amp; python3 loopguard.py examples/runaway_openai.json
+cd ../yolocheck &amp;&amp; python3 yolocheck.py examples/risky</code></pre>
+<p>mcpposture grades MCP client configs A–F. loopguard catches identical tool-call storms (especially dangerous for send/delete/pay tools). yolocheck grades coding-agent autonomy settings.</p>
+<h2 id="drop-in-ci-shape">Drop-in CI shape</h2>
+<p>All of these tools share exit codes (<code>0</code> clean, <code>1</code> findings, <code>2</code> usage). A minimal composite gate:</p>
+<pre><code class="language-yaml">- name: agentsec quick audit
+  run: |
+    set -e
+    ROOT=tools
+    python3 $ROOT/resultguard/resultguard.py runs/ --fail-on high
+    python3 $ROOT/secretflow/secretflow.py runs/ --disable FL10 --fail-on high
+    python3 $ROOT/piiguard/piiguard.py runs/ --disable PG10 --fail-on high
+    python3 $ROOT/pathfence/pathfence.py runs/ --disable PF12 --fail-on high
+    python3 $ROOT/shellfence/shellfence.py runs/ --disable SF12 --fail-on high
+    python3 $ROOT/fetchfence/fetchfence.py runs/ --fail-on high
+    python3 $ROOT/toolpin/toolpin.py check mcp-tools.json \
+      -l $ROOT/toolpin/toolpin.lock.json --fail-on high</code></pre>
+<p>Vendor the <code>tools/*/…py</code> files you need (each is self-contained) or submodule the repo. No <code>pip install</code> step.</p>
+<h2 id="what-passing-means">What &quot;passing&quot; means</h2>
+<p>A green run means: on the artifacts you scanned, no high/critical heuristic fired. It does <strong>not</strong> mean the live agent cannot be coerced, that every secret transform was caught, or that a novel MCP server is benign. agentsec is a human-review aid with CI teeth — keep the runtime allowlists and approval prompts too.</p>
+<h2 id="start-here">Start here</h2>
+<pre><code class="language-sh">git clone https://github.com/dunkleschitz/agentsec.git
+cd agentsec/tools/resultguard
+python3 resultguard.py examples/poisoned_openai.json</code></pre>
+<p>Ten minutes, zero dependencies, a punch list of real findings. Expand from there as your threat model grows — the other ~28 tools cover RAG ingestion, prompt leakage, model pinning, schema privilege, memory poisoning, and more: <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>
