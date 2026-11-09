@@ -7,6 +7,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-brightgreen.svg)](#install-and-run)
 
+![agentsec demo: resultguard, secretflow, piiguard and toolpin in action](assets/demo.gif)
+
 Each tool is a single Python file that uses **only the standard library**. There is nothing to `pip install`, no network calls, and no telemetry. Each tool has its own README, examples built from fake data, and a unittest suite.
 
 > **Status: experimental.** These tools were AI-built (see [How this was built](#how-this-was-built)).
