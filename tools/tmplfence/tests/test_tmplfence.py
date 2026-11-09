@@ -330,6 +330,13 @@ class TestCLIExamples(unittest.TestCase):
         finally:
             sys.stdin = old
 
+    def test_sarif(self):
+        code, out, err = run_main([os.path.join(EX, "system_prompt.j2"), "--sarif", "--disable", "TM10", "--fail-on", "none"])
+        data = json.loads(out)
+        self.assertEqual(data["version"], "2.1.0", err)
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "tmplfence")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
 
 class TestDisable(unittest.TestCase):
     def test_disable_tm01(self):

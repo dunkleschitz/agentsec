@@ -273,6 +273,13 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertTrue("PF03" in out or "PF04" in out or "PF10" in out)
 
+    def test_sarif(self):
+        code, out, err = run_main([os.path.join(EX, "risky_openai.json"), "--sarif", "--fail-on", "none"])
+        data = json.loads(out)
+        self.assertEqual(data["version"], "2.1.0", err)
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "pathfence")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
 
 class TestHelpers(unittest.TestCase):
     def test_norm_path(self):

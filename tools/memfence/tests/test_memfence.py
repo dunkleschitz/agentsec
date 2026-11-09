@@ -331,6 +331,13 @@ class TestCLIExamples(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("MF10", out)
 
+    def test_sarif(self):
+        code, out, err = run_main([os.path.join(EX, "poisoned_mem0.json"), "--sarif", "--disable", "MF10", "--fail-on", "none"])
+        data = json.loads(out)
+        self.assertEqual(data["version"], "2.1.0", err)
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "memfence")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
 
 class TestTempRoundtrip(unittest.TestCase):
     def test_stdin_json(self):

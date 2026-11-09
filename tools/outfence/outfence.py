@@ -416,13 +416,81 @@ def collect(paths):
 
 
 # ---------------------------------------------------------------- CLI
+
+_SARIF_LEVEL = {
+    "critical": "error",
+    "high": "error",
+    "medium": "warning",
+    "low": "note",
+    "info": "note",
+}
+
+
+def render_sarif(findings):
+    """Return a SARIF 2.1.0 document for GitHub code scanning and other consumers."""
+    used, seen = [], set()
+    for f in findings:
+        rid = f.get("rule") or f.get("code")
+        if rid not in seen:
+            used.append(rid)
+            seen.add(rid)
+    rules = []
+    for rid in used:
+        if rid in RULES:
+            sev, title = RULES[rid][0], RULES[rid][1]
+        else:
+            sev, title = "medium", rid
+        rules.append({
+            "id": rid,
+            "name": title,
+            "shortDescription": {"text": title},
+            "defaultConfiguration": {"level": _SARIF_LEVEL.get(sev, "note")},
+        })
+    results = []
+    for f in findings:
+        rid = f.get("rule") or f.get("code")
+        uri = f.get("source") or (f.get("tools") or ["stdin"])[0]
+        line = f.get("line") or 1
+        try:
+            line = int(line) or 1
+        except (TypeError, ValueError):
+            line = 1
+        msg = f.get("message") or f.get("detail") or f.get("title") or rid
+        results.append({
+            "ruleId": rid,
+            "level": _SARIF_LEVEL.get(f.get("severity"), "note"),
+            "message": {"text": msg},
+            "locations": [{"physicalLocation": {
+                "artifactLocation": {"uri": str(uri)},
+                "region": {"startLine": line},
+            }}],
+            "properties": f,
+        })
+    return json.dumps({
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [{
+            "tool": {
+                "driver": {
+                    "name": "outfence",
+                    "version": __version__,
+                    "informationUri": "https://github.com/dunkleschitz/agentsec",
+                    "rules": rules,
+                }
+            },
+            "results": results,
+        }],
+    }, indent=2) + "\n"
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="outfence", description=__doc__.split("\n\n")[0])
     ap.add_argument("paths", nargs="*", help="files, directories, or - for stdin")
     ap.add_argument("--allow-host", action="append", default=[], metavar="GLOB",
                     help="trusted host (glob, e.g. '*.example.com'); repeatable")
     ap.add_argument("--all-roles", action="store_true", help="scan every message in transcripts, not just assistant")
-    ap.add_argument("--json", action="store_true")
+    fmt = ap.add_mutually_exclusive_group()
+    fmt.add_argument("--json", action="store_true")
+    fmt.add_argument("--sarif", action="store_true", help="SARIF 2.1.0 output")
     ap.add_argument("--sanitize", action="store_true", help="print a neutralised copy of the (single, non-transcript) input to stdout")
     ap.add_argument("--min-severity", choices=SEVERITIES, default="info")
     ap.add_argument("--fail-on", choices=SEVERITIES + ["none"], default="medium")
@@ -464,6 +532,8 @@ def main(argv=None):
 
     if a.json:
         print(json.dumps({"tool": "outfence", "version": __version__, "findings": findings}, indent=2))
+    elif a.sarif:
+        print(render_sarif(findings), end="")
     else:
         if not findings:
             print("outfence: no findings")

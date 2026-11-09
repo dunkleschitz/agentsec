@@ -299,6 +299,13 @@ class TestCLI(unittest.TestCase):
         self.assertNotIn("MD02", {f["rule"] for f in data["findings"]})
         self.assertEqual(code, 0)
 
+    def test_sarif(self):
+        code, out, err = run_main([os.path.join(EX, "risky_switch.jsonl"), "-p", os.path.join(EX, "policy_strict.json"), "--sarif", "--fail-on", "none"])
+        data = json.loads(out)
+        self.assertEqual(data["version"], "2.1.0", err)
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "modelpin")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
 
 class TestPolicyLoad(unittest.TestCase):
     def test_load_policy(self):

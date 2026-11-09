@@ -262,6 +262,13 @@ class TestCLI(unittest.TestCase):
         self.assertIn("CB01", {f["rule"] for f in data["findings"]})
         self.assertEqual(code, 1)
 
+    def test_sarif(self):
+        code, out, err = run_main([os.path.join(EX, "risky_openai.json"), "--sarif", "--fail-on", "none"])
+        data = json.loads(out)
+        self.assertEqual(data["version"], "2.1.0", err)
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "ctxbudget")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
 
 class TestHelpers(unittest.TestCase):
     def test_rules_complete(self):

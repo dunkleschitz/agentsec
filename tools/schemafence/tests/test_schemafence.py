@@ -290,6 +290,13 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("SK01", out)
 
+    def test_sarif(self):
+        code, out, err = run_main([os.path.join(EX, "risky_mcp.json"), "--sarif", "--disable", "SK10", "--fail-on", "none"])
+        data = json.loads(out)
+        self.assertEqual(data["version"], "2.1.0", err)
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "schemafence")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
 
 class TestHelpers(unittest.TestCase):
     def test_matches_key_set(self):

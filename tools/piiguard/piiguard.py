@@ -919,6 +919,77 @@ def _write_redacted(out_path, raws, findings_by_source=None):
             f.write(redact_text(raw, None))
 
 
+
+_SARIF_LEVEL = {
+    "critical": "error",
+    "high": "error",
+    "medium": "warning",
+    "low": "note",
+    "info": "note",
+}
+
+
+def render_sarif(findings):
+    """Return a SARIF 2.1.0 document for GitHub code scanning and other consumers."""
+    used, seen = [], set()
+    for f in findings:
+        if f.rule not in seen:
+            used.append(f.rule)
+            seen.add(f.rule)
+    rules = []
+    for rid in used:
+        if rid in RULES:
+            sev, title = RULES[rid][0], RULES[rid][1]
+        else:
+            sev = getattr(next((x for x in findings if x.rule == rid), None), "severity", "medium")
+            title = rid
+        rules.append({
+            "id": rid,
+            "name": title,
+            "shortDescription": {"text": title},
+            "defaultConfiguration": {"level": _SARIF_LEVEL.get(sev, "note")},
+        })
+    results = []
+    for f in findings:
+        d = f.to_dict() if hasattr(f, "to_dict") else {}
+        uri = (
+            d.get("source")
+            or d.get("file")
+            or getattr(f, "source", None)
+            or getattr(f, "where", None)
+            or "stdin"
+        )
+        line = d.get("line") or getattr(f, "line", None) or 1
+        try:
+            line = int(line) or 1
+        except (TypeError, ValueError):
+            line = 1
+        results.append({
+            "ruleId": f.rule,
+            "level": _SARIF_LEVEL.get(f.severity, "note"),
+            "message": {"text": f.message},
+            "locations": [{"physicalLocation": {
+                "artifactLocation": {"uri": str(uri)},
+                "region": {"startLine": line},
+            }}],
+            "properties": d,
+        })
+    return json.dumps({
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [{
+            "tool": {
+                "driver": {
+                    "name": "piiguard",
+                    "version": VERSION,
+                    "informationUri": "https://github.com/dunkleschitz/agentsec",
+                    "rules": rules,
+                }
+            },
+            "results": results,
+        }],
+    }, indent=2) + "\n"
+
 def main(argv=None):
     ap = argparse.ArgumentParser(
         prog="piiguard",
@@ -929,7 +1000,10 @@ def main(argv=None):
     ap.add_argument("paths", nargs="*", help="transcript files/dirs (.json/.jsonl/.txt), '-' for stdin")
     ap.add_argument("--as-text", action="store_true", help="treat inputs as plain text (paragraph = segment)")
     ap.add_argument("--disable", nargs="+", metavar="RULE", default=[], help="skip rule ids (e.g. PG10 PG01)")
-    ap.add_argument("--json", action="store_true", help="JSON output")
+    fmt = ap.add_mutually_exclusive_group()
+    fmt.add_argument("--json", action="store_true", help="JSON output")
+    fmt.add_argument("--sarif", action="store_true", help="SARIF 2.1.0 output")
+
     ap.add_argument(
         "--min-severity",
         default="info",
@@ -1005,6 +1079,8 @@ def main(argv=None):
             },
         }
         sys.stdout.write(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+    elif args.sarif:
+        print(render_sarif(shown), end="")
     else:
         sys.stdout.write(format_text(shown))
 

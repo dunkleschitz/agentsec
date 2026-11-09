@@ -84,9 +84,11 @@ python3 run_tests.py toolgate   # one tool
 | [secretflow](tools/secretflow/) | Tracks secret propagation: a secret-shaped value from a tool result later appearing in another tool's args | `python3 secretflow.py examples/risky_openai.json --disable FL10` |
 
 Run the "Try it" commands from inside the tool's folder (`cd tools/<name>`). Every tool
-supports `--help` and `--json`. Eleven tools also emit SARIF (`--sarif`): agentcard, agentci,
-mcpposture, mcpsink, pickleprobe, ragsieve, rulesguard, slopcheck, tracesweep, vibeaudit, and
-yolocheck. Most tools have a `--fail-on` / `--min-severity` switch for CI. Exit codes are
+supports `--help` and `--json`. Twenty-seven tools emit SARIF (`--sarif`): agentcard, agentci, ctxbudget, fetchfence,
+hitlguard, loopguard, mcpposture, mcpsink, memfence, modelpin, outfence, pathfence,
+pickleprobe, piiguard, promptleak, ragsieve, rulesguard, schemafence, secretflow, shellfence,
+slopcheck, tmplfence, toolpin, tracesweep, trifecta, vibeaudit, and yolocheck.
+`--sarif` for resultguard and toolpoison is reserved as a good first issue. Most tools have a `--fail-on` / `--min-severity` switch for CI. Exit codes are
 consistent across the kit: `0` means clean, `1` means findings at or above the threshold, and
 `2` means a usage or input error.
 
@@ -204,7 +206,7 @@ To also gate MCP tool-definition drift, set `mcp-snapshot` and `mcp-lock` and in
   through a series of build sessions, one tool at a time. A human chose the direction and
   reviewed the result before release. Treat the code as you would any new, lightly reviewed
   open-source project: read it before relying on it.
-- **What it was tested against.** Each tool ships with a unittest suite (1589 tests in total)
+- **What it was tested against.** Each tool ships with a unittest suite (1605 tests in total)
   and with example inputs built from **synthetic, fake data**: fake keys, fake transcripts,
   fake configs and fake documents. The tests check rule behavior, output formats and CLI exit
   codes against those fixtures. The tools have **not** been benchmarked against real-world

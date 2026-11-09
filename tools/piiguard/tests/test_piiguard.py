@@ -315,6 +315,13 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("PG10", out)
 
+    def test_sarif(self):
+        code, out, err = run_main([os.path.join(EX, "risky_plaintext.txt"), "--as-text", "--sarif", "--disable", "PG10", "--fail-on", "none"])
+        data = json.loads(out)
+        self.assertEqual(data["version"], "2.1.0", err)
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "piiguard")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
 
 class TestIbanHelper(unittest.TestCase):
     def test_known_valid(self):

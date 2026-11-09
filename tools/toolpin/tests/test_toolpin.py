@@ -316,6 +316,15 @@ class CLITests(unittest.TestCase):
             self.assertEqual(tp.main(["--list-rules"]), 0)
         self.assertIn("PN13", buf.getvalue())
 
+    def test_sarif(self):
+        r = self.run_cli("check", os.path.join(EX, "drifted.json"), "-l", self.lock,
+                         "--sarif", "--fail-on", "none")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        data = json.loads(r.stdout)
+        self.assertEqual(data["version"], "2.1.0")
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "toolpin")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
 
 if __name__ == "__main__":
     unittest.main()

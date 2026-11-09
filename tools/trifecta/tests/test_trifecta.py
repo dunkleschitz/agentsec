@@ -232,6 +232,15 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("mail/run_shell", buf.getvalue())
 
+    def test_sarif(self):
+        r = self.cli(os.path.join(EX, "agent"), "--sarif", "--fail-on", "none")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        data = json.loads(r.stdout)
+        self.assertEqual(data["version"], "2.1.0")
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "trifecta")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
+
 
 if __name__ == "__main__":
     unittest.main()

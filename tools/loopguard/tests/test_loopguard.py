@@ -184,6 +184,14 @@ class CliTests(unittest.TestCase):
     def test_bad_repeat(self):
         self.assertEqual(self.run_cli("--repeat", "1", EX).returncode, 2)
 
+    def test_sarif(self):
+        r = self.run_cli(os.path.join(EX, "runaway_openai.json"), "--sarif", "--fail-on", "none")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        data = json.loads(r.stdout)
+        self.assertEqual(data["version"], "2.1.0")
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "loopguard")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
 
 if __name__ == "__main__":
     unittest.main()

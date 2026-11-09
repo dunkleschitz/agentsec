@@ -537,6 +537,8 @@ def cmd_show(a):
     if a.json:
         print(json.dumps({"version": VERSION, "meta": meta, "tools": rows,
                           "integrity": [i.to_dict() for i in issues]}, indent=2))
+    elif a.sarif:
+        print(render_sarif(issues), end="")
     else:
         print("%s (created %s): %d server(s), %d tool(s)" % (a.file, meta["created"] or "-", len(servers), len(rows)))
         for r in rows:
@@ -559,6 +561,8 @@ def cmd_check(a):
     if a.json:
         print(json.dumps({"version": VERSION, "lockfile": a.lockfile, "snapshot": a.snapshot,
                           "summary": summary, "findings": [f.to_dict() for f in shown]}, indent=2, ensure_ascii=False))
+    elif a.sarif:
+        print(render_sarif(shown), end="")
     else:
         print("toolpin check: %s (%d tools) vs %s (%d tools): %d change finding(s)" % (
             a.lockfile, summary["pinned_tools"], a.snapshot, summary["current_tools"], len(findings)))
@@ -577,6 +581,77 @@ def cmd_check(a):
     return 1 if any(SEV_RANK[f.severity] >= thr for f in findings) else 0
 
 
+
+_SARIF_LEVEL = {
+    "critical": "error",
+    "high": "error",
+    "medium": "warning",
+    "low": "note",
+    "info": "note",
+}
+
+
+def render_sarif(findings):
+    """Return a SARIF 2.1.0 document for GitHub code scanning and other consumers."""
+    used, seen = [], set()
+    for f in findings:
+        if f.rule not in seen:
+            used.append(f.rule)
+            seen.add(f.rule)
+    rules = []
+    for rid in used:
+        if rid in RULES:
+            sev, title = RULES[rid][0], RULES[rid][1]
+        else:
+            sev = getattr(next((x for x in findings if x.rule == rid), None), "severity", "medium")
+            title = rid
+        rules.append({
+            "id": rid,
+            "name": title,
+            "shortDescription": {"text": title},
+            "defaultConfiguration": {"level": _SARIF_LEVEL.get(sev, "note")},
+        })
+    results = []
+    for f in findings:
+        d = f.to_dict() if hasattr(f, "to_dict") else {}
+        uri = (
+            d.get("source")
+            or d.get("file")
+            or getattr(f, "source", None)
+            or getattr(f, "where", None)
+            or "stdin"
+        )
+        line = d.get("line") or getattr(f, "line", None) or 1
+        try:
+            line = int(line) or 1
+        except (TypeError, ValueError):
+            line = 1
+        results.append({
+            "ruleId": f.rule,
+            "level": _SARIF_LEVEL.get(f.severity, "note"),
+            "message": {"text": f.message},
+            "locations": [{"physicalLocation": {
+                "artifactLocation": {"uri": str(uri)},
+                "region": {"startLine": line},
+            }}],
+            "properties": d,
+        })
+    return json.dumps({
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [{
+            "tool": {
+                "driver": {
+                    "name": "toolpin",
+                    "version": VERSION,
+                    "informationUri": "https://github.com/dunkleschitz/agentsec",
+                    "rules": rules,
+                }
+            },
+            "results": results,
+        }],
+    }, indent=2) + "\n"
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="toolpin", description=__doc__.split("\n\n")[0])
     ap.add_argument("--version", action="version", version="toolpin " + VERSION)
@@ -591,12 +666,14 @@ def main(argv=None):
     c.add_argument("-l", "--lockfile", default="toolpin.lock.json")
     c.add_argument("--server", help="server name for single-server snapshots (default 'default')")
     c.add_argument("--json", action="store_true")
+    c.add_argument("--sarif", action="store_true", help="SARIF 2.1.0 output")
     c.add_argument("--min-severity", choices=SEVERITIES, default="info")
     c.add_argument("--fail-on", choices=SEVERITIES[1:] + ["any", "none"], default="high")
     s = sub.add_parser("show", help="list pinned tools and verify lockfile integrity")
     s.add_argument("file", nargs="?", default="toolpin.lock.json")
     s.add_argument("--server")
     s.add_argument("--json", action="store_true")
+    s.add_argument("--sarif", action="store_true", help="SARIF 2.1.0 output")
     a = ap.parse_args(argv)
     if a.list_rules:
         for r, (sev, t) in sorted(RULES.items()):

@@ -261,6 +261,13 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("SF12", out)
 
+    def test_sarif(self):
+        code, out, err = run_main([os.path.join(EX, "risky_openai.json"), "--sarif", "--disable", "SF12", "--fail-on", "none"])
+        data = json.loads(out)
+        self.assertEqual(data["version"], "2.1.0", err)
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "shellfence")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
 
 class TestRulesCoverage(unittest.TestCase):
     """Ensure example fixtures exercise most rules."""

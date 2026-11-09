@@ -430,12 +430,80 @@ def report_text(tools, findings):
     return "\n".join(lines)
 
 
+
+_SARIF_LEVEL = {
+    "critical": "error",
+    "high": "error",
+    "medium": "warning",
+    "low": "note",
+    "info": "note",
+}
+
+
+def render_sarif(findings):
+    """Return a SARIF 2.1.0 document for GitHub code scanning and other consumers."""
+    used, seen = [], set()
+    for f in findings:
+        rid = f.get("rule") or f.get("code")
+        if rid not in seen:
+            used.append(rid)
+            seen.add(rid)
+    rules = []
+    for rid in used:
+        if rid in RULES:
+            sev, title = RULES[rid][0], RULES[rid][1]
+        else:
+            sev, title = "medium", rid
+        rules.append({
+            "id": rid,
+            "name": title,
+            "shortDescription": {"text": title},
+            "defaultConfiguration": {"level": _SARIF_LEVEL.get(sev, "note")},
+        })
+    results = []
+    for f in findings:
+        rid = f.get("rule") or f.get("code")
+        uri = f.get("source") or (f.get("tools") or ["stdin"])[0]
+        line = f.get("line") or 1
+        try:
+            line = int(line) or 1
+        except (TypeError, ValueError):
+            line = 1
+        msg = f.get("message") or f.get("detail") or f.get("title") or rid
+        results.append({
+            "ruleId": rid,
+            "level": _SARIF_LEVEL.get(f.get("severity"), "note"),
+            "message": {"text": msg},
+            "locations": [{"physicalLocation": {
+                "artifactLocation": {"uri": str(uri)},
+                "region": {"startLine": line},
+            }}],
+            "properties": f,
+        })
+    return json.dumps({
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [{
+            "tool": {
+                "driver": {
+                    "name": "trifecta",
+                    "version": __version__,
+                    "informationUri": "https://github.com/dunkleschitz/agentsec",
+                    "rules": rules,
+                }
+            },
+            "results": results,
+        }],
+    }, indent=2) + "\n"
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="trifecta", description=__doc__.split("\n")[1])
     ap.add_argument("paths", nargs="+", help="tool definition JSON files or directories ('-' = stdin)")
     ap.add_argument("--tags", help="JSON overrides {\"overrides\": {\"server/tool glob\": [legs]}}")
     ap.add_argument("--ignore", action="append", default=[], help="skip tools matching glob")
-    ap.add_argument("--json", action="store_true", help="JSON output")
+    fmt = ap.add_mutually_exclusive_group()
+    fmt.add_argument("--json", action="store_true", help="JSON output")
+    fmt.add_argument("--sarif", action="store_true", help="SARIF 2.1.0 output")
     ap.add_argument("--min-severity", choices=SEVERITIES, default="info")
     ap.add_argument("--fail-on", choices=SEVERITIES[1:] + ("any", "none"), default="high",
                     help="exit 1 if a finding is at/above this severity (default high)")
@@ -447,8 +515,12 @@ def main(argv=None):
         sys.stderr.write("trifecta: error: %s\n" % e)
         return 2
     findings = [f for f in findings if SEV_RANK[f["severity"]] >= SEV_RANK[a.min_severity]]
-    print(json.dumps(report_json(tools, findings), indent=2) if a.json
-          else report_text(tools, findings))
+    if a.json:
+        print(json.dumps(report_json(tools, findings), indent=2))
+    elif a.sarif:
+        print(render_sarif(findings), end="")
+    else:
+        print(report_text(tools, findings))
     if a.fail_on == "none":
         return 0
     floor = 0 if a.fail_on == "any" else SEV_RANK[a.fail_on]

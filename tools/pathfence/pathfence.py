@@ -718,6 +718,77 @@ def format_table(findings, events_count, paths_set, inventory=False):
     return "\n".join(lines)
 
 
+
+_SARIF_LEVEL = {
+    "critical": "error",
+    "high": "error",
+    "medium": "warning",
+    "low": "note",
+    "info": "note",
+}
+
+
+def render_sarif(findings):
+    """Return a SARIF 2.1.0 document for GitHub code scanning and other consumers."""
+    used, seen = [], set()
+    for f in findings:
+        if f.rule not in seen:
+            used.append(f.rule)
+            seen.add(f.rule)
+    rules = []
+    for rid in used:
+        if rid in RULES:
+            sev, title = RULES[rid][0], RULES[rid][1]
+        else:
+            sev = getattr(next((x for x in findings if x.rule == rid), None), "severity", "medium")
+            title = rid
+        rules.append({
+            "id": rid,
+            "name": title,
+            "shortDescription": {"text": title},
+            "defaultConfiguration": {"level": _SARIF_LEVEL.get(sev, "note")},
+        })
+    results = []
+    for f in findings:
+        d = f.to_dict() if hasattr(f, "to_dict") else {}
+        uri = (
+            d.get("source")
+            or d.get("file")
+            or getattr(f, "source", None)
+            or getattr(f, "where", None)
+            or "stdin"
+        )
+        line = d.get("line") or getattr(f, "line", None) or 1
+        try:
+            line = int(line) or 1
+        except (TypeError, ValueError):
+            line = 1
+        results.append({
+            "ruleId": f.rule,
+            "level": _SARIF_LEVEL.get(f.severity, "note"),
+            "message": {"text": f.message},
+            "locations": [{"physicalLocation": {
+                "artifactLocation": {"uri": str(uri)},
+                "region": {"startLine": line},
+            }}],
+            "properties": d,
+        })
+    return json.dumps({
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [{
+            "tool": {
+                "driver": {
+                    "name": "pathfence",
+                    "version": VERSION,
+                    "informationUri": "https://github.com/dunkleschitz/agentsec",
+                    "rules": rules,
+                }
+            },
+            "results": results,
+        }],
+    }, indent=2) + "\n"
+
 def main(argv=None):
     ap = argparse.ArgumentParser(
         prog="pathfence",
@@ -730,7 +801,10 @@ def main(argv=None):
     ap.add_argument("--workspace", action="append", default=[], metavar="ROOT",
                     help="expected workspace root (repeatable); enables PF07 outside-root checks")
     ap.add_argument("--disable", nargs="+", default=[], metavar="RULE", help="skip rule ids")
-    ap.add_argument("--json", action="store_true", help="JSON output")
+    fmt = ap.add_mutually_exclusive_group()
+    fmt.add_argument("--json", action="store_true", help="JSON output")
+    fmt.add_argument("--sarif", action="store_true", help="SARIF 2.1.0 output")
+
     ap.add_argument("--min-severity", default="info", choices=SEVERITIES)
     ap.add_argument("--fail-on", default="high",
                     choices=SEVERITIES + ["any", "none"],
@@ -802,6 +876,8 @@ def main(argv=None):
             "paths": sorted(path_set),
             "findings": [f.to_dict() for f in shown],
         }, indent=2))
+    elif ns.sarif:
+        print(render_sarif(shown), end="")
     else:
         print(format_table(shown, len(all_events), path_set))
 

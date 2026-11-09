@@ -249,6 +249,15 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(p.returncode, 0)
         self.assertEqual(len(p.stdout.strip().splitlines()), len(of.RULES))
 
+    def test_sarif(self):
+        p = self.run_cli(os.path.join(EX, "exfil_response.md"), "--sarif", "--fail-on", "none")
+        self.assertEqual(p.returncode, 0, p.stderr)
+        data = json.loads(p.stdout)
+        self.assertEqual(data["version"], "2.1.0")
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "outfence")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
+
 
 if __name__ == "__main__":
     unittest.main()

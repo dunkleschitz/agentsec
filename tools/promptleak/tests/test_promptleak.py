@@ -237,6 +237,14 @@ class TestCLI(unittest.TestCase):
         srcs = {f["source"].split("#")[0] for f in json.loads(out)["findings"]}
         self.assertIn(os.path.join("examples", "model_output.txt"), srcs)
 
+    def test_sarif(self):
+        code, out, err = run("examples/leaky_transcript.json", "--sarif", "--fail-on", "none")
+        data = json.loads(out)
+        self.assertEqual(data["version"], "2.1.0", err)
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "promptleak")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
+
 
 if __name__ == "__main__":
     unittest.main()

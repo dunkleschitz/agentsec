@@ -352,6 +352,72 @@ def scan_path(path, ext_prompts, args):
     return findings
 
 
+
+_SARIF_LEVEL = {
+    "critical": "error",
+    "high": "error",
+    "medium": "warning",
+    "low": "note",
+    "info": "note",
+}
+
+
+def render_sarif(findings):
+    """Return a SARIF 2.1.0 document for GitHub code scanning and other consumers."""
+    used, seen = [], set()
+    for f in findings:
+        rid = f.get("rule") or f.get("code")
+        if rid not in seen:
+            used.append(rid)
+            seen.add(rid)
+    rules = []
+    for rid in used:
+        if rid in RULES:
+            sev, title = RULES[rid][0], RULES[rid][1]
+        else:
+            sev, title = "medium", rid
+        rules.append({
+            "id": rid,
+            "name": title,
+            "shortDescription": {"text": title},
+            "defaultConfiguration": {"level": _SARIF_LEVEL.get(sev, "note")},
+        })
+    results = []
+    for f in findings:
+        rid = f.get("rule") or f.get("code")
+        uri = f.get("source") or (f.get("tools") or ["stdin"])[0]
+        line = f.get("line") or 1
+        try:
+            line = int(line) or 1
+        except (TypeError, ValueError):
+            line = 1
+        msg = f.get("message") or f.get("detail") or f.get("title") or rid
+        results.append({
+            "ruleId": rid,
+            "level": _SARIF_LEVEL.get(f.get("severity"), "note"),
+            "message": {"text": msg},
+            "locations": [{"physicalLocation": {
+                "artifactLocation": {"uri": str(uri)},
+                "region": {"startLine": line},
+            }}],
+            "properties": f,
+        })
+    return json.dumps({
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [{
+            "tool": {
+                "driver": {
+                    "name": "promptleak",
+                    "version": VERSION,
+                    "informationUri": "https://github.com/dunkleschitz/agentsec",
+                    "rules": rules,
+                }
+            },
+            "results": results,
+        }],
+    }, indent=2) + "\n"
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="promptleak", description=__doc__.split("\n\n")[0])
     ap.add_argument("paths", nargs="+", help="transcripts (.json/.jsonl), text outputs, directories, or - for stdin")
@@ -365,7 +431,9 @@ def main(argv=None):
     ap.add_argument("--no-tools", action="store_true", help="do not scan tool-call arguments")
     ap.add_argument("--min-severity", choices=SEVERITIES, default="info")
     ap.add_argument("--fail-on", choices=SEVERITIES[1:] + ["none"], default="medium")
-    ap.add_argument("--json", action="store_true")
+    fmt = ap.add_mutually_exclusive_group()
+    fmt.add_argument("--json", action="store_true")
+    fmt.add_argument("--sarif", action="store_true", help="SARIF 2.1.0 output")
     ap.add_argument("--version", action="version", version="promptleak " + VERSION)
     args = ap.parse_args(argv)
     if args.n < 3:
@@ -382,6 +450,8 @@ def main(argv=None):
     findings.sort(key=lambda f: -SEV_RANK[f["severity"]])
     if args.json:
         print(json.dumps({"tool": "promptleak", "version": VERSION, "findings": findings}, indent=2))
+    elif args.sarif:
+        print(render_sarif(findings), end="")
     else:
         for f in findings:
             print("%-8s %s %s\n         %s" % (f["severity"].upper(), f["rule"], f["source"], f["detail"]))

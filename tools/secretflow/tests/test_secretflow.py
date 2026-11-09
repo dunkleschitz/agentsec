@@ -215,6 +215,13 @@ class TestCLI(unittest.TestCase):
         code, _, _ = run_main([path, "--fail-on", "high"])
         self.assertEqual(code, 0)
 
+    def test_sarif(self):
+        code, out, err = run_main([os.path.join(EX, "risky_openai.json"), "--sarif", "--disable", "FL10", "--fail-on", "none"])
+        data = json.loads(out)
+        self.assertEqual(data["version"], "2.1.0", err)
+        self.assertEqual(data["runs"][0]["tool"]["driver"]["name"], "secretflow")
+        self.assertTrue(data["runs"][0]["results"])
+        self.assertIn("ruleId", data["runs"][0]["results"][0])
 
 class TestNoFalsePropOnCleanResultReuseAbsent(unittest.TestCase):
     def test_secret_only_in_result_no_reuse(self):
