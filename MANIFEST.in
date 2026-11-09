@@ -9,6 +9,7 @@ include Makefile
 include run_tests.py
 include PUBLISHING.md
 include action.yml
+graft scripts
 include pyproject.toml
 include setup.py
 global-exclude __pycache__ *.py[cod] .DS_Store

@@ -1,0 +1,72 @@
+# Exercises the composite action against fixtures in this repository.
+name: action-self-test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  clean-passes:
+    name: clean fixture passes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          tools: resultguard,secretflow,pathfence,shellfence,fetchfence
+          paths: >-
+            tools/resultguard/examples/clean_openai.json
+            tools/secretflow/examples/clean_openai.json
+            tools/pathfence/examples/clean_openai.json
+            tools/shellfence/examples/clean_openai.json
+            tools/fetchfence/examples/clean_openai.json
+          fail-on: high
+          sarif: "true"
+
+  poisoned-fails:
+    name: poisoned fixture fails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan poisoned resultguard fixture
+        id: scan
+        continue-on-error: true
+        uses: ./
+        with:
+          tools: resultguard
+          paths: tools/resultguard/examples/poisoned_openai.json
+          fail-on: high
+          sarif: "true"
+      - name: Require the action to fail on findings
+        run: |
+          if [ "${{ steps.scan.outcome }}" != "failure" ]; then
+            echo "expected dunkleschitz/agentsec to fail on the poisoned fixture"
+            exit 1
+          fi
+          test -f agentsec-sarif/resultguard.json \
+            || test -f agentsec-sarif/resultguard.sarif
+
+  toolpin-drift:
+    name: toolpin detects lockfile drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan drifted MCP snapshot
+        id: scan
+        continue-on-error: true
+        uses: ./
+        with:
+          tools: toolpin
+          fail-on: high
+          mcp-snapshot: tools/toolpin/examples/drifted.json
+          mcp-lock: tools/toolpin/examples/toolpin.lock.json
+          sarif: "true"
+      - name: Require the action to fail on drift
+        run: |
+          if [ "${{ steps.scan.outcome }}" != "failure" ]; then
+            echo "expected toolpin to fail on the drifted snapshot"
+            exit 1
+          fi

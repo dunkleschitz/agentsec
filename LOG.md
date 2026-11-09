@@ -8,3 +8,4 @@
 - 2026-11-04 14:09 ET — Added #35 secretflow (tools/secretflow/): offline data-flow secret-propagation detector for agent transcripts (secret from tool result → later tool args, especially outbound/shell); rules FL01–FL10; 37 tests. Kit now 35 tools / 1572 tests.
 - 2026-11-09 09:45 America/Denver — Discoverability pass: README rewrite (quick start, badges, 35-tool table, OWASP LLM 2025 / Agentic 2026 mapping), GitHub Pages site in docs/, CODE_OF_CONDUCT.md, issue and PR templates. Kit still 35 tools / 1572 tests.
 - 2026-11-09 16:45 America/Denver — Packaging: pyproject.toml, unified `agentsec <tool>` CLI (stdlib-only), PUBLISHING.md, and a manual-only PyPI trusted-publishing workflow. Kit still 35 tools; 1584 tests (1572 tool + 12 CLI).
+- 2026-11-09 16:50 America/Denver — Reusable composite GitHub Action at action.yml (`uses: dunkleschitz/agentsec@v0`), self-test workflow, and README section. 1589 tests.

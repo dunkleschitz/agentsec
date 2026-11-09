@@ -167,13 +167,44 @@ python3 run_tests.py toolgate   # one tool
 tests**. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the same script on
 Python 3.10, 3.11, 3.12 and 3.13 on `ubuntu-latest` for every push and pull request.
 
+## Use in GitHub Actions
+
+Point the reusable composite action at saved transcripts (or MCP configs) in your
+repository. It installs this kit and runs the tools you name:
+
+```yaml
+name: agentsec
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dunkleschitz/agentsec@v0
+        with:
+          tools: resultguard, secretflow, piiguard, pathfence, shellfence, fetchfence
+          paths: agent-runs
+          fail-on: high
+```
+
+Inputs and outputs are documented in [action.yml](action.yml). Per-tool reports land in
+`agentsec-sarif/` (SARIF when the tool supports `--sarif`, otherwise JSON). Pin a release
+tag (`@v0` or `@v0.36.0`) once you rely on it; `@main` always tracks the latest commit.
+
+To also gate MCP tool-definition drift, set `mcp-snapshot` and `mcp-lock` and include
+`toolpin` in `tools`. The action will run `toolpin check` against those files.
+
 ## How this was built
 
 - **AI-built.** The tools, tests and documentation were written by an AI coding agent working
   through a series of build sessions, one tool at a time. A human chose the direction and
   reviewed the result before release. Treat the code as you would any new, lightly reviewed
   open-source project: read it before relying on it.
-- **What it was tested against.** Each tool ships with a unittest suite (1584 tests in total)
+- **What it was tested against.** Each tool ships with a unittest suite (1589 tests in total)
   and with example inputs built from **synthetic, fake data**: fake keys, fake transcripts,
   fake configs and fake documents. The tests check rule behavior, output formats and CLI exit
   codes against those fixtures. The tools have **not** been benchmarked against real-world
@@ -203,10 +234,11 @@ agentsec/
 ├── tools/<name>/        one folder per tool: <name>.py, README.md, tests/, examples/
 ├── docs/                GitHub Pages site (https://dunkleschitz.github.io/agentsec/)
 ├── tests/               tests for the unified CLI
+├── action.yml           reusable composite Action (`uses: dunkleschitz/agentsec@v0`)
 ├── pyproject.toml       packaging (stdlib-only; no publish until you follow PUBLISHING.md)
 ├── run_tests.py         runs every suite, enforces the zero-test rule
 ├── Makefile             `make test`
-├── .github/workflows/   CI (Python 3.10–3.13) and a manual-only PyPI publish workflow
+├── .github/workflows/   CI, Action self-test, and a manual-only PyPI publish workflow
 ├── CODE_OF_CONDUCT.md   CONTRIBUTING.md   SECURITY.md   LICENSE   PUBLISHING.md
 ```
 
