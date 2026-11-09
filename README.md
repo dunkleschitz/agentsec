@@ -9,7 +9,7 @@
 
 ![agentsec demo: resultguard, secretflow, piiguard and toolpin in action](assets/demo.gif)
 
-Each tool is a single Python file that uses **only the standard library**. There is nothing to `pip install`, no network calls, and no telemetry. Each tool has its own README, examples built from fake data, and a unittest suite.
+Each tool is a single Python file that uses **only the standard library**. There are no third-party dependencies, no network calls, and no telemetry. Each tool has its own README, examples built from fake data, and a unittest suite. You can run a tool as a standalone script, or install the kit and use the unified `agentsec` command.
 
 > **Status: experimental.** These tools were AI-built (see [How this was built](#how-this-was-built)).
 > They are heuristic scanners meant to help a human reviewer. A clean result does not mean
@@ -17,7 +17,17 @@ Each tool is a single Python file that uses **only the standard library**. There
 
 ## Quick start
 
-Python 3.10 or newer is the only requirement.
+Python 3.10 or newer is the only requirement. No third-party packages.
+
+Install from this repository (the kit is not on PyPI yet — see [PUBLISHING.md](PUBLISHING.md)):
+
+```sh
+pip install git+https://github.com/dunkleschitz/agentsec.git
+agentsec --list
+agentsec mcpposture ~/.cursor/mcp.json
+```
+
+Or clone and run a tool as a standalone script, with no virtualenv and no install:
 
 ```sh
 git clone https://github.com/dunkleschitz/agentsec.git
@@ -25,11 +35,11 @@ cd agentsec/tools/mcpposture
 python3 mcpposture.py examples/risky_claude_desktop_config.json
 ```
 
-No virtualenv, no packages. When you are ready, point `mcpposture` at your own Cursor, Claude Desktop, or VS Code MCP config. Every tool supports `--help` and `--json`.
+When you are ready, point `mcpposture` at your own Cursor, Claude Desktop, or VS Code MCP config. Every tool supports `--help` and `--json`. The same options work after the tool name: `agentsec mcpposture --help`.
 
 ```sh
 cd agentsec
-python3 run_tests.py            # all 35 suites, 1572 tests (or: make test)
+python3 run_tests.py            # all 35 tool suites plus the unified CLI (or: make test)
 python3 run_tests.py toolgate   # one tool
 ```
 
@@ -126,6 +136,17 @@ dependency names, not at factual correctness of model output.
 Requirements: **Python 3.10 or newer**. No third-party packages are needed.
 
 ```sh
+pip install git+https://github.com/dunkleschitz/agentsec.git
+agentsec --help
+agentsec resultguard path/to/transcript.json --json
+```
+
+From a clone, `pip install .` (or `pip install -e .`) gives you the same `agentsec` command.
+A PyPI release is prepared but not published; the exact steps are in [PUBLISHING.md](PUBLISHING.md).
+
+You can still run any tool as a standalone script with no install:
+
+```sh
 git clone https://github.com/dunkleschitz/agentsec.git
 cd agentsec/tools/mcpposture
 python3 mcpposture.py --help
@@ -138,7 +159,7 @@ such as `scopefit_mapping.json`, `slopcheck_known.json` or `prices.json`) onto y
 ### Run the tests
 
 ```sh
-python3 run_tests.py            # all 35 suites (or: make test)
+python3 run_tests.py            # all 35 tool suites plus the unified CLI (or: make test)
 python3 run_tests.py toolgate   # one tool
 ```
 
@@ -152,7 +173,7 @@ Python 3.10, 3.11, 3.12 and 3.13 on `ubuntu-latest` for every push and pull requ
   through a series of build sessions, one tool at a time. A human chose the direction and
   reviewed the result before release. Treat the code as you would any new, lightly reviewed
   open-source project: read it before relying on it.
-- **What it was tested against.** Each tool ships with a unittest suite (1572 tests in total)
+- **What it was tested against.** Each tool ships with a unittest suite (1584 tests in total)
   and with example inputs built from **synthetic, fake data**: fake keys, fake transcripts,
   fake configs and fake documents. The tests check rule behavior, output formats and CLI exit
   codes against those fixtures. The tools have **not** been benchmarked against real-world
@@ -178,12 +199,15 @@ Python 3.10, 3.11, 3.12 and 3.13 on `ubuntu-latest` for every push and pull requ
 
 ```
 agentsec/
+├── agentsec/            unified CLI package (`pip install .` → `agentsec <tool>`)
 ├── tools/<name>/        one folder per tool: <name>.py, README.md, tests/, examples/
 ├── docs/                GitHub Pages site (https://dunkleschitz.github.io/agentsec/)
+├── tests/               tests for the unified CLI
+├── pyproject.toml       packaging (stdlib-only; no publish until you follow PUBLISHING.md)
 ├── run_tests.py         runs every suite, enforces the zero-test rule
 ├── Makefile             `make test`
-├── .github/workflows/   CI (Python 3.10–3.13)
-├── CODE_OF_CONDUCT.md   CONTRIBUTING.md   SECURITY.md   LICENSE
+├── .github/workflows/   CI (Python 3.10–3.13) and a manual-only PyPI publish workflow
+├── CODE_OF_CONDUCT.md   CONTRIBUTING.md   SECURITY.md   LICENSE   PUBLISHING.md
 ```
 
 ## License

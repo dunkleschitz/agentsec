@@ -32,11 +32,31 @@ def run_suite(name):
     return ok, count, out
 
 
+def run_pkg_suite():
+    """Run tests/ at the repo root (unified CLI, packaging)."""
+    tests = os.path.join(ROOT, "tests")
+    if not os.path.isdir(tests):
+        return True, 0, "no tests/ directory\n"
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+    # Repo root must be on PYTHONPATH so `import agentsec` works without install.
+    env["PYTHONPATH"] = ROOT + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+    proc = subprocess.run(
+        [sys.executable, "-m", "unittest", "discover",
+         "-s", tests, "-t", tests, "-p", "test_*.py", "-v"],
+        cwd=ROOT, capture_output=True, text=True, env=env,
+    )
+    out = proc.stdout + proc.stderr
+    m = re.search(r"^Ran (\d+) tests? in", out, re.M)
+    count = int(m.group(1)) if m else 0
+    ok = proc.returncode == 0 and count > 0
+    return ok, count, out
+
+
 def main(argv):
     names = argv or sorted(d for d in os.listdir(TOOLS_DIR)
                            if os.path.isdir(os.path.join(TOOLS_DIR, d)))
     total, failed = 0, []
-    print("%-12s %6s  %s" % ("tool", "tests", "result"))
+    print("%-12s %6s  %s" % ("suite", "tests", "result"))
     for name in names:
         ok, count, out = run_suite(name)
         total += count
@@ -45,6 +65,15 @@ def main(argv):
         if not ok:
             failed.append(name)
             sys.stderr.write("\n----- %s output -----\n%s\n" % (name, out))
+    # Package / CLI tests run when the full suite is requested.
+    if not argv:
+        ok, count, out = run_pkg_suite()
+        total += count
+        status = "PASS" if ok else ("FAIL (zero tests ran)" if count == 0 else "FAIL")
+        print("%-12s %6d  %s" % ("agentsec", count, status))
+        if not ok:
+            failed.append("agentsec")
+            sys.stderr.write("\n----- agentsec (tests/) output -----\n%s\n" % out)
     print("-" * 32)
     print("%-12s %6d  %s" % ("TOTAL", total,
                              "PASS" if not failed else "FAIL: " + ", ".join(failed)))

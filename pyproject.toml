@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentsec"
+version = "0.36.0"
+description = "35 offline, stdlib-only Python CLIs that scan AI agents for prompt injection, MCP tool poisoning, SSRF, and secret leaks."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "agentsec contributors" }]
+requires-python = ">=3.10"
+dependencies = []
+keywords = [
+    "ai",
+    "security",
+    "llm",
+    "mcp",
+    "prompt-injection",
+    "agent",
+    "sarif",
+    "ssrf",
+    "pii",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+[project.urls]
+Homepage = "https://github.com/dunkleschitz/agentsec"
+Documentation = "https://dunkleschitz.github.io/agentsec/"
+Repository = "https://github.com/dunkleschitz/agentsec"
+Issues = "https://github.com/dunkleschitz/agentsec/issues"
+"Release notes" = "https://github.com/dunkleschitz/agentsec/releases"
+
+[project.scripts]
+agentsec = "agentsec.cli:main"
+
+[tool.setuptools]
+packages = ["agentsec"]
+include-package-data = true
+license-files = ["LICENSE"]

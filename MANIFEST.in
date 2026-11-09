@@ -1,0 +1,18 @@
+graft tools
+graft agentsec
+include LICENSE
+include README.md
+include CONTRIBUTING.md
+include CODE_OF_CONDUCT.md
+include SECURITY.md
+include Makefile
+include run_tests.py
+include PUBLISHING.md
+include action.yml
+include pyproject.toml
+include setup.py
+global-exclude __pycache__ *.py[cod] .DS_Store
+# Generated tracesweep/pickleprobe examples must not ship; they are built at test time.
+recursive-exclude tools/tracesweep/examples claude_session.jsonl openai_chat.json agent_run.log
+recursive-exclude tools/pickleprobe/examples/risky *
+recursive-exclude tools/pickleprobe/examples/clean *

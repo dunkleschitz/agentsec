@@ -1,0 +1,53 @@
+# Manual-only PyPI publish. Do not add push or release triggers until a
+# PyPI trusted publisher is configured for this repo. See PUBLISHING.md.
+name: Publish to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type 'publish' to upload the current revision to PyPI"
+        required: true
+        default: ""
+        type: string
+
+# Least privilege: the job that talks to PyPI is the only one that gets
+# id-token: write, and only after the confirmation input matches.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build sdist and wheel
+    if: github.event.inputs.confirm == 'publish'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build
+        run: |
+          python -m pip install -U pip build
+          python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  publish:
+    name: Upload to PyPI
+    needs: build
+    if: github.event.inputs.confirm == 'publish'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
