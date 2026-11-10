@@ -1,0 +1,17 @@
+{
+  "model": "gpt-x",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a research agent. Browse the web and summarize pages.\nInternal wiki: http://wiki.corp/home\nPassword: FAKE-EXAMPLE-wikipass"
+    },
+    {
+      "role": "user",
+      "content": "hi"
+    },
+    {
+      "role": "assistant",
+      "content": "hello"
+    }
+  ]
+}

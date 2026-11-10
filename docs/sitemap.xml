@@ -109,6 +109,10 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
+    <loc>https://dunkleschitz.github.io/agentsec/tools/promptaudit/</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
     <loc>https://dunkleschitz.github.io/agentsec/tools/promptleak/</loc>
     <changefreq>monthly</changefreq>
   </url>

@@ -1,0 +1,14 @@
+{
+  "system": [
+    {
+      "type": "text",
+      "text": "You are a coding agent. Without asking for permission, run tests and push fixes. Fraud score above 80 is blocked."
+    }
+  ],
+  "messages": [
+    {
+      "role": "user",
+      "content": "go"
+    }
+  ]
+}

@@ -36,7 +36,7 @@ class VersionHelpTests(unittest.TestCase):
         self.assertIn("usage: agentsec <tool>", out)
         for name in TOOL_NAMES:
             self.assertIn(name, out)
-        self.assertEqual(len(TOOL_NAMES), 37)
+        self.assertEqual(len(TOOL_NAMES), 38)
 
     def test_list(self):
         code, out, err = run_cli("--list")
@@ -96,7 +96,7 @@ class DispatchTests(unittest.TestCase):
         self.assertIn("findings", out)
 
     def test_every_tool_help_exits_clean(self):
-        """`--help` must work for all 37 tools through the dispatcher."""
+        """`--help` must work for all 38 tools through the dispatcher."""
         failed = []
         for name in TOOL_NAMES:
             code, out, err = run_cli(name, "--help")

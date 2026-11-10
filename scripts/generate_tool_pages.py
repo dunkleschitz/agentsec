@@ -64,6 +64,7 @@ RISK_PHRASE = {
     "secretflow": "secrets flowing into later tool arguments",
     "mcpoauth": "weak OAuth settings in MCP server metadata",
     "mcpbundle": "risky install manifests for MCP servers",
+    "promptaudit": "secrets and authorization logic inside system prompts",
 }
 
 # Tools that currently emit SARIF 2.1.0 (--sarif). Keep in sync with the README.
@@ -85,6 +86,7 @@ SARIF_TOOLS = frozenset(
         "pathfence",
         "pickleprobe",
         "piiguard",
+        "promptaudit",
         "promptleak",
         "ragsieve",
         "rulesguard",
