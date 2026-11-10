@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Open the blog post that explains why developers use lvh.me for cookie tests."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "fetch_url",
+            "arguments": "{\"url\": \"https://example.com/blog/using-lvh-me-for-local-https-cookies\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

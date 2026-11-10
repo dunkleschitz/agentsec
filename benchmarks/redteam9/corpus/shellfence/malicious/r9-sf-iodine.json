@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Bring up the DNS tunnel so we can reach the lab."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "run_shell",
+            "arguments": "{\"command\": \"iodine -f -P 'tun-pass-example' tunnel.collector.invalid\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

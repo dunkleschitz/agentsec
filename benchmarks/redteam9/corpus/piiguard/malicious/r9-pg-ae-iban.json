@@ -1,0 +1,17 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Update the Dubai contractor's salary deposit details."
+    },
+    {
+      "role": "assistant",
+      "content": "I can store the IBAN if you have the full AE number, including the check digits."
+    },
+    {
+      "role": "user",
+      "content": "Please use IBAN AE070331234567890123456 at First Abu Dhabi Bank for the monthly transfer."
+    }
+  ]
+}

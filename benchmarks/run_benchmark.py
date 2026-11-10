@@ -57,6 +57,8 @@ REDTEAM7_MANIFEST_PATH = REDTEAM7_DIR / "manifest.json"
 REDTEAM8_DIR = BENCH / "redteam8"
 REDTEAM8_MANIFEST_PATH = REDTEAM8_DIR / "manifest.json"
 REDTEAM8_BASELINE_PATH = BENCH / "baseline_redteam8_v0.47.0.json"
+REDTEAM9_DIR = BENCH / "redteam9"
+REDTEAM9_MANIFEST_PATH = REDTEAM9_DIR / "manifest.json"
 SITE = "https://dunkleschitz.github.io/agentsec"
 
 SEVERITY_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
@@ -318,6 +320,19 @@ def ensure_redteam8_fixtures() -> None:
     subprocess.run(
         [sys.executable, str(REDTEAM8_DIR / "generate.py"), "--missing-only"],
         check=True,
+    )
+
+
+def ensure_redteam9_fixtures() -> None:
+    if not REDTEAM9_MANIFEST_PATH.is_file():
+        return
+    manifest = json.loads(REDTEAM9_MANIFEST_PATH.read_text(encoding="utf-8"))
+    if all((REDTEAM9_DIR / s["path"]).is_file() for s in manifest["samples"]):
+        return
+    subprocess.run(
+        [sys.executable, str(REDTEAM9_DIR / "generate.py"), "--missing-only"],
+        cwd=ROOT, check=True, capture_output=True,
+        env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"),
     )
 
 
@@ -867,6 +882,45 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
         redteam7_html += "<h3>Round 7 false positives</h3>\n"
         redteam7_html += list_items(redteam7.get("false_positives") or [], "false positive")
 
+    redteam9_html = ""
+    redteam9 = results.get("redteam9") or {}
+    if redteam9:
+        r9_intro = (
+            "A ninth independent set of %d samples across the same eleven tools, written against the "
+            "frozen v0.48.0 detectors by a separate author who did not read tool source, rule lists, tests, "
+            "prior red-team fixtures (including round 8), the private dev set, or the v0.48.0 diff. "
+            "Techniques come from published 2026 research that round 8 did not use as its basis "
+            "(see benchmarks/redteam9/SOURCES.md). These numbers were scored once against the frozen "
+            "v0.48.0 rules and were not used to retune detectors. They are the current headline "
+            "independent unseen score. Unseen F1 across successive independent rounds: 78.3 (r3) → "
+            "74.4 (r4) → 61.5 (r5) → 81.3 (r6) → 96.1 (r7) → 78.2 (r8) → 69.2 (r9)."
+            % redteam9["sample_count"]
+        )
+        redteam9_html = section_table(
+            "Independent red-team round 9 (v0.48.0, unseen)", "redteam9", redteam9, r9_intro
+        )
+        redteam9_html += "<h3>Round 9 false negatives</h3>\n"
+        redteam9_html += list_items(redteam9.get("false_negatives") or [], "false negative")
+        redteam9_html += "<h3>Round 9 false positives</h3>\n"
+        redteam9_html += list_items(redteam9.get("false_positives") or [], "false positive")
+        redteam9_html += (
+            "<h3>Round 9 detection-gap issues #37–#46</h3>\n"
+            "<p>Every tool with a round-9 miss or false positive has one "
+            '<code>detection-gap</code> issue: '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/37">#37</a> (resultguard), '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/38">#38</a> (toolpoison), '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/39">#39</a> (shellfence), '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/40">#40</a> (memfence), '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/41">#41</a> (piiguard), '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/42">#42</a> (pathfence), '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/43">#43</a> (mcpposture), '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/44">#44</a> (secretflow), '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/45">#45</a> (tracesweep), and '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/46">#46</a> (mcpoauth). '
+            "fetchfence had a clean score on this set. These issues were opened after the single "
+            "v0.48.0 scoring run; detectors were not changed against the fixtures.</p>\n"
+        )
+
     redteam8_html = ""
     redteam8 = results.get("redteam8") or {}
     redteam8_independent = results.get("redteam8_independent") or {}
@@ -882,7 +936,7 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
             redteam8_html = section_table(
                 "Independent red-team round 8 (v0.47.0, unseen)", "redteam8-unseen",
                 redteam8_independent,
-                shared8 + " These numbers were scored once against the frozen v0.47.0 rules, before any later rule was changed against this set. They remain the honest unseen score and the headline independent number until a new independent round exists. Unseen F1 across successive independent rounds: 78.3 (r3) → 74.4 (r4) → 61.5 (r5) → 81.3 (r6) → 96.1 (r7) → 78.2 (r8).",
+                shared8 + " These numbers were scored once against the frozen v0.47.0 rules, before any later rule was changed against this set. They remain the honest v0.47.0 unseen score on this set. The headline independent number is now round 9. Unseen F1 across successive independent rounds: 78.3 (r3) → 74.4 (r4) → 61.5 (r5) → 81.3 (r6) → 96.1 (r7) → 78.2 (r8).",
             )
             redteam8_html += "<h3>Round 8 false negatives (v0.47.0)</h3>\n"
             redteam8_html += list_items(redteam8_independent.get("false_negatives") or [], "false negative")
@@ -895,7 +949,7 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
                     "generalized from the issue text and a private dev set, without opening the round-8 "
                     "fixtures while designing fixes), the same fixtures were re-run. The table below is a "
                     "<strong>seen</strong> score and is no longer independent. The original unseen numbers "
-                    "are kept in the table above and remain the headline independent score."
+                    "are kept in the table above as the previous unseen score. The headline independent number is round 9."
                 )
                 title = "Same round-8 set after v0.48.0 generalization (now seen)"
                 anchor = "redteam8-seen"
@@ -1015,6 +1069,7 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
     <article>
       {before_after}
       {heldout_html}
+      {redteam9_html}
       {redteam8_html}
       {redteam7_html}
       {redteam6_html}
@@ -1031,21 +1086,22 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
       {closed}
 
       <h2 id="how">How a detection is counted</h2>
-      <p>{esc(results.get("positive_definition") or "")} The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>, <code>benchmarks/heldout/manifest.json</code>, <code>benchmarks/redteam/manifest.json</code>, <code>benchmarks/redteam2/manifest.json</code>, <code>benchmarks/redteam3/manifest.json</code>, <code>benchmarks/redteam4/manifest.json</code>, and <code>benchmarks/redteam5/manifest.json</code>, and <code>benchmarks/redteam6/manifest.json</code>, and <code>benchmarks/redteam7/manifest.json</code>, and <code>benchmarks/redteam8/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
+      <p>{esc(results.get("positive_definition") or "")} The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>, <code>benchmarks/heldout/manifest.json</code>, <code>benchmarks/redteam/manifest.json</code>, <code>benchmarks/redteam2/manifest.json</code>, <code>benchmarks/redteam3/manifest.json</code>, <code>benchmarks/redteam4/manifest.json</code>, and <code>benchmarks/redteam5/manifest.json</code>, and <code>benchmarks/redteam6/manifest.json</code>, and <code>benchmarks/redteam7/manifest.json</code>, and <code>benchmarks/redteam8/manifest.json</code>, and <code>benchmarks/redteam9/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
       <p>Ten jobs are covered:</p>
       {tool_list}
 
       <h2 id="limits">Limits of this benchmark</h2>
       <ul>
         <li>Every fixture was written for this repository. A detector can look strong here and still fail on a real transcript format or a novel payload.</li>
-        <li>The corpus is still small (n={results["sample_count"]} on the expanded set; n={comparable.get("sample_count", "85")} on the original slice; n={(heldout or {}).get("sample_count", "?")} held-out; n={(redteam or {}).get("sample_count", "?")} independent red-team round 1; n={(redteam2 or {}).get("sample_count", "?")} round 2; n={(results.get("redteam3") or {}).get("sample_count", "?")} round 3; n={(results.get("redteam4") or {}).get("sample_count", "?")} round 4; n={(results.get("redteam5") or {}).get("sample_count", "?")} round 5; n={(results.get("redteam6") or {}).get("sample_count", "?")} round 6; n={(results.get("redteam7") or {}).get("sample_count", "?")} round 7; n={(results.get("redteam8") or {}).get("sample_count", "?")} round 8). Percentages will move when a single sample is added or re-labeled.</li>
+        <li>The corpus is still small (n={results["sample_count"]} on the expanded set; n={comparable.get("sample_count", "85")} on the original slice; n={(heldout or {}).get("sample_count", "?")} held-out; n={(redteam or {}).get("sample_count", "?")} independent red-team round 1; n={(redteam2 or {}).get("sample_count", "?")} round 2; n={(results.get("redteam3") or {}).get("sample_count", "?")} round 3; n={(results.get("redteam4") or {}).get("sample_count", "?")} round 4; n={(results.get("redteam5") or {}).get("sample_count", "?")} round 5; n={(results.get("redteam6") or {}).get("sample_count", "?")} round 6; n={(results.get("redteam7") or {}).get("sample_count", "?")} round 7; n={(results.get("redteam8") or {}).get("sample_count", "?")} round 8; n={(results.get("redteam9") or {}).get("sample_count", "?")} round 9). Percentages will move when a single sample is added or re-labeled.</li>
         <li>The held-out set was written after the #7–#11 fixes and was not used to retune those rules. A strong held-out score is still not evidence of real-world robustness.</li>
         <li>The independent red-team set was written without reading detector source or rule files. The v0.40.0 numbers on that set are the unseen score and stay visible. After issues #12–#16 were closed against general rule changes, the same set was re-run; those post-fix numbers are clearly labeled <strong>seen</strong> and are no longer independent.</li>
         <li>Round 2 was the development set for the v0.43.0 generalization. Its v0.41.0 numbers stay visible as the unseen score. The post-generalization re-run is labeled <strong>seen</strong>.</li>
         <li>Round 3 was the development set for the v0.44.0 generalization. Its v0.43.0 numbers stay visible as the unseen score. The post-generalization re-run is labeled <strong>seen</strong>.</li>
         <li>Rounds 4, 5, and 6 were each written after the then-frozen rules and later became development sets; their original unseen scores stay visible and the re-runs are labeled <strong>seen</strong>.</li>
         <li>Round 7 was written after the v0.47.0 rules were frozen and was scored once. Those numbers stay visible as an earlier unseen score.</li>
-        <li>Round 8 is a new independent set written by a separate author against the same frozen v0.47.0 detectors, without reading prior fixtures or detector source. It is the current unseen score, reported even when it is poor, and was not used to retune rules.</li>
+        <li>Round 8 was written by a separate author against the frozen v0.47.0 detectors, without reading prior fixtures or detector source. Its v0.47.0 numbers stay visible as the previous unseen score. After the v0.48.0 generalization the same set is labeled <strong>seen</strong>.</li>
+        <li>Round 9 is a new independent set written against the frozen v0.48.0 detectors, without reading tool source, tests, prior fixtures (including round 8), the private dev set, or the v0.48.0 diff. It is the current headline unseen score, reported even when it is poor, and was not used to retune rules.</li>
         <li>Info-level inventory findings are excluded. If we counted them, several tools would “detect” almost every transcript they parse.</li>
         <li>All secrets and personal-data values are fake. tracesweep also suppresses documentation placeholders (the word <code>example</code>, <code>your_api_key</code>, and similar), which is why those values are not used as the malicious keys in this set.</li>
       </ul>
@@ -1115,7 +1171,7 @@ def canonical_results(results: dict) -> dict:
         "samples": results["samples"] if results["samples"] and "flagged" in results["samples"][0] and "title" not in results["samples"][0]
         else [slim_sample(r) if "outcome" in r and "title" in r else r for r in results["samples"]],
     }
-    for key in ("baseline", "original_comparable", "heldout", "redteam", "redteam_independent", "redteam2", "redteam2_independent", "redteam3", "redteam3_independent", "redteam4", "redteam4_independent", "redteam5", "redteam5_independent", "redteam6", "redteam6_independent", "redteam7", "redteam8", "redteam8_independent", "issues"):
+    for key in ("baseline", "original_comparable", "heldout", "redteam", "redteam_independent", "redteam2", "redteam2_independent", "redteam3", "redteam3_independent", "redteam4", "redteam4_independent", "redteam5", "redteam5_independent", "redteam6", "redteam6_independent", "redteam7", "redteam8", "redteam8_independent", "redteam9", "issues"):
         if results.get(key) is not None:
             out[key] = results[key]
     return out
@@ -1502,6 +1558,27 @@ def main(argv=None) -> int:
             r8_block["independent"] = True
         results["redteam8"] = r8_block
 
+    if REDTEAM9_MANIFEST_PATH.is_file():
+        ensure_redteam9_fixtures()
+        r9_manifest = json.loads(REDTEAM9_MANIFEST_PATH.read_text(encoding="utf-8"))
+        r9_raw = run_corpus(r9_manifest, root=REDTEAM9_DIR)
+        results["redteam9"] = {
+            "sample_count": r9_raw["sample_count"],
+            "positive_definition": r9_manifest.get("positive_definition"),
+            "overall": r9_raw["overall"],
+            "per_tool": r9_raw["per_tool"],
+            "false_positives": r9_raw["false_positives"],
+            "false_negatives": r9_raw["false_negatives"],
+            "evasion_false_negatives": r9_raw["evasion_false_negatives"],
+            "unexpected_false_negatives": r9_raw["unexpected_false_negatives"],
+            "samples": [slim_sample(r) for r in r9_raw["samples"]],
+            "written_by": r9_manifest.get("written_by"),
+            "written_against": r9_manifest.get("written_against"),
+            "method": r9_manifest.get("method"),
+            "seen": False,
+            "independent": True,
+        }
+
     slim = canonical_results(results)
 
     if args.check:
@@ -1558,6 +1635,10 @@ def main(argv=None) -> int:
                 or "v0.47.0, unseen" not in body
             ))
             or (REDTEAM8_BASELINE_PATH.is_file() and "v0.48.0 generalization" not in body)
+            or (REDTEAM9_MANIFEST_PATH.is_file() and (
+                "Independent red-team round 9" not in body
+                or "v0.48.0, unseen" not in body
+            ))
         ):
             sys.stderr.write("run_benchmark: docs/benchmarks/index.html is missing or stale.\n")
             return 1
@@ -1643,6 +1724,9 @@ def main(argv=None) -> int:
         if results.get("redteam7"):
             sys.stdout.write("\nindependent red-team round 7 (v0.47.0, unseen):\n")
             sys.stdout.write(text_report(results["redteam7"]))
+        if results.get("redteam9"):
+            sys.stdout.write("\nindependent red-team round 9 (v0.48.0, unseen):\n")
+            sys.stdout.write(text_report(results["redteam9"]))
         if results.get("redteam8_independent"):
             sys.stdout.write("\nindependent red-team round 8 (v0.47.0, unseen):\n")
             sys.stdout.write(text_report(results["redteam8_independent"]))

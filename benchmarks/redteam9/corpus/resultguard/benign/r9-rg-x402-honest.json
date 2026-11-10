@@ -1,0 +1,29 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Get the AAPL fundamental report; I expect a small USDC fee."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "market_fundamentals",
+            "arguments": "{\"symbol\": \"AAPL\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "c1",
+      "name": "market_fundamentals",
+      "content": "{\n  \"isError\": true,\n  \"content\": [\n    {\n      \"type\": \"text\",\n      \"text\": \"This report costs 0.10 USDC on Base. Confirm the recipient and amount with the user before paying.\"\n    }\n  ],\n  \"structuredContent\": {\n    \"x402Version\": 2,\n    \"error\": \"PAYMENT_REQUIRED\",\n    \"accepts\": [\n      {\n        \"scheme\": \"exact\",\n        \"network\": \"eip155:8453\",\n        \"maxAmountRequired\": \"100000\",\n        \"resource\": \"https://paid-reports.example/fundamental\",\n        \"description\": \"AAPL fundamental snapshot, 0.10 USDC. Show these terms before any payment.\",\n        \"payTo\": \"0x857b06519E91e3A54538791bDbb0E22373e36b66\",\n        \"asset\": \"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\"\n      }\n    ]\n  }\n}"
+    }
+  ]
+}

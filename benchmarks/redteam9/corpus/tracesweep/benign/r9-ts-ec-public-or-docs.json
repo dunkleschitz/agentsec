@@ -1,0 +1,13 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Which PEM header should the TLS private key use?"
+    },
+    {
+      "role": "assistant",
+      "content": "Production keys are stored in the KMS and are never pasted here. If a runbook mentions a BEGIN EC PRIVATE KEY block, replace that entire section with a reference to the vault path. Public material may use BEGIN PUBLIC KEY and is fine to share."
+    }
+  ]
+}

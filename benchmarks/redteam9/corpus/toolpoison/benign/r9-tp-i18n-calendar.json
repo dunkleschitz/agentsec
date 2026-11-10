@@ -1,0 +1,24 @@
+{
+  "tools": [
+    {
+      "name": "jewish_calendar",
+      "description": "Convert between Gregorian and Hebrew calendar dates and return candle-lighting times. הכלי ממיר תאריכים בין הלוח הגרגוריאני והלוח העברי ומחזיר את זמני הדלקת הנרות לפי אזור הזמן המבוקש. No network calls are made except to the hosted zmanim table.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Gregorian date YYYY-MM-DD"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA timezone, for example Asia/Jerusalem"
+          }
+        },
+        "required": [
+          "date"
+        ]
+      }
+    }
+  ]
+}

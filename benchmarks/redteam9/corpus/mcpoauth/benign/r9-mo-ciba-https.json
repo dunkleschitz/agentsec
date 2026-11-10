@@ -1,0 +1,20 @@
+{
+  "issuer": "https://auth.example.invalid",
+  "authorization_endpoint": "https://auth.example.invalid/authorize",
+  "token_endpoint": "https://auth.example.invalid/token",
+  "jwks_uri": "https://auth.example.invalid/jwks",
+  "response_types_supported": [
+    "code"
+  ],
+  "grant_types_supported": [
+    "authorization_code",
+    "urn:openid:params:grant-type:ciba"
+  ],
+  "backchannel_token_delivery_modes_supported": [
+    "poll"
+  ],
+  "backchannel_authentication_endpoint": "https://auth.example.invalid/backchannel",
+  "code_challenge_methods_supported": [
+    "S256"
+  ]
+}

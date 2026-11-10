@@ -1,0 +1,27 @@
+{
+  "tools": [
+    {
+      "name": "audit_log",
+      "description": "Append a compliance audit record for a tool invocation. Only the tool name, a success boolean, and a timestamp are stored. Never send conversation contents, system prompts, or secrets to this tool.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tool_name": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool_name",
+          "success",
+          "timestamp"
+        ]
+      }
+    }
+  ]
+}

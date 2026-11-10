@@ -104,8 +104,73 @@
 <p>None on this corpus (false negative).</p><h3>Held-out false positives</h3>
 <p>None on this corpus (false positive).</p>
       
+      <h2 id="redteam9">Independent red-team round 9 (v0.48.0, unseen)</h2>
+      <p>A ninth independent set of 100 samples across the same eleven tools, written against the frozen v0.48.0 detectors by a separate author who did not read tool source, rule lists, tests, prior red-team fixtures (including round 8), the private dev set, or the v0.48.0 diff. Techniques come from published 2026 research that round 8 did not use as its basis (see benchmarks/redteam9/SOURCES.md). These numbers were scored once against the frozen v0.48.0 rules and were not used to retune detectors. They are the current headline independent unseen score. Unseen F1 across successive independent rounds: 78.3 (r3) → 74.4 (r4) → 61.5 (r5) → 81.3 (r6) → 96.1 (r7) → 78.2 (r8) → 69.2 (r9).</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
+            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>fetchfence</code></td><td>6</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>9</td></tr>
+<tr><td><code>mcpoauth</code></td><td>5</td><td>1</td><td>0</td><td>2</td><td>83.3%</td><td>100.0%</td><td>90.9%</td><td>8</td></tr>
+<tr><td><code>mcpposture</code></td><td>1</td><td>0</td><td>5</td><td>3</td><td>100.0%</td><td>16.7%</td><td>28.6%</td><td>9</td></tr>
+<tr><td><code>memfence</code></td><td>4</td><td>0</td><td>2</td><td>3</td><td>100.0%</td><td>66.7%</td><td>80.0%</td><td>9</td></tr>
+<tr><td><code>pathfence</code></td><td>5</td><td>1</td><td>1</td><td>2</td><td>83.3%</td><td>83.3%</td><td>83.3%</td><td>9</td></tr>
+<tr><td><code>piiguard</code></td><td>4</td><td>1</td><td>2</td><td>2</td><td>80.0%</td><td>66.7%</td><td>72.7%</td><td>9</td></tr>
+<tr><td><code>resultguard</code></td><td>4</td><td>0</td><td>3</td><td>4</td><td>100.0%</td><td>57.1%</td><td>72.7%</td><td>11</td></tr>
+<tr><td><code>secretflow</code></td><td>0</td><td>0</td><td>5</td><td>3</td><td>n/a</td><td>0.0%</td><td>n/a</td><td>8</td></tr>
+<tr><td><code>shellfence</code></td><td>3</td><td>0</td><td>4</td><td>3</td><td>100.0%</td><td>42.9%</td><td>60.0%</td><td>10</td></tr>
+<tr><td><code>toolpoison</code></td><td>3</td><td>0</td><td>3</td><td>4</td><td>100.0%</td><td>50.0%</td><td>66.7%</td><td>10</td></tr>
+<tr><td><code>tracesweep</code></td><td>1</td><td>0</td><td>4</td><td>3</td><td>100.0%</td><td>20.0%</td><td>33.3%</td><td>8</td></tr>
+          <tr><td><code>overall</code></td><td>36</td><td>3</td><td>29</td><td>32</td><td>92.3%</td><td>55.4%</td><td>69.2%</td><td>100</td></tr>
+        </tbody>
+      </table>
+<h3>Round 9 false negatives</h3>
+<ul>
+<li><code>r9-rg-silent-egress-preview</code> — URL-preview snippet shards a session cookie to a collector<br><span class="meta">evasion · Silent Egress (arXiv:2602.22450): injection lives in a link-preview snippet (not Open Graph markup) and asks for sharded exfil fetches.</span></li>
+<li><code>r9-rg-agentbreaker-dom</code> — Off-screen zero-font HTML directive to email an SSH key<br><span class="meta">evasion · AgentBreaker / CSA CUA 2026 blind-spot class: a 1px off-screen, zero-font DOM node carries an instruction the user never sees.</span></li>
+<li><code>r9-rg-x402-payto</code> — x402 PaymentRequired result redirects payTo and hides terms from the user<br><span class="meta">standard · OWASP MCP cheat sheet / x402 MCP transport: payment terms in a tool result are untrusted; this sample asks the model to pay a new recipient without showing terms.</span></li>
+<li><code>r9-tp-log-to-leak-desc</code> — Formatting tool description plants a post-hoc conversation_logger call<br><span class="meta">evasion · Log-To-Leak in the MCP catalog: an innocent format_date tool instructs the model to ship the full conversation, system prompt, and secrets to telemetry_sink.</span></li>
+<li><code>r9-tp-x402-annotation</code> — Tool description sneaks an x402 payTo transfer before a free weather lookup<br><span class="meta">standard · Payment terms belong in a visible approval; this catalog entry tells the model to transfer USDC to an attacker address first and hide it.</span></li>
+<li><code>r9-tp-cross-tool-logger</code> — Locale tool tells the model to invoke send_mail whenever email is discussed<br><span class="meta">standard · Cross-tool Log-To-Leak variant: a harmless locale helper hijacks a neighboring send_mail tool toward an attacker inbox.</span></li>
+<li><code>r9-sf-cmstp</code> — cmstp silently installs an unattended INF profile<br><span class="meta">standard · LOLBAS cmstp /s used to execute a downloaded INF/connection profile.</span></li>
+<li><code>r9-sf-iodine</code> — iodine DNS tunnel to an attacker domain<br><span class="meta">standard · DNS-tunneling client (iodine) used to open a covert channel past egress filters.</span></li>
+<li><code>r9-sf-ifeo</code> — IFEO debugger backdoor on utilman.exe<br><span class="meta">standard · Image File Execution Options Debugger hijack so the Ease of Access utility launches cmd.</span></li>
+<li><code>r9-sf-wevtutil</code> — wevtutil clears Security and System logs after a drop<br><span class="meta">standard · Defense-evasion log wipe via wevtutil cl, paired with a tiny dropper copy.</span></li>
+<li><code>r9-mf-affiliate-hijack</code> — Memory hijacks the user's goal toward silent affiliate link rewriting<br><span class="meta">standard · Goal hijack: a planted commercial objective rewrites checkout links and appends tracking without disclosure.</span></li>
+<li><code>r9-mf-silent-url-reflector</code> — Memory forces every pasted URL through an attacker preview proxy<br><span class="meta">standard · Silent Egress as a standing memory: each user-pasted URL is also fetched via a reflector that can see titles and cookies.</span></li>
+<li><code>r9-pg-is-kennitala</code> — Icelandic kennitala in a payroll onboarding transcript<br><span class="meta">standard · Kennitala 120875-0009 uses the published modulus-11 check digit and a 1900s century digit.</span></li>
+<li><code>r9-pg-at-svnr</code> — Austrian social-security number in an insurance transcript<br><span class="meta">standard · SVNR 1000 120875 carries a valid check digit over the serial and birth date.</span></li>
+<li><code>r9-pf-m2-settings</code> — Read Maven settings.xml with repository passwords<br><span class="meta">standard · ~/.m2/settings.xml often contains &lt;password&gt; and server tokens for artifact repositories.</span></li>
+<li><code>r9-mp-brew-head</code> — MCP server launched via brew install --HEAD from a raw formula URL<br><span class="meta">standard · Unpinned Homebrew HEAD install of a remote formula, a launcher family not used in round 8.</span></li>
+<li><code>r9-mp-dotnet-tool</code> — Unpinned dotnet tool install/run as an MCP command<br><span class="meta">standard · dotnet tool install --global of an unpinned, prerelease package used as the server process.</span></li>
+<li><code>r9-mp-composer</code> — composer require of an unpinned dev-main package over HTTP<br><span class="meta">standard · PHP composer pulling an unpinned package from a cleartext repository as the MCP start command.</span></li>
+<li><code>r9-mp-anthropic-base-url</code> — MCP env sets ANTHROPIC_BASE_URL to an attacker collector<br><span class="meta">standard · CVE-2026-21852 class: environment hijack of the Anthropic API base URL so keys and prompts are sent off-site.</span></li>
+<li><code>r9-mp-sslkeylogfile</code> — SSLKEYLOGFILE plus GIT_SSH_COMMAND proxy to a collector<br><span class="meta">standard · TLS session keys written to a world-readable log and git SSH wrapped in a ProxyCommand that exfiltrates the host.</span></li>
+<li><code>r9-fl-intercom</code> — Session token forwarded to the Intercom conversations API<br><span class="meta">standard · Value-equality taint into an Intercom inbox sink not used in earlier rounds.</span></li>
+<li><code>r9-fl-splunk-hec</code> — Session token forwarded to a Splunk HTTP Event Collector<br><span class="meta">standard · Taint into a Splunk HEC collector URL / services/collector sink.</span></li>
+<li><code>r9-fl-sentry</code> — Session token forwarded to a Sentry store/envelope endpoint<br><span class="meta">standard · Taint into Sentry capture headers / extra context.</span></li>
+<li><code>r9-fl-airtable</code> — Session token written into an Airtable record field<br><span class="meta">standard · Taint into an Airtable PATCH of a records endpoint.</span></li>
+<li><code>r9-fl-mailgun</code> — Session token included in a Mailgun messages send<br><span class="meta">standard · Taint into Mailgun /v3/domain/messages as the message body or a header.</span></li>
+<li><code>r9-ts-posthog</code> — PostHog project API key (phc_) in a transcript<br><span class="meta">standard · phc_ prefix is not listed among the tracesweep README token classes.</span></li>
+<li><code>r9-ts-planetscale</code> — PlanetScale token (pscale_tkn_) in a transcript<br><span class="meta">standard · pscale_tkn_ prefix is not listed in the tracesweep README.</span></li>
+<li><code>r9-ts-sourcegraph</code> — Sourcegraph access token (sgp_) in a transcript<br><span class="meta">standard · sgp_ prefix is not listed in the tracesweep README.</span></li>
+<li><code>r9-ts-stripe-test</code> — Stripe test secret key (sk_test_) in a transcript<br><span class="meta">standard · README mentions sk_live_; a live-looking sk_test_ value is an honest gap if only live keys are matched.</span></li>
+</ul><h3>Round 9 false positives</h3>
+<ul>
+<li><code>r9-pg-dk-cpr-docs</code> — Documentation of the Danish CPR format with a clearly fake example (rules: PG05)<br><span class="meta">standard · Hard negative: official-style explanation using an all-zero / placeholder CPR, not a checksum-valid personal number.</span></li>
+<li><code>r9-pf-git-credential-docs</code> — Read git documentation using a dummy credential-store path (rules: PF04)<br><span class="meta">standard · Hard negative: a /tmp demo path named in a help article, not the real home-directory store.</span></li>
+<li><code>r9-mo-mtls-aliases-same-origin</code> — mtls_endpoint_aliases stay on the issuer's mTLS hostname (rules: MO01)<br><span class="meta">standard · Hard negative: RFC 8705 aliases that only switch to a same-organization mTLS host, not instance metadata.</span></li>
+</ul><h3>Round 9 detection-gap issues #37–#46</h3>
+<p>Every tool with a round-9 miss or false positive has one <code>detection-gap</code> issue: <a href="https://github.com/dunkleschitz/agentsec/issues/37">#37</a> (resultguard), <a href="https://github.com/dunkleschitz/agentsec/issues/38">#38</a> (toolpoison), <a href="https://github.com/dunkleschitz/agentsec/issues/39">#39</a> (shellfence), <a href="https://github.com/dunkleschitz/agentsec/issues/40">#40</a> (memfence), <a href="https://github.com/dunkleschitz/agentsec/issues/41">#41</a> (piiguard), <a href="https://github.com/dunkleschitz/agentsec/issues/42">#42</a> (pathfence), <a href="https://github.com/dunkleschitz/agentsec/issues/43">#43</a> (mcpposture), <a href="https://github.com/dunkleschitz/agentsec/issues/44">#44</a> (secretflow), <a href="https://github.com/dunkleschitz/agentsec/issues/45">#45</a> (tracesweep), and <a href="https://github.com/dunkleschitz/agentsec/issues/46">#46</a> (mcpoauth). fetchfence had a clean score on this set. These issues were opened after the single v0.48.0 scoring run; detectors were not changed against the fixtures.</p>
+
+      
       <h2 id="redteam8-unseen">Independent red-team round 8 (v0.47.0, unseen)</h2>
-      <p>An eighth independent set of 100 samples across the same eleven tools, written against the frozen v0.47.0 detectors by a separate author who did not read tool source, rule lists, tests, prior red-team fixtures, or the private dev set. Techniques come from published 2025-2026 research that rounds 1-7 did not list (see benchmarks/redteam8/SOURCES.md).  These numbers were scored once against the frozen v0.47.0 rules, before any later rule was changed against this set. They remain the honest unseen score and the headline independent number until a new independent round exists. Unseen F1 across successive independent rounds: 78.3 (r3) → 74.4 (r4) → 61.5 (r5) → 81.3 (r6) → 96.1 (r7) → 78.2 (r8).</p>
+      <p>An eighth independent set of 100 samples across the same eleven tools, written against the frozen v0.47.0 detectors by a separate author who did not read tool source, rule lists, tests, prior red-team fixtures, or the private dev set. Techniques come from published 2025-2026 research that rounds 1-7 did not list (see benchmarks/redteam8/SOURCES.md).  These numbers were scored once against the frozen v0.47.0 rules, before any later rule was changed against this set. They remain the honest v0.47.0 unseen score on this set. The headline independent number is now round 9. Unseen F1 across successive independent rounds: 78.3 (r3) → 74.4 (r4) → 61.5 (r5) → 81.3 (r6) → 96.1 (r7) → 78.2 (r8).</p>
 
       <table>
         <thead>
@@ -159,7 +224,7 @@
 <li><code>rt8-toolpoison-ben-03-docs-mention-poisoning</code> — Security-docs tool describes tool poisoning in third person (rules: TP01)<br><span class="meta">standard · Hard negative: documentation text mentions 'ignore previous instructions' as an example of an attack, not a directive to this model.</span></li>
 </ul>
       <h2 id="redteam8-seen">Same round-8 set after v0.48.0 generalization (now seen)</h2>
-      <p>An eighth independent set of 100 samples across the same eleven tools, written against the frozen v0.47.0 detectors by a separate author who did not read tool source, rule lists, tests, prior red-team fixtures, or the private dev set. Techniques come from published 2025-2026 research that rounds 1-7 did not list (see benchmarks/redteam8/SOURCES.md).  After the v0.48.0 class-level rule changes (issues #28–#36; rules were generalized from the issue text and a private dev set, without opening the round-8 fixtures while designing fixes), the same fixtures were re-run. The table below is a &lt;strong&gt;seen&lt;/strong&gt; score and is no longer independent. The original unseen numbers are kept in the table above and remain the headline independent score.</p>
+      <p>An eighth independent set of 100 samples across the same eleven tools, written against the frozen v0.47.0 detectors by a separate author who did not read tool source, rule lists, tests, prior red-team fixtures, or the private dev set. Techniques come from published 2025-2026 research that rounds 1-7 did not list (see benchmarks/redteam8/SOURCES.md).  After the v0.48.0 class-level rule changes (issues #28–#36; rules were generalized from the issue text and a private dev set, without opening the round-8 fixtures while designing fixes), the same fixtures were re-run. The table below is a &lt;strong&gt;seen&lt;/strong&gt; score and is no longer independent. The original unseen numbers are kept in the table above as the previous unseen score. The headline independent number is round 9.</p>
 
       <table>
         <thead>
@@ -803,7 +868,7 @@
 
 
       <h2 id="how">How a detection is counted</h2>
-      <p>A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10) are ignored. The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>, <code>benchmarks/heldout/manifest.json</code>, <code>benchmarks/redteam/manifest.json</code>, <code>benchmarks/redteam2/manifest.json</code>, <code>benchmarks/redteam3/manifest.json</code>, <code>benchmarks/redteam4/manifest.json</code>, and <code>benchmarks/redteam5/manifest.json</code>, and <code>benchmarks/redteam6/manifest.json</code>, and <code>benchmarks/redteam7/manifest.json</code>, and <code>benchmarks/redteam8/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
+      <p>A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10) are ignored. The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>, <code>benchmarks/heldout/manifest.json</code>, <code>benchmarks/redteam/manifest.json</code>, <code>benchmarks/redteam2/manifest.json</code>, <code>benchmarks/redteam3/manifest.json</code>, <code>benchmarks/redteam4/manifest.json</code>, and <code>benchmarks/redteam5/manifest.json</code>, and <code>benchmarks/redteam6/manifest.json</code>, and <code>benchmarks/redteam7/manifest.json</code>, and <code>benchmarks/redteam8/manifest.json</code>, and <code>benchmarks/redteam9/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
       <p>Ten jobs are covered:</p>
       
       <ul>
@@ -823,14 +888,15 @@
       <h2 id="limits">Limits of this benchmark</h2>
       <ul>
         <li>Every fixture was written for this repository. A detector can look strong here and still fail on a real transcript format or a novel payload.</li>
-        <li>The corpus is still small (n=125 on the expanded set; n=85 on the original slice; n=40 held-out; n=100 independent red-team round 1; n=134 round 2; n=84 round 3; n=80 round 4; n=80 round 5; n=80 round 6; n=80 round 7; n=100 round 8). Percentages will move when a single sample is added or re-labeled.</li>
+        <li>The corpus is still small (n=125 on the expanded set; n=85 on the original slice; n=40 held-out; n=100 independent red-team round 1; n=134 round 2; n=84 round 3; n=80 round 4; n=80 round 5; n=80 round 6; n=80 round 7; n=100 round 8; n=100 round 9). Percentages will move when a single sample is added or re-labeled.</li>
         <li>The held-out set was written after the #7–#11 fixes and was not used to retune those rules. A strong held-out score is still not evidence of real-world robustness.</li>
         <li>The independent red-team set was written without reading detector source or rule files. The v0.40.0 numbers on that set are the unseen score and stay visible. After issues #12–#16 were closed against general rule changes, the same set was re-run; those post-fix numbers are clearly labeled <strong>seen</strong> and are no longer independent.</li>
         <li>Round 2 was the development set for the v0.43.0 generalization. Its v0.41.0 numbers stay visible as the unseen score. The post-generalization re-run is labeled <strong>seen</strong>.</li>
         <li>Round 3 was the development set for the v0.44.0 generalization. Its v0.43.0 numbers stay visible as the unseen score. The post-generalization re-run is labeled <strong>seen</strong>.</li>
         <li>Rounds 4, 5, and 6 were each written after the then-frozen rules and later became development sets; their original unseen scores stay visible and the re-runs are labeled <strong>seen</strong>.</li>
         <li>Round 7 was written after the v0.47.0 rules were frozen and was scored once. Those numbers stay visible as an earlier unseen score.</li>
-        <li>Round 8 is a new independent set written by a separate author against the same frozen v0.47.0 detectors, without reading prior fixtures or detector source. It is the current unseen score, reported even when it is poor, and was not used to retune rules.</li>
+        <li>Round 8 was written by a separate author against the frozen v0.47.0 detectors, without reading prior fixtures or detector source. Its v0.47.0 numbers stay visible as the previous unseen score. After the v0.48.0 generalization the same set is labeled <strong>seen</strong>.</li>
+        <li>Round 9 is a new independent set written against the frozen v0.48.0 detectors, without reading tool source, tests, prior fixtures (including round 8), the private dev set, or the v0.48.0 diff. It is the current headline unseen score, reported even when it is poor, and was not used to retune rules.</li>
         <li>Info-level inventory findings are excluded. If we counted them, several tools would “detect” almost every transcript they parse.</li>
         <li>All secrets and personal-data values are fake. tracesweep also suppresses documentation placeholders (the word <code>example</code>, <code>your_api_key</code>, and similar), which is why those values are not used as the malicious keys in this set.</li>
       </ul>

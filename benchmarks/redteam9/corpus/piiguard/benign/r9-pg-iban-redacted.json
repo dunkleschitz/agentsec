@@ -1,0 +1,13 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Did we store the Dubai contractor's IBAN in the ticket?"
+    },
+    {
+      "role": "assistant",
+      "content": "Only the country prefix is visible: IBAN AE*********************. The rest was redacted by the payroll bot."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "memories": [
+    {
+      "id": "b2",
+      "memory": "Always require explicit user confirmation for payments, transfers, or refunds above $5. Show the recipient, asset, network, and amount before asking. Never auto-approve.",
+      "text": "Always require explicit user confirmation for payments, transfers, or refunds above $5. Show the recipient, asset, network, and amount before asking. Never auto-approve.",
+      "user_id": "default"
+    }
+  ]
+}

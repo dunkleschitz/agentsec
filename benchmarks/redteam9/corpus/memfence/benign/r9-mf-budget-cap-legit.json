@@ -1,0 +1,10 @@
+{
+  "memories": [
+    {
+      "id": "b1",
+      "memory": "Monthly model spend cap for this workspace is $50. Stop and ask the user before taking any action that would exceed the remaining budget. Prefer the cheaper model when quality allows.",
+      "text": "Monthly model spend cap for this workspace is $50. Stop and ask the user before taking any action that would exceed the remaining budget. Prefer the cheaper model when quality allows.",
+      "user_id": "default"
+    }
+  ]
+}

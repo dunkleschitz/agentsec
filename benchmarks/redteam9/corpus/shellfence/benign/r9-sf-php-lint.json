@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Syntax-check the index file before we deploy."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "run_shell",
+            "arguments": "{\"command\": \"php -l /var/www/app/index.php\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

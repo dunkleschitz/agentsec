@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Pull the AMQP 1.0 overview so I can cite it in the design doc."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "fetch_url",
+            "arguments": "{\"url\": \"https://docs.oasis-open.org/amqp/core/v1.0/amqp-core-overview-v1.0.html\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

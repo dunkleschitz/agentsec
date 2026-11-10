@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "notes": {
+      "command": "node",
+      "args": [
+        "dist/server.js"
+      ],
+      "cwd": "/opt/notes-mcp"
+    }
+  }
+}

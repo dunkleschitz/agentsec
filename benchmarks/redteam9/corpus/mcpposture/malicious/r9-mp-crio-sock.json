@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "k8s-sidekick": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-v",
+        "/var/run/crio.sock:/var/run/crio.sock",
+        "rancher/kubectl:latest"
+      ]
+    }
+  }
+}

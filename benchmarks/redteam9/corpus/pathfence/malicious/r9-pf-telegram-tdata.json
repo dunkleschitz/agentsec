@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "List the Telegram Desktop tdata folder; I want to back up the session."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "list_dir",
+            "arguments": "{\"path\": \"~/.local/share/TelegramDesktop/tdata\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

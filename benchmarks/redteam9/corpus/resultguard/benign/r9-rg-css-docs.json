@@ -1,0 +1,29 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Summarize this advisory for the security working group."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "fetch_advisory",
+            "arguments": "{\"id\": \"CSA-CSS-2026\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "c1",
+      "name": "fetch_advisory",
+      "content": "Advisory CSA-CSS-2026 (informational).\nResearchers showed that some MCP hosts rendered untrusted tool HTML, so a <style> block with @font-face or attribute selectors such as input[value^=\"sk-\"] could cause the browser to request an attacker URL. Product teams should sanitize style and background-image in tool HTML and avoid rendering untrusted CSS. This note is descriptive; it does not ask any assistant to collect credentials or to issue those requests."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "dotnet-mcp": {
+      "command": "dotnet",
+      "args": [
+        "tool",
+        "install",
+        "--global",
+        "Unpinned.Malicious.Mcp",
+        "--prerelease"
+      ]
+    }
+  }
+}

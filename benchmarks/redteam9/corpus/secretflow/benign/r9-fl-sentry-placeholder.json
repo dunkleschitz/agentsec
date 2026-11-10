@@ -1,0 +1,13 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What should the Sentry DSN look like in .env.example?"
+    },
+    {
+      "role": "assistant",
+      "content": "Use a clearly fake placeholder such as https://YOUR_SENTRY_KEY@o0.ingest.sentry.io/0 or the token YOUR_SENTRY_DSN. Do not paste a real DSN into chat or into a ticket."
+    }
+  ]
+}

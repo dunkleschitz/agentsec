@@ -1,0 +1,13 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "How do I put the PostHog key in the example env file?"
+    },
+    {
+      "role": "assistant",
+      "content": "Use phc_your_project_key_here or ${POSTHOG_KEY}. Never commit a real project API key. The README also accepts the token REDACTED in screenshots."
+    }
+  ]
+}

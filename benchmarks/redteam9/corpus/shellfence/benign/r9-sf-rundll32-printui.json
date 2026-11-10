@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Open the add-printer wizard on this Windows box."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "run_shell",
+            "arguments": "{\"command\": \"rundll32 printui.dll,PrintUIEntry /il\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+# Provider-shaped synthetic secrets, materialized by generate.py
+corpus/secretflow/malicious/*.json
+corpus/tracesweep/malicious/*.json

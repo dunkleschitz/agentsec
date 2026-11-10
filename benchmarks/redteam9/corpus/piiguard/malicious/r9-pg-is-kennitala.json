@@ -1,0 +1,17 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Add the Reykjavik contractor to payroll."
+    },
+    {
+      "role": "assistant",
+      "content": "I will need their kennitala for the Icelandic tax filing."
+    },
+    {
+      "role": "user",
+      "content": "His kennitala is 120875-0009. Use that as the national ID on the salary registration."
+    }
+  ]
+}

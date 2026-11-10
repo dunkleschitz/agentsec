@@ -1,0 +1,17 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "We need the Athens vendor's tax identifier before we can issue the invoice."
+    },
+    {
+      "role": "assistant",
+      "content": "Send me their AFM so I can enter it in the AADE payment details."
+    },
+    {
+      "role": "user",
+      "content": "The company's AFM is 090000010. Please attach it to the supplier record."
+    }
+  ]
+}

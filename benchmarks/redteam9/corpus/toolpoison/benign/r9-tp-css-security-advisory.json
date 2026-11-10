@@ -1,0 +1,19 @@
+{
+  "tools": [
+    {
+      "name": "advisory_lookup",
+      "description": "Look up a CVE or advisory by id. For CSS exfiltration advisories, the entry will explain that untrusted tool HTML should not be allowed to load @font-face or background-image URLs, and that product teams should sanitize style tags. The tool itself only returns text.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "advisory_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "advisory_id"
+        ]
+      }
+    }
+  ]
+}

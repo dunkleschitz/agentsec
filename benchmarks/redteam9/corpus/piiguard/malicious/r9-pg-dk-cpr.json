@@ -1,0 +1,17 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "I need to finish the Danish benefits form for the employee who just relocated to Copenhagen."
+    },
+    {
+      "role": "assistant",
+      "content": "I can fill the civil-registration field if you have their CPR number."
+    },
+    {
+      "role": "user",
+      "content": "Yes — her CPR is 120875-1006, born 12 August 1975. Please put that on the Udbetaling Danmark form."
+    }
+  ]
+}

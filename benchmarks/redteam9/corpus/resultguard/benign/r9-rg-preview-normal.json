@@ -1,0 +1,29 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Preview https://news.example.com/markets/close"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "link_preview",
+            "arguments": "{\"url\": \"https://news.example.com/markets/close\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "c1",
+      "name": "link_preview",
+      "content": "{\n  \"url\": \"https://news.example.com/markets/close\",\n  \"preview\": {\n    \"title\": \"Markets close mixed as energy outperforms\",\n    \"snippet\": \"U.S. indexes finished mixed on Monday. Energy led gains while technology lagged after a rise in bond yields. Analysts expect a quiet holiday week.\",\n    \"site_name\": \"news.example.com\",\n    \"word_count\": 842\n  }\n}"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "issuer": "https://auth.example.invalid",
+  "authorization_endpoint": "https://auth.example.invalid/authorize",
+  "token_endpoint": "https://auth.example.invalid/token",
+  "jwks_uri": "https://auth.example.invalid/jwks",
+  "response_types_supported": [
+    "code"
+  ],
+  "grant_types_supported": [
+    "authorization_code"
+  ],
+  "jwks": {
+    "keys": [
+      {
+        "kty": "RSA",
+        "use": "sig",
+        "kid": "rt9-rsa-1",
+        "alg": "RS256",
+        "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFDegmKbsURi1kQ",
+        "e": "AQAB",
+        "d": "X4cTteJY_gn4FYPsXB8rdXix5vwsg1FLN5E3EaG6RGeVD+alIyKZUQX2JYBOSFAKESECRET_c2d3e4f5g6h7i8j9k0l1"
+      }
+    ]
+  }
+}

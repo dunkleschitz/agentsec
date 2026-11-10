@@ -1,0 +1,17 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "The Vienna clinic asked us to resubmit the insurance master data."
+    },
+    {
+      "role": "assistant",
+      "content": "Please provide the Sozialversicherungsnummer (SVNR) exactly as printed on the e-card."
+    },
+    {
+      "role": "user",
+      "content": "The patient's SVNR is 1000 120875. That is serial 1000 with date of birth 12.08.1975."
+    }
+  ]
+}

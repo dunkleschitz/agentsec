@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Look up Splunk event id 7F3A-2210 in the public on-call index."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "splunk_search",
+            "arguments": "{\"query\": \"index=oncall event_id=7F3A-2210\", \"earliest\": \"-24h\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

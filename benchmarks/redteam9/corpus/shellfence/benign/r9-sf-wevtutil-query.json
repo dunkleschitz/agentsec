@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Show me the five most recent Application events."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "run_shell",
+            "arguments": "{\"command\": \"wevtutil qe Application /c:5 /f:text\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

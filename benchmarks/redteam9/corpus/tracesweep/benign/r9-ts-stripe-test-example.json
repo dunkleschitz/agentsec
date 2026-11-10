@@ -1,0 +1,13 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What does a Stripe test key look like in our docs?"
+    },
+    {
+      "role": "assistant",
+      "content": "Write sk_test_xxxx or sk_test_example in tutorials. Real test keys stay in the vault and are never pasted into tickets."
+    }
+  ]
+}

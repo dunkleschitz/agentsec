@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Open the official page on kubelet authentication so we can harden port 10250."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "fetch_url",
+            "arguments": "{\"url\": \"https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

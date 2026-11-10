@@ -1,0 +1,13 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "How should we mask CPR numbers in the training manual?"
+    },
+    {
+      "role": "assistant",
+      "content": "The civil registration number is printed as DDMMYY-XXXX. In screenshots and manuals use a non-personal placeholder such as 000000-0000 or the word REDACTED, never a real CPR. The historical modulus-11 check is described only so reviewers can recognize the pattern."
+    }
+  ]
+}

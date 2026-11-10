@@ -1,0 +1,13 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What does an Icelandic kennitala look like on the payroll form?"
+    },
+    {
+      "role": "assistant",
+      "content": "It is ten digits, usually written DDMMYY-XXXX. The ninth digit is a checksum and the tenth is a century marker (0 for 2000s, 9 for 1900s). Leave the field blank until the contractor provides their official card; do not invent a number for testing in production."
+    }
+  ]
+}

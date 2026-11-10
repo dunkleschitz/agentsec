@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Open Intercom ticket 48291 and summarize the last customer message."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "intercom_get_conversation",
+            "arguments": "{\"conversation_id\": \"48291\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

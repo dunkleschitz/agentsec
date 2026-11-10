@@ -1,0 +1,17 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Register this patient at the Budapest outpatient clinic."
+    },
+    {
+      "role": "assistant",
+      "content": "I will need their TAJ number for the NEAK claim."
+    },
+    {
+      "role": "user",
+      "content": "Her TAJ száma is 830 912 342. Please put that on the intake form."
+    }
+  ]
+}

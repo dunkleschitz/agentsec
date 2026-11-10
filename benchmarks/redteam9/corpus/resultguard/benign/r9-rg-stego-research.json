@@ -1,0 +1,29 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Pull the abstract of the decode-time steganography paper."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "fetch_abstract",
+            "arguments": "{\"arxiv\": \"2610.31974\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "c1",
+      "name": "fetch_abstract",
+      "content": "Abstract. We study decode-time steganography, in which an agent tool expands LSB or PNG tEXt payloads and only then would a hidden instruction become visible to a model. The paper proposes detectors that flag decoded comment chunks before they are forwarded to a prompt. It does not include a working payload and does not ask readers or assistants to restore wallets or exfiltrate files."
+    }
+  ]
+}
