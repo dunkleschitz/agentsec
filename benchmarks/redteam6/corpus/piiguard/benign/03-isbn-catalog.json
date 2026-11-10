@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Catalog the shipment."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "inventory_lookup",
+            "arguments": "{\"id\": \"isbn-1\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "inventory_lookup",
+      "content": "Title: Widgets, 2nd ed.\nISBN 978-0-306-40615-7\nShelf: B2"
+    }
+  ]
+}

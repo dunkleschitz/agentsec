@@ -61,6 +61,8 @@ RULES = {
              "Description tells the model to always prefer this tool or to never use others"),
     "TP14": ("elicitation-credential-phish", "high",
              "Description tells the model to collect passwords or other secrets through MCP elicitation"),
+    "TP15": ("obfuscated-text", "high",
+             "Description or MCP surface contains encoded, transformed, or non-natural-language text"),
 }
 
 # ---------------------------------------------------------------- patterns
@@ -263,7 +265,7 @@ def extract_tools(doc, source):
         # Manifests that only carry resource templates, resources, or server
         # instructions are still in scope; scan those channels with no tools.
         if any(k in doc for k in (
-            "resourceTemplates", "resources", "instructions",
+            "resourceTemplates", "resources", "prompts", "instructions",
             "serverInstructions", "server_instructions", "result", "params",
         )):
             return [], "$"
@@ -537,11 +539,283 @@ def _reversed_views(text):
     return views
 
 
+# --- generic obfuscation / non-natural-language views (v0.46) ---
+_CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_BRAILLE_RE = re.compile(r"[\u2800-\u28FF]{4,}")
+_B32_RE = re.compile(r"(?<![A-Za-z2-7])([A-Z2-7]{32,}={0,6})(?![A-Za-z2-7=])")
+
+_HEX_RUN_RE = re.compile(r"(?i)(?<![0-9A-F])(?:[0-9A-F]{2}){16,}(?![0-9A-F])")
+
+
+def _try_hex_decode(blob):
+    """Best-effort decode of a long hex run into printable text, or None."""
+    compact = re.sub(r"[\s:]", "", blob or "")
+    if len(compact) < 32 or len(compact) % 2 or not re.fullmatch(r"[0-9A-Fa-f]+", compact):
+        return None
+    try:
+        raw = bytes.fromhex(compact)
+    except ValueError:
+        return None
+    for enc in ("utf-8", "ascii"):
+        try:
+            text = raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+        printable = sum(ch.isprintable() or ch in "\n\r\t" for ch in text)
+        if text and printable >= 0.85 * len(text):
+            return text
+    return None
+
+
+_UNICODE_ESC_RE = re.compile(r"\\u([0-9a-fA-F]{4})|\\x([0-9a-fA-F]{2})")
+# Compact function-word + common-word list used only for a dictionary-ratio check.
+_COMMON_WORDS = frozenset("""
+a about after all also am an and any are as at be been before being between both
+but by can could did do does doing done down during each few for from further
+had has have having he her here hers herself him himself his how i if in into is
+it its itself just me more most my myself no nor not now of off on once only or
+other our ours ourselves out over own same she should so some such than that the
+their theirs them themselves then there these they this those through to too
+under until up very was we were what when where which while who whom why will
+with you your yours yourself yourselves
+the this that those these there here when where what which who whom why how
+not no nor none never always already also just only even still yet already
+and or but if then else when while because although though unless until
+for from with without within into onto upon over under between among
+after before during since until across around behind below above
+can could may might must shall should will would
+do does did doing done be being been is am are was were
+have has had having get got make made use used using
+call called calling run running go going come coming
+text file data user name path url http https json xml
+format example description return returns given using
+tool function command system instruction ignore override
+post send upload download mention do not
+""".split())
+
+_ATBASH_HINT_RE = re.compile(r"(?i)\batbash\b|decode\s+this\s+atbash|simple\s+substitution")
+_B32_HINT_RE = re.compile(r"(?i)\bbase\s*32\b|\bb32\b")
+
+# Grade-1 English Braille (dots) -> latin. Keys are the braille codepoints.
+_BRAILLE_MAP = {
+    0x2800: " ", 0x2801: "a", 0x2803: "b", 0x2809: "c", 0x2819: "d",
+    0x2811: "e", 0x280B: "f", 0x281B: "g", 0x2813: "h", 0x280A: "i",
+    0x281A: "j", 0x2805: "k", 0x2807: "l", 0x280D: "m", 0x281D: "n",
+    0x2815: "o", 0x280F: "p", 0x281F: "q", 0x2817: "r", 0x280E: "s",
+    0x281E: "t", 0x2825: "u", 0x2827: "v", 0x283A: "w", 0x282D: "x",
+    0x283D: "y", 0x2835: "z", 0x2832: ".", 0x2802: ",", 0x2812: ":",
+    0x2816: "!", 0x2826: "?", 0x2804: "'", 0x2836: ";", 0x2824: "-",
+    0x2830: '"', 0x2810: '"',
+}
+
+
+def _decode_unicode_escapes(s):
+    if not s or "\\u" not in s and "\\x" not in s:
+        return s
+
+    def repl(m):
+        hx = m.group(1) or m.group(2)
+        try:
+            return chr(int(hx, 16))
+        except ValueError:
+            return m.group(0)
+
+    return _UNICODE_ESC_RE.sub(repl, s)
+
+
+def _apply_backspace(s):
+    out = []
+    for ch in s:
+        if ch in ("\b", "\x08"):
+            if out:
+                out.pop()
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _strip_backspace(s):
+    return s.replace("\b", "").replace("\x08", "")
+
+
+def _try_b32_decode(blob):
+    if not blob:
+        return None
+    pad = (-len(blob)) % 8
+    try:
+        dec = base64.b32decode(blob + ("=" * pad), casefold=True)
+        return dec.decode("utf-8")
+    except (binascii.Error, ValueError, UnicodeDecodeError):
+        return None
+
+
+def _atbash(s):
+    out = []
+    for ch in s:
+        if "a" <= ch <= "z":
+            out.append(chr(ord("z") - (ord(ch) - ord("a"))))
+        elif "A" <= ch <= "Z":
+            out.append(chr(ord("Z") - (ord(ch) - ord("A"))))
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _braille_decode(s):
+    if not s or not _BRAILLE_RE.search(s):
+        return None
+    out = []
+    number_mode = False
+    for ch in s:
+        o = ord(ch)
+        if o == 0x283C:  # number sign
+            number_mode = True
+            continue
+        if o == 0x2820:  # capital sign
+            number_mode = False
+            out.append("\x00CAP")
+            continue
+        if 0x2800 <= o <= 0x28FF:
+            mapped = _BRAILLE_MAP.get(o)
+            if mapped is None:
+                # keep a placeholder so length is preserved for hints
+                out.append("?")
+            elif number_mode and mapped in "abcdefghij":
+                out.append(str("abcdefghij".index(mapped) + 1)[-1] if mapped != "j" else "0")
+            else:
+                if number_mode and mapped == " ":
+                    number_mode = False
+                out.append(mapped)
+                if mapped in " .!?\n":
+                    number_mode = False
+        else:
+            number_mode = False
+            out.append(ch)
+    text = "".join(out).replace("\x00CAP", "")
+    # apply capital sign in a second pass if we stored them; already dropped.
+    return text if text and text != s else None
+
+
+def _englishish_ratio(s):
+    tokens = re.findall(r"[A-Za-z]{2,}", s or "")
+    if not tokens:
+        return 0.0
+    hits = 0
+    for tok in tokens:
+        low = tok.lower()
+        if low in _COMMON_WORDS:
+            hits += 1
+            continue
+        if re.search(r"[aeiouy]", low) and not re.search(r"[^aeiouy]{5,}", low):
+            hits += 0.4
+    return hits / len(tokens)
+
+
+def _looks_obfuscated(s):
+    """True when a description/result contains concealed or non-natural text."""
+    if not s or len(s) < 8:
+        return False
+    # Well-formed ANSI CSI/OSC sequences are typography (color, cursor), not
+    # concealment. Dedicated ANSI-conceal rules cover hidden-SGR cases. Strip
+    # them before treating leftover C0 controls as obfuscation.
+    visible = re.sub(
+        r"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)",
+        "",
+        s,
+    )
+    if _CTRL_RE.search(visible) or "\b" in visible:
+        return True
+    if _BRAILLE_RE.search(s):
+        return True
+    # Unusual-script run mixed into otherwise Latin text.
+    unusual = sum(1 for ch in s if 0x2800 <= ord(ch) <= 0x28FF or 0x16A0 <= ord(ch) <= 0x16FF)
+    if unusual >= 8:
+        return True
+    for m in _B32_RE.finditer(s):
+        if len(m.group(1)) >= 40:
+            return True
+    # Long letter-only span with a very low dictionary-word ratio, excluding URLs
+    # and repetitive filler ("a a a a"). Need several distinct 3+ letter tokens.
+    stripped = re.sub(r"https?://\S+", " ", visible)
+    letters = re.sub(r"[^A-Za-z\s]", " ", stripped)
+    tokens = re.findall(r"[A-Za-z]{3,}", letters)
+    if (len("".join(tokens)) >= 40 and len(set(t.lower() for t in tokens)) >= 4
+            and _englishish_ratio(letters) < 0.15):
+        return True
+    return False
+
+
+def _common_decode_views(text):
+    """Best-effort views after common transforms (escapes, encodings, ciphers)."""
+    if not isinstance(text, str) or not text:
+        return []
+    views = []
+    seen = set()
+
+    def add(s):
+        if s and s not in seen:
+            seen.add(s)
+            views.append(s)
+
+    add(text)
+    esc = _decode_unicode_escapes(text)
+    add(esc)
+    add(_strip_backspace(text))
+    add(_apply_backspace(text))
+    add(_strip_backspace(esc))
+    add(_apply_backspace(esc))
+    # Nested JSON string that still contains escapes.
+    stripped = text.strip()
+    if stripped[:1] in "{[\"'":
+        try:
+            obj = json.loads(text)
+            if isinstance(obj, str):
+                add(obj)
+            elif isinstance(obj, (dict, list)):
+                add(json.dumps(obj, ensure_ascii=False))
+                # also flatten string values
+                def walk(o):
+                    if isinstance(o, str):
+                        add(o)
+                    elif isinstance(o, dict):
+                        for v in o.values():
+                            walk(v)
+                    elif isinstance(o, list):
+                        for v in o:
+                            walk(v)
+                walk(obj)
+        except (ValueError, TypeError):
+            pass
+    for m in _B32_RE.finditer(text):
+        dec = _try_b32_decode(m.group(1))
+        if dec and (INSTR_HINT_RE.search(dec) or _B32_HINT_RE.search(text) or len(dec) >= 12):
+            add(dec)
+    for m in _HEX_RUN_RE.finditer(text):
+        dec = _try_hex_decode(m.group(0))
+        if dec and (INSTR_HINT_RE.search(dec) or _englishish_ratio(dec) >= 0.4):
+            add(dec)
+    rotated = _rot13(text)
+    if rotated != text and (INSTR_HINT_RE.search(rotated) and not INSTR_HINT_RE.search(text)):
+        add(rotated)
+    atb = _atbash(text)
+    if atb != text and (_ATBASH_HINT_RE.search(text) or (INSTR_HINT_RE.search(atb) and not INSTR_HINT_RE.search(text))):
+        add(atb)
+    # Whole-string reverse when the reversed text (not the original) looks instructive.
+    if len(text) >= 16:
+        rev = text[::-1]
+        if INSTR_HINT_RE.search(rev) and not INSTR_HINT_RE.search(text):
+            add(rev)
+    br = _braille_decode(text)
+    if br:
+        add(br)
+    return views
+
+
 def decoded_text_views(text):
     """Views of a schema/description string after common concealment encodings."""
     if not isinstance(text, str) or not text:
         return []
-    views = [text]
+    views = list(_common_decode_views(text)) or [text]
     unescaped = html.unescape(text)
     if unescaped != text:
         views.append(unescaped)
@@ -710,6 +984,12 @@ def scan_tools(source, tools, base, max_desc_len=1000):
             if kind == "description" and len(text) > max_desc_len:
                 add("TP07", path, "%d chars (limit %d)" % (len(text), max_desc_len), tool=tname,
                     message="Description is %d characters (limit %d)" % (len(text), max_desc_len))
+            if kind in ("description", "instructions", "title", "item") or (
+                kind not in ("key", "property-name", "name")
+            ):
+                if _looks_obfuscated(text):
+                    add("TP15", path, snippet(text, 0, min(len(text), 80)), "high",
+                        "Text is encoded, transformed, or not natural language", tname)
 
         # TP11: annotations / title disagree with destructive behaviour
         ann = _annotations_of(tool)
@@ -783,6 +1063,88 @@ def _collect_instruction_fields(doc, prefix="$"):
             yield from _collect_instruction_fields(val, child)
 
 
+
+def _collect_mcp_surfaces(doc, prefix="$"):
+    """Yield (path, name, text) for every MCP text surface.
+
+    Covers tools (already scanned separately), prompts, prompt arguments,
+    resources, resourceTemplates, and server-level instructions — generically,
+    including common envelopes (result/params).
+    """
+    if isinstance(doc, list):
+        for i, item in enumerate(doc):
+            yield from _collect_mcp_surfaces(item, "%s[%d]" % (prefix, i))
+        return
+    if not isinstance(doc, dict):
+        return
+    for key in SERVER_INSTRUCTION_KEYS:
+        val = doc.get(key)
+        if isinstance(val, str) and val.strip():
+            yield "%s.%s" % (prefix, key), "(server instructions)", val
+    # Catalogs of named items with descriptions / argument descriptions
+    for cat in ("prompts", "resources", "resourceTemplates", "tools"):
+        items = doc.get(cat)
+        if not isinstance(items, list):
+            continue
+        for i, item in enumerate(items):
+            if not isinstance(item, dict):
+                continue
+            path = "%s.%s[%d]" % (prefix, cat, i)
+            name = item.get("name") if isinstance(item.get("name"), str) else cat[:-1]
+            for field in ("description", "title", "instructions", "text"):
+                val = item.get(field)
+                if isinstance(val, str) and val.strip():
+                    yield "%s.%s" % (path, field), name, val
+            args = item.get("arguments") or item.get("args")
+            if isinstance(args, list):
+                for j, arg in enumerate(args):
+                    if not isinstance(arg, dict):
+                        continue
+                    for field in ("description", "title", "instructions"):
+                        val = arg.get(field)
+                        if isinstance(val, str) and val.strip():
+                            an = arg.get("name") if isinstance(arg.get("name"), str) else "arg"
+                            yield "%s.arguments[%d].%s" % (path, j, field), "%s.%s" % (name, an), val
+            msgs = item.get("messages")
+            if isinstance(msgs, list):
+                for j, msg in enumerate(msgs):
+                    if not isinstance(msg, dict):
+                        continue
+                    chunks = []
+                    content = msg.get("content")
+                    if isinstance(content, str) and content.strip():
+                        chunks.append(content)
+                    elif isinstance(content, list):
+                        for part in content:
+                            if isinstance(part, str) and part.strip():
+                                chunks.append(part)
+                            elif isinstance(part, dict):
+                                for field in ("text", "description", "instructions"):
+                                    val = part.get(field)
+                                    if isinstance(val, str) and val.strip():
+                                        chunks.append(val)
+                    for chunk in chunks:
+                        yield "%s.messages[%d]" % (path, j), name, chunk
+    for key in ("result", "params", "initialize", "server", "serverInfo", "capabilities"):
+        val = doc.get(key)
+        if isinstance(val, (dict, list)):
+            yield from _collect_mcp_surfaces(val, "%s.%s" % (prefix, key))
+
+
+def scan_mcp_surfaces(source, doc, max_desc_len=1000, skip_tools=True):
+    """Scan every MCP text surface with the same textual rules as tool descriptions."""
+    findings = []
+    for path, name, text in _collect_mcp_surfaces(doc):
+        if skip_tools and ".tools[" in path:
+            continue  # scan_tools already covered these
+        synthetic = [{"name": name, "description": text}]
+        for f in scan_tools(source, synthetic, "$", max_desc_len):
+            f["path"] = path
+            f["tool"] = name
+            findings.append(f)
+    return findings
+
+
 def _collect_resource_templates(doc):
     """Yield (path, name, description) for MCP resourceTemplates / resources."""
     if not isinstance(doc, dict):
@@ -847,8 +1209,7 @@ def scan_files(paths, max_desc_len=1000, stdin=None):
         source, tools, base, doc = load(p, stdin)
         loaded.append((source, tools, base))
         findings.extend(scan_tools(source, tools, base, max_desc_len))
-        findings.extend(scan_server_instructions(source, doc, max_desc_len))
-        findings.extend(scan_resource_templates(source, doc, max_desc_len))
+        findings.extend(scan_mcp_surfaces(source, doc, max_desc_len))
     # TP09 duplicates across/within files
     where = {}
     for source, tools, base in loaded:

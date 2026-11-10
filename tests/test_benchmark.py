@@ -360,14 +360,68 @@ class ResultsTests(unittest.TestCase):
         results = json.loads(RESULTS.read_text(encoding="utf-8"))
         r5 = results["redteam5"]
         self.assertEqual(r5["sample_count"], len(samples))
-        self.assertFalse(r5["seen"])
-        self.assertTrue(r5["independent"])
-        self.assertIn("overall", r5)
-        self.assertIn("false_negatives", r5)
-        self.assertIn("false_positives", r5)
+        self.assertTrue(r5["seen"])
+        self.assertFalse(r5["independent"])
+        frozen = json.loads((BENCH / "baseline_redteam5_v0.45.0.json").read_text(encoding="utf-8"))
+        self.assertEqual(frozen["version"], "v0.45.0")
+        self.assertEqual(frozen["sample_count"], len(samples))
+        self.assertEqual(frozen["overall"]["tp"], 24)
+        self.assertEqual(frozen["overall"]["fp"], 1)
+        self.assertEqual(frozen["overall"]["fn"], 29)
+        self.assertEqual(frozen["overall"]["tn"], 26)
+        self.assertEqual(results["redteam5_independent"]["overall"], frozen["overall"])
         page = (ROOT / "docs" / "benchmarks" / "index.html").read_text(encoding="utf-8")
         self.assertIn("Independent red-team round 5", page)
         self.assertIn("v0.45.0, unseen", page)
+        self.assertIn("v0.46.0 generalization", page)
+
+    def test_redteam6_is_unseen_and_separate(self):
+        import sys
+
+        sys.path.insert(0, str(BENCH))
+        import run_benchmark
+
+        run_benchmark.ensure_redteam6_fixtures()
+        r6_dir = BENCH / "redteam6"
+        r6_manifest = json.loads((r6_dir / "manifest.json").read_text(encoding="utf-8"))
+        samples = r6_manifest["samples"]
+        self.assertGreaterEqual(len(samples), 70)
+        ids = [s["id"] for s in samples]
+        self.assertEqual(len(ids), len(set(ids)))
+        tools = {s["tool"] for s in samples}
+        for name in (
+            "resultguard", "toolpoison", "tracesweep", "secretflow", "shellfence",
+            "piiguard", "fetchfence", "pathfence", "mcpposture", "memfence", "mcpoauth",
+        ):
+            self.assertIn(name, tools)
+        self.assertEqual({s["label"] for s in samples}, {"malicious", "benign"})
+        r1_ids = {s["id"] for s in json.loads((BENCH / "redteam" / "manifest.json").read_text(encoding="utf-8"))["samples"]}
+        r2_ids = {s["id"] for s in json.loads((BENCH / "redteam2" / "manifest.json").read_text(encoding="utf-8"))["samples"]}
+        r3_ids = {s["id"] for s in json.loads((BENCH / "redteam3" / "manifest.json").read_text(encoding="utf-8"))["samples"]}
+        r4_ids = {s["id"] for s in json.loads((BENCH / "redteam4" / "manifest.json").read_text(encoding="utf-8"))["samples"]}
+        r5_ids = {s["id"] for s in json.loads((BENCH / "redteam5" / "manifest.json").read_text(encoding="utf-8"))["samples"]}
+        main_ids = {s["id"] for s in json.loads(MANIFEST.read_text(encoding="utf-8"))["samples"]}
+        self.assertTrue(set(ids).isdisjoint(r1_ids | r2_ids | r3_ids | r4_ids | r5_ids | main_ids))
+        for sample in samples:
+            path = r6_dir / sample["path"]
+            self.assertTrue(path.is_file(), sample["path"])
+            self.assertTrue(path.read_text(encoding="utf-8").strip(), sample["path"])
+            self.assertTrue(sample.get("source"), sample["id"])
+        sources = (r6_dir / "SOURCES.md").read_text(encoding="utf-8")
+        self.assertIn("Base45", sources)
+        self.assertIn("hetu", sources)
+        self.assertIn("after v0.46.0", sources.lower())
+        results = json.loads(RESULTS.read_text(encoding="utf-8"))
+        r6 = results["redteam6"]
+        self.assertEqual(r6["sample_count"], len(samples))
+        self.assertFalse(r6["seen"])
+        self.assertTrue(r6["independent"])
+        self.assertIn("overall", r6)
+        self.assertIn("false_negatives", r6)
+        self.assertIn("false_positives", r6)
+        page = (ROOT / "docs" / "benchmarks" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("Independent red-team round 6", page)
+        self.assertIn("v0.46.0, unseen", page)
 
     def test_baseline_is_the_v038_snapshot(self):
 

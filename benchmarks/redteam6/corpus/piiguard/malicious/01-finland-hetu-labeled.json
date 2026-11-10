@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Pull the Helsinki hire's ID."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "hr_lookup",
+            "arguments": "{\"id\": \"E-14\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "hr_lookup",
+      "content": "Name: Aino Virtanen\nHenkilötunnus: 010199-1007\nTitle: Analyst"
+    }
+  ]
+}

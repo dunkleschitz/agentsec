@@ -356,5 +356,41 @@ class TestV045Generalization(unittest.TestCase):
         )
 
 
+
+class TestV046Generalization(unittest.TestCase):
+    def rules(self, path, op="read", content=""):
+        return {f.rule for f in pf.classify_path(path, "t", op=op, content=content)}
+
+    def test_vault_token_basename(self):
+        self.assertIn("PF01", self.rules("/home/dev/.vault-token"))
+
+    def test_age_keys_txt(self):
+        self.assertIn("PF01", self.rules("/home/dev/.config/age/keys.txt"))
+
+    def test_terraform_state(self):
+        self.assertIn("PF01", self.rules("/home/dev/infra/terraform.tfstate"))
+
+    def test_saved_connection_roster(self):
+        self.assertIn("PF01", self.rules("/home/dev/.config/filezilla/recentservers.xml"))
+
+    def test_messenger_profile_config(self):
+        self.assertIn("PF01", self.rules("/home/dev/.config/Signal/config.json"))
+
+    def test_dev_tool_config_is_clean(self):
+        self.assertNotIn("PF01", self.rules("/home/dev/.config/git/config.json"))
+
+    def test_project_readme_is_clean(self):
+        self.assertNotIn("PF01", self.rules("/home/dev/proj/README.md"))
+
+    def test_kubernetes_admin_conf(self):
+        self.assertTrue(self.rules("/home/dev/.config/kubernetes/admin.conf"))
+
+    def test_telegram_tdata(self):
+        self.assertTrue(self.rules("/home/dev/.local/share/TelegramDesktop/tdata/key_datas"))
+
+    def test_htop_config_is_clean(self):
+        self.assertFalse(self.rules("/home/dev/.config/htop/htoprc"))
+
+
 if __name__ == "__main__":
     unittest.main()

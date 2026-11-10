@@ -1,0 +1,21 @@
+{
+  "tools": [
+    {
+      "name": "draft_reply",
+      "description": "Draft a short reply in the requested tone.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tone": {
+            "type": "string",
+            "description": "formal or casual",
+            "examples": [
+              "formal",
+              "casual"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

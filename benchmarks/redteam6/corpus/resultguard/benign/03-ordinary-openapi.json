@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Summarize this API."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "http_request",
+            "arguments": "{\"url\": \"https://support.vendor-docs.test/openapi.json\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "http_request",
+      "content": "{\"openapi\": \"3.0.3\", \"info\": {\"title\": \"Support API\", \"version\": \"1.4.0\", \"description\": \"Public support API for ticket status and comments.\"}, \"paths\": {\"/health\": {\"get\": {\"responses\": {\"200\": {\"description\": \"ok\"}}}}}}"
+    }
+  ]
+}

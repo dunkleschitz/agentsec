@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "cargo",
+      "args": [
+        "install",
+        "mcp-docs-server"
+      ]
+    }
+  }
+}

@@ -41,6 +41,7 @@ RULES = {
     "MO13": ("info", "Open dynamic client registration endpoint (review confused-deputy risk)"),
     "MO14": ("info", "Inventory of metadata documents found"),
     "MO15": ("critical", "JWT none algorithm advertised for token or request signing"),
+    "MO16": ("high", "Token endpoint allows auth method 'none', or a redirect URI is a wildcard / non-https public URL"),
 }
 
 URL_FIELDS = (
@@ -168,14 +169,30 @@ def norm_url(u: str) -> str:
 
 
 def check_url_list(findings, file, text, ptr, field, value, disabled):
+    redirect = "redirect" in (field or "").lower()
     if isinstance(value, list):
         for i, item in enumerate(value):
-            check_url(findings, file, text, ptr, "%s/%d" % (field, i), item, disabled)
+            check_url(findings, file, text, ptr, "%s/%d" % (field, i), item, disabled, redirect=redirect)
     else:
-        check_url(findings, file, text, ptr, field, value, disabled)
+        check_url(findings, file, text, ptr, field, value, disabled, redirect=redirect)
 
 
-def check_url(findings, file, text, ptr, field, url, disabled):
+def _is_wildcard_redirect(url):
+    if not isinstance(url, str) or not url:
+        return False
+    if "*" in url:
+        return True
+    try:
+        p = urlsplit(url)
+    except ValueError:
+        return False
+    host = (p.hostname or "")
+    # A registered redirect must be an exact URI; a bare scheme-relative or
+    # empty-host value is also unusable as a precise redirect.
+    return host.startswith("*.") or host.startswith(".") or host == "*"
+
+
+def check_url(findings, file, text, ptr, field, url, disabled, redirect=False):
     if not isinstance(url, str) or not url:
         return
     try:
@@ -186,6 +203,8 @@ def check_url(findings, file, text, ptr, field, url, disabled):
     hc = host_class(host)
     line = find_line(text, url)
     unsafe = {"file", "data", "javascript", "vbscript", "about"}
+    fl = (field or "").lower()
+    looks_redirect = redirect or ("redirect" in fl)
     if p.scheme == "http" and hc != "loopback" and "MO05" not in disabled:
         findings.append(Finding("MO05", file, "%s/%s" % (ptr, field),
                                 "%s uses cleartext http: %s" % (field, url), line=line))
@@ -198,6 +217,39 @@ def check_url(findings, file, text, ptr, field, url, disabled):
         findings.append(Finding("MO12", file, "%s/%s" % (ptr, field),
                                 "%s points at a %s address (%s)" % (field, hc, host),
                                 severity=sev, line=line))
+    if looks_redirect and _is_wildcard_redirect(url) and "MO16" not in disabled:
+        findings.append(Finding("MO16", file, "%s/%s" % (ptr, field),
+                                "%s is a wildcard or non-exact redirect URI: %s" % (field, url),
+                                line=line))
+
+
+def _looks_url_field(name):
+    n = (name or "").lower()
+    return n.endswith(("_uri", "_url", "_endpoint", "_location")) or n in {
+        "issuer", "resource", "jwks_uri", "redirect_uri", "logo_uri", "tos_uri",
+        "policy_uri", "initiate_login_uri",
+    } or "redirect" in n or n.endswith("uris")
+
+
+def walk_url_fields(findings, file, text, ptr, obj, disabled, path=""):
+    """Check every URI/URL/endpoint-shaped field, not a fixed allow-list."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            sub = ("%s/%s" % (path, k)).lstrip("/")
+            if isinstance(v, (dict, list)):
+                walk_url_fields(findings, file, text, ptr, v, disabled, sub)
+            elif isinstance(v, str) and _looks_url_field(str(k)):
+                check_url_list(findings, file, text, ptr, sub, v, disabled)
+    elif isinstance(obj, list):
+        parent = path.rsplit("/", 1)[-1] if path else ""
+        looks = _looks_url_field(parent)
+        for i, v in enumerate(obj):
+            sub = "%s/%d" % (path, i) if path else str(i)
+            if isinstance(v, str) and looks:
+                check_url(findings, file, text, ptr, sub, v, disabled,
+                          redirect="redirect" in parent.lower())
+            else:
+                walk_url_fields(findings, file, text, ptr, v, disabled, sub)
 
 
 def scan_secrets(findings, file, text, ptr, obj, disabled, path=""):
@@ -304,11 +356,19 @@ def audit_as(findings, file, text, ptr, doc, disabled):
             add("MO15", "%s advertises the JWT 'none' algorithm, which accepts unsigned tokens"
                 % field, field, field=field)
 
-    for field in URL_FIELDS:
-        check_url_list(findings, file, text, ptr, field, doc.get(field), disabled)
-    for field in ("redirect_uris", "post_logout_redirect_uris", "redirect_uri"):
-        if field in doc:
-            check_url_list(findings, file, text, ptr, field, doc.get(field), disabled)
+    # token_endpoint_auth_methods_supported / token_endpoint_auth_method
+    for field in ("token_endpoint_auth_methods_supported", "token_endpoint_auth_method",
+                  "introspection_endpoint_auth_methods_supported",
+                  "revocation_endpoint_auth_methods_supported"):
+        methods = [m.lower() for m in as_list(doc.get(field))] if field in doc else []
+        if methods and all(m == "none" for m in methods):
+            add("MO16", "%s is only 'none'; a public client may use that, but advertising "
+                "none as the sole method disables client authentication" % field,
+                field, field=field)
+        elif "none" in methods and len(methods) == 1:
+            add("MO16", "%s advertises only 'none'" % field, field, field=field)
+
+    walk_url_fields(findings, file, text, ptr, doc, disabled)
     scan_secrets(findings, file, text, ptr, doc, disabled)
 
 
@@ -349,11 +409,7 @@ def audit_pr(findings, file, text, ptr, doc, disabled, expected):
             add("MO10", "broad scope %r advertised; prefer narrow per-tool scopes" % s,
                 '"%s"' % s, field="scopes_supported")
 
-    for field in URL_FIELDS:
-        check_url_list(findings, file, text, ptr, field, doc.get(field), disabled)
-    for field in ("redirect_uris", "post_logout_redirect_uris", "redirect_uri"):
-        if field in doc:
-            check_url_list(findings, file, text, ptr, field, doc.get(field), disabled)
+    walk_url_fields(findings, file, text, ptr, doc, disabled)
     for i, srv in enumerate(servers):
         check_url(findings, file, text, ptr, "authorization_servers/%d" % i, srv, disabled)
     scan_secrets(findings, file, text, ptr, doc, disabled)

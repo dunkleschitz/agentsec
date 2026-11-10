@@ -100,6 +100,9 @@ RULES: Dict[str, Dict[str, str]] = {
     "MP23": {"name": "remote-code-bootstrap", "severity": "critical",
              "rationale": "Launch command downloads and executes remote code (python -c urlopen/exec, node -e fetch/eval) on every start.",
              "fix": "Install a local, pinned, reviewed copy of the server and run that binary."},
+    "MP24": {"name": "bind-all-interfaces", "severity": "high",
+             "rationale": "The server is bound to all interfaces (0.0.0.0 or ::) or advertised on an unspecified address, exposing it beyond the local machine.",
+             "fix": "Bind to 127.0.0.1 or a specific interface, and require authentication on any non-loopback listener."},
 }
 
 # ---------------------------------------------------------------------------
@@ -625,7 +628,7 @@ PIPE_SHELL_RE = re.compile(
     r"\b(iex|invoke-expression)\b.*\b(iwr|irm|invoke-webrequest|invoke-restmethod|downloadstring|new-object\s+net\.webclient)|"
     r"(ba)?sh\s+<\(\s*(curl|wget)|bash\s+-c\s+\"?\$\((curl|wget))", re.I)
 
-LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0", "[::1]", "host.docker.internal"}
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "[::1]", "host.docker.internal"}
 
 TLS_ENV = {"NODE_TLS_REJECT_UNAUTHORIZED": "0", "PYTHONHTTPSVERIFY": "0"}
 INJECT_ENV = {"LD_PRELOAD", "LD_LIBRARY_PATH", "DYLD_INSERT_LIBRARIES", "DYLD_LIBRARY_PATH", "PYTHONSTARTUP",
@@ -747,6 +750,36 @@ def audit_server(srv: Server) -> None:
                     srv.inline_secrets += 1
                     add("MP09", f"secret-looking query parameter '{qk}' in URL", f"?{qk}={mask(qv)}")
                     check_scope(srv, add, qk, qv)
+            # Binding / advertising on all interfaces is never "local".
+            if host in ("0.0.0.0", "::", "[::]", "*") or host.startswith(":::"):
+                add("MP24", f"remote URL binds or advertises all interfaces ({host})", url[:120])
+
+    # ---- cwd / working directory -----------------------------------------
+    for ck in ("cwd", "workingDirectory", "working_directory", "workdir", "workingDir"):
+        cv = cfg.get(ck)
+        if isinstance(cv, str) and cv.strip():
+            why = broad_root(cv)
+            if why:
+                add("MP06", f"server {ck} is a {why}: {cv}", cv)
+
+    # ---- bind / listen flags in env or args ------------------------------
+    def _bind_all(val: str) -> bool:
+        v = (val or "").strip().lower()
+        return bool(re.search(r"(?:^|[=\s,])(?:0\.0\.0\.0|\[::\]|::)(?::\d+)?(?:$|[\s,/])", v)) or v in {
+            "0.0.0.0", "::", "[::]", "*:*", ":::8080",
+        }
+
+    for k, v in env.items():
+        vs = v if isinstance(v, str) else str(v)
+        if k.upper() in ("HOST", "BIND", "LISTEN", "LISTEN_ADDR", "LISTEN_HOST", "BIND_ADDR",
+                         "MCP_HOST", "SERVER_HOST", "HTTP_HOST") and _bind_all(vs):
+            add("MP24", f"env {k} binds all interfaces ({vs})", f"{k}={vs}")
+    for a in args:
+        al = str(a)
+        if re.search(r"(?i)--(?:host|bind|listen|listen-addr|bind-addr|http-host)(?:=|\s)", al) and _bind_all(al):
+            add("MP24", f"argument binds all interfaces: {al}", al[:120])
+        elif re.fullmatch(r"0\.0\.0\.0(?::\d+)?", al) or al in ("::", "[::]"):
+            add("MP24", f"argument binds all interfaces: {al}", al)
 
     # ---- stdio command ----------------------------------------------------
     if cmd:
@@ -800,8 +833,23 @@ def audit_server(srv: Server) -> None:
             srv.pinned = pinned
             if pinned is False:
                 what = "image" if is_docker else "package"
-                why = "@latest/floating tag" if re.search(r"[@:]latest$", pkg) else "no exact version"
+                why = "@latest/floating tag" if re.search(r"(?:[@:]|==|=)latest$", pkg) else "no exact version"
                 add("MP03", f"{what} '{pkg}' launched via {launcher} with {why}", pkg)
+        # Generic unpinned "@latest" (or floating :latest) in any ecosystem.
+        for token in [pkg or ""] + list(args) + list(lflags):
+            if re.search(r"(?:[@:]|==|=)latest(?:$|[#?/])", str(token)):
+                add("MP03", f"launch uses a floating @latest / :latest tag: {token}", str(token)[:120])
+                break
+        # go run / go install of a module path without a pinned version or commit
+        if base(cmd) in ("go", "go.exe") and any(a in ("run", "install") for a in args):
+            for a in args:
+                if a.startswith("-") or a in ("run", "install") or a.startswith("."):
+                    continue
+                if "://" not in a and "/" in a:
+                    # module path: pinned if @v1.2.3 or @<commit>
+                    if not re.search(r"@(?:v?\d+\.\d+\.\d+[\w.+-]*|[0-9a-f]{7,40})$", a):
+                        add("MP03", f"go module '{a}' is not pinned to a version or commit", a)
+                        break
         if launcher in ("npx", "bunx", "pnpx", "npm exec") and any(f in ("-y", "--yes") for f in lflags):
             # -y is mainly a risk when the resolved package is unpinned.
             if srv.pinned is not True:

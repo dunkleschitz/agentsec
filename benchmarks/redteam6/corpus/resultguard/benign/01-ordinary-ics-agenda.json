@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Summarize tomorrow's events."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"team.ics\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "read_file",
+      "content": "BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nSUMMARY:Standup\nDESCRIPTION:Weekly standup in the large room. Bring status notes.\nDTSTART:20261110T150000Z\nEND:VEVENT\nEND:VCALENDAR\n"
+    }
+  ]
+}

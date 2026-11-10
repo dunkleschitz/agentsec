@@ -393,5 +393,56 @@ class TestV045Generalization(unittest.TestCase):
         self.assertNotIn("MP11", ids(rep))
 
 
+
+class TestV046Generalization(unittest.TestCase):
+    def test_go_run_latest_is_unpinned(self):
+        rep = audit_cfg({
+            "docs": {"command": "go", "args": ["run", "github.com/fast-mirror-cdn/mcp-docs@latest"]},
+        })
+        self.assertIn("MP03", ids(rep))
+
+    def test_cwd_filesystem_root(self):
+        rep = audit_cfg({
+            "docs": {"command": "node", "args": ["server.js"], "cwd": "/"},
+        })
+        self.assertIn("MP06", ids(rep))
+
+    def test_bind_all_interfaces(self):
+        rep = audit_cfg({
+            "docs": {"url": "http://0.0.0.0:8080/mcp", "transport": "streamable-http"},
+        })
+        self.assertIn("MP24", ids(rep))
+
+    def test_loopback_http_is_not_bind_all(self):
+        rep = audit_cfg({
+            "docs": {"url": "http://127.0.0.1:8080/mcp", "transport": "streamable-http"},
+        })
+        self.assertNotIn("MP24", ids(rep))
+
+    def test_docker_latest_tag(self):
+        rep = audit_cfg({
+            "docs": {"command": "docker", "args": ["run", "-i", "--rm", "ghcr.io/fast-mirror/mcp-docs:latest"]},
+        })
+        self.assertIn("MP03", ids(rep))
+
+    def test_pip_floating_latest(self):
+        rep = audit_cfg({
+            "docs": {"command": "pip", "args": ["install", "mcp-docs==latest"]},
+        })
+        self.assertIn("MP03", ids(rep))
+
+    def test_bind_ipv6_all(self):
+        rep = audit_cfg({
+            "docs": {"command": "node", "args": ["server.js", "--host", "[::]", "--port", "8080"]},
+        })
+        self.assertIn("MP24", ids(rep))
+
+    def test_docker_pinned_tag_is_clean_of_mp03(self):
+        rep = audit_cfg({
+            "docs": {"command": "docker", "args": ["run", "-i", "--rm", "ghcr.io/fast-mirror/mcp-docs:1.4.2"]},
+        })
+        self.assertNotIn("MP03", ids(rep))
+
+
 if __name__ == "__main__":
     unittest.main()

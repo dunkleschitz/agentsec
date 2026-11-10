@@ -40,6 +40,7 @@ RULES = {
     "TR08": ("medium", "Conceal-from-user instruction in a tool result"),
     "TR09": ("medium", "Markdown/HTML auto-loading image or resource in a tool result"),
     "TR10": ("high", "Structural injection: agent-directed cues co-occurring with authority framing, sensitive objects, or an exfil/config-mutation sink"),
+    "TR11": ("high", "Obfuscated or non-natural-language text in a tool result (encoded, transformed, control characters, unusual scripts, overstrike)"),
 }
 
 # Directional *overrides* and isolates are smuggling vectors (RLO, LRO, FSI, …).
@@ -479,6 +480,278 @@ def _autoload_is_suspicious(url, tag=None):
     return False
 
 
+# --- generic obfuscation / non-natural-language views (v0.46) ---
+_CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_BRAILLE_RE = re.compile(r"[\u2800-\u28FF]{4,}")
+_B32_RE = re.compile(r"(?<![A-Za-z2-7])([A-Z2-7]{32,}={0,6})(?![A-Za-z2-7=])")
+
+_HEX_RUN_RE = re.compile(r"(?i)(?<![0-9A-F])(?:[0-9A-F]{2}){16,}(?![0-9A-F])")
+
+
+def _try_hex_decode(blob):
+    """Best-effort decode of a long hex run into printable text, or None."""
+    compact = re.sub(r"[\s:]", "", blob or "")
+    if len(compact) < 32 or len(compact) % 2 or not re.fullmatch(r"[0-9A-Fa-f]+", compact):
+        return None
+    try:
+        raw = bytes.fromhex(compact)
+    except ValueError:
+        return None
+    for enc in ("utf-8", "ascii"):
+        try:
+            text = raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+        printable = sum(ch.isprintable() or ch in "\n\r\t" for ch in text)
+        if text and printable >= 0.85 * len(text):
+            return text
+    return None
+
+
+_UNICODE_ESC_RE = re.compile(r"\\u([0-9a-fA-F]{4})|\\x([0-9a-fA-F]{2})")
+# Compact function-word + common-word list used only for a dictionary-ratio check.
+_COMMON_WORDS = frozenset("""
+a about after all also am an and any are as at be been before being between both
+but by can could did do does doing done down during each few for from further
+had has have having he her here hers herself him himself his how i if in into is
+it its itself just me more most my myself no nor not now of off on once only or
+other our ours ourselves out over own same she should so some such than that the
+their theirs them themselves then there these they this those through to too
+under until up very was we were what when where which while who whom why will
+with you your yours yourself yourselves
+the this that those these there here when where what which who whom why how
+not no nor none never always already also just only even still yet already
+and or but if then else when while because although though unless until
+for from with without within into onto upon over under between among
+after before during since until across around behind below above
+can could may might must shall should will would
+do does did doing done be being been is am are was were
+have has had having get got make made use used using
+call called calling run running go going come coming
+text file data user name path url http https json xml
+format example description return returns given using
+tool function command system instruction ignore override
+post send upload download mention do not
+""".split())
+
+_ATBASH_HINT_RE = re.compile(r"(?i)\batbash\b|decode\s+this\s+atbash|simple\s+substitution")
+_B32_HINT_RE = re.compile(r"(?i)\bbase\s*32\b|\bb32\b")
+
+# Grade-1 English Braille (dots) -> latin. Keys are the braille codepoints.
+_BRAILLE_MAP = {
+    0x2800: " ", 0x2801: "a", 0x2803: "b", 0x2809: "c", 0x2819: "d",
+    0x2811: "e", 0x280B: "f", 0x281B: "g", 0x2813: "h", 0x280A: "i",
+    0x281A: "j", 0x2805: "k", 0x2807: "l", 0x280D: "m", 0x281D: "n",
+    0x2815: "o", 0x280F: "p", 0x281F: "q", 0x2817: "r", 0x280E: "s",
+    0x281E: "t", 0x2825: "u", 0x2827: "v", 0x283A: "w", 0x282D: "x",
+    0x283D: "y", 0x2835: "z", 0x2832: ".", 0x2802: ",", 0x2812: ":",
+    0x2816: "!", 0x2826: "?", 0x2804: "'", 0x2836: ";", 0x2824: "-",
+    0x2830: '"', 0x2810: '"',
+}
+
+
+def _decode_unicode_escapes(s):
+    if not s or "\\u" not in s and "\\x" not in s:
+        return s
+
+    def repl(m):
+        hx = m.group(1) or m.group(2)
+        try:
+            return chr(int(hx, 16))
+        except ValueError:
+            return m.group(0)
+
+    return _UNICODE_ESC_RE.sub(repl, s)
+
+
+def _apply_backspace(s):
+    out = []
+    for ch in s:
+        if ch in ("\b", "\x08"):
+            if out:
+                out.pop()
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _strip_backspace(s):
+    return s.replace("\b", "").replace("\x08", "")
+
+
+def _try_b32_decode(blob):
+    if not blob:
+        return None
+    pad = (-len(blob)) % 8
+    try:
+        dec = base64.b32decode(blob + ("=" * pad), casefold=True)
+        return dec.decode("utf-8")
+    except (binascii.Error, ValueError, UnicodeDecodeError):
+        return None
+
+
+def _atbash(s):
+    out = []
+    for ch in s:
+        if "a" <= ch <= "z":
+            out.append(chr(ord("z") - (ord(ch) - ord("a"))))
+        elif "A" <= ch <= "Z":
+            out.append(chr(ord("Z") - (ord(ch) - ord("A"))))
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _braille_decode(s):
+    if not s or not _BRAILLE_RE.search(s):
+        return None
+    out = []
+    number_mode = False
+    for ch in s:
+        o = ord(ch)
+        if o == 0x283C:  # number sign
+            number_mode = True
+            continue
+        if o == 0x2820:  # capital sign
+            number_mode = False
+            out.append("\x00CAP")
+            continue
+        if 0x2800 <= o <= 0x28FF:
+            mapped = _BRAILLE_MAP.get(o)
+            if mapped is None:
+                # keep a placeholder so length is preserved for hints
+                out.append("?")
+            elif number_mode and mapped in "abcdefghij":
+                out.append(str("abcdefghij".index(mapped) + 1)[-1] if mapped != "j" else "0")
+            else:
+                if number_mode and mapped == " ":
+                    number_mode = False
+                out.append(mapped)
+                if mapped in " .!?\n":
+                    number_mode = False
+        else:
+            number_mode = False
+            out.append(ch)
+    text = "".join(out).replace("\x00CAP", "")
+    # apply capital sign in a second pass if we stored them; already dropped.
+    return text if text and text != s else None
+
+
+def _englishish_ratio(s):
+    tokens = re.findall(r"[A-Za-z]{2,}", s or "")
+    if not tokens:
+        return 0.0
+    hits = 0
+    for tok in tokens:
+        low = tok.lower()
+        if low in _COMMON_WORDS:
+            hits += 1
+            continue
+        if re.search(r"[aeiouy]", low) and not re.search(r"[^aeiouy]{5,}", low):
+            hits += 0.4
+    return hits / len(tokens)
+
+
+def _looks_obfuscated(s):
+    """True when a description/result contains concealed or non-natural text."""
+    if not s or len(s) < 8:
+        return False
+    # Well-formed ANSI CSI/OSC sequences are typography (color, cursor), not
+    # concealment. Dedicated ANSI-conceal rules cover hidden-SGR cases. Strip
+    # them before treating leftover C0 controls as obfuscation.
+    visible = re.sub(
+        r"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)",
+        "",
+        s,
+    )
+    if _CTRL_RE.search(visible) or "\b" in visible:
+        return True
+    if _BRAILLE_RE.search(s):
+        return True
+    # Unusual-script run mixed into otherwise Latin text.
+    unusual = sum(1 for ch in s if 0x2800 <= ord(ch) <= 0x28FF or 0x16A0 <= ord(ch) <= 0x16FF)
+    if unusual >= 8:
+        return True
+    for m in _B32_RE.finditer(s):
+        if len(m.group(1)) >= 40:
+            return True
+    # Long letter-only span with a very low dictionary-word ratio, excluding URLs
+    # and repetitive filler ("a a a a"). Need several distinct 3+ letter tokens.
+    stripped = re.sub(r"https?://\S+", " ", visible)
+    letters = re.sub(r"[^A-Za-z\s]", " ", stripped)
+    tokens = re.findall(r"[A-Za-z]{3,}", letters)
+    if (len("".join(tokens)) >= 40 and len(set(t.lower() for t in tokens)) >= 4
+            and _englishish_ratio(letters) < 0.15):
+        return True
+    return False
+
+
+def _common_decode_views(text):
+    """Best-effort views after common transforms (escapes, encodings, ciphers)."""
+    if not isinstance(text, str) or not text:
+        return []
+    views = []
+    seen = set()
+
+    def add(s):
+        if s and s not in seen:
+            seen.add(s)
+            views.append(s)
+
+    add(text)
+    esc = _decode_unicode_escapes(text)
+    add(esc)
+    add(_strip_backspace(text))
+    add(_apply_backspace(text))
+    add(_strip_backspace(esc))
+    add(_apply_backspace(esc))
+    # Nested JSON string that still contains escapes.
+    stripped = text.strip()
+    if stripped[:1] in "{[\"'":
+        try:
+            obj = json.loads(text)
+            if isinstance(obj, str):
+                add(obj)
+            elif isinstance(obj, (dict, list)):
+                add(json.dumps(obj, ensure_ascii=False))
+                # also flatten string values
+                def walk(o):
+                    if isinstance(o, str):
+                        add(o)
+                    elif isinstance(o, dict):
+                        for v in o.values():
+                            walk(v)
+                    elif isinstance(o, list):
+                        for v in o:
+                            walk(v)
+                walk(obj)
+        except (ValueError, TypeError):
+            pass
+    for m in _B32_RE.finditer(text):
+        dec = _try_b32_decode(m.group(1))
+        if dec and (INSTR_HINT_RE.search(dec) or _B32_HINT_RE.search(text) or len(dec) >= 12):
+            add(dec)
+    for m in _HEX_RUN_RE.finditer(text):
+        dec = _try_hex_decode(m.group(0))
+        if dec and (INSTR_HINT_RE.search(dec) or _englishish_ratio(dec) >= 0.4):
+            add(dec)
+    rotated = _rot13(text)
+    if rotated != text and (INSTR_HINT_RE.search(rotated) and not INSTR_HINT_RE.search(text)):
+        add(rotated)
+    atb = _atbash(text)
+    if atb != text and (_ATBASH_HINT_RE.search(text) or (INSTR_HINT_RE.search(atb) and not INSTR_HINT_RE.search(text))):
+        add(atb)
+    # Whole-string reverse when the reversed text (not the original) looks instructive.
+    if len(text) >= 16:
+        rev = text[::-1]
+        if INSTR_HINT_RE.search(rev) and not INSTR_HINT_RE.search(text):
+            add(rev)
+    br = _braille_decode(text)
+    if br:
+        add(br)
+    return views
+
+
 def decode_candidates(text):
     """Yield (kind, decoded_str, start_idx) for base64/hex blobs that look instructive."""
     out = []
@@ -520,6 +793,22 @@ def decode_candidates(text):
         m = OVERRIDE_RE.search(rotated) or INSTR_HINT_RE.search(rotated)
         if m and not OVERRIDE_RE.search(text):
             out.append(("rot13", rotated[m.start():m.start() + 80], m.start()))
+    for m in _B32_RE.finditer(text):
+        dec = _try_b32_decode(m.group(1))
+        if dec and len(dec) >= 12 and INSTR_HINT_RE.search(dec):
+            out.append(("base32", dec, m.start()))
+    atb = _atbash(text)
+    if atb != text and INSTR_HINT_RE.search(atb) and not INSTR_HINT_RE.search(text):
+        m = INSTR_HINT_RE.search(atb)
+        out.append(("atbash", atb[m.start():m.start() + 80], 0))
+    for label, view in (("backspace-strip", _strip_backspace(text)),
+                        ("backspace-apply", _apply_backspace(text)),
+                        ("unicode-escape", _decode_unicode_escapes(text))):
+        if view != text and INSTR_HINT_RE.search(view) and not INSTR_HINT_RE.search(text):
+            out.append((label, view[:80], 0))
+    br = _braille_decode(text)
+    if br and INSTR_HINT_RE.search(br):
+        out.append(("braille", br[:80], 0))
     return out
 
 
@@ -714,8 +1003,12 @@ def normalize_injection_views(text):
         views.append((label, s))
 
     add("raw", text)
+    for s in _common_decode_views(text):
+        add("transform", s)
     ansi = _strip_ansi(text)
     add("ansi", ansi)
+    for s in _common_decode_views(ansi):
+        add("ansi-transform", s)
     if _ANSI_CONCEAL_RE.search(text) and ansi != text:
         add("ansi-conceal", ansi)
     unescaped = html.unescape(text)
@@ -1074,6 +1367,9 @@ def scan_text(text, source, tool, turn, disabled=None):
                 tag, ev = hits[0]
                 add("TR10", "structural injection (%s, view=%s): %s" % (tag, label, ev[:80]))
                 break
+
+    if "TR11" not in disabled and _looks_obfuscated(text):
+        add("TR11", "tool result contains encoded, transformed, or non-natural-language text")
 
     return findings
 

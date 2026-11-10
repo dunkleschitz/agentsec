@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Open the contact card."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"jordan.vcf\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "read_file",
+      "content": "BEGIN:VCARD\nVERSION:3.0\nFN:Jordan Lee\nORG:Northwind\nNOTE:Prefers email in the morning. Desk is on the 4th floor.\nEND:VCARD\n"
+    }
+  ]
+}

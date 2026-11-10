@@ -703,25 +703,61 @@ def _embedded_exec_payloads(cmd):
         val = m.group(1) or m.group(2) or m.group(3) or ""
         if val:
             out.append(val)
+    # find -exec/-execdir CMD ;
+    for m in re.finditer(
+        r"(?i)\s-(?:exec|execdir|ok|okdir)\s+" + quoted,
+        cmd,
+    ):
+        val = m.group(1) or m.group(2) or m.group(3) or ""
+        if val and val not in (";", r"\;"):
+            out.append(val)
+    # make $(shell CMD) or ${shell CMD}
+    for m in re.finditer(r"(?i)\$\(?\s*shell\s+([^)]+)\)", cmd):
+        val = (m.group(1) or "").strip()
+        if val:
+            out.append(val)
+    # awk/perl/ruby system("CMD")
+    for m in re.finditer(r"(?i)\bsystem\s*\(\s*" + quoted, cmd):
+        val = m.group(1) or m.group(2) or m.group(3) or ""
+        if val:
+            out.append(val)
     return out
 
 
 LOLBAS_RE = re.compile(
     r"(?ix)"
     r"("
-    r"\bcertutil\b[^\n|;]{0,200}(?:-urlcache|urlcache|\s+-f\b)[^\n|;]{0,200}https?://|"
-    r"\bcertutil\b[^\n|;]{0,80}(?:-urlcache|urlcache)\b|"
-    r"\bmshta\b\s+https?://|"
-    r"\bmshta\b[^\n|;]{0,160}https?://|"
-    r"\bbitsadmin\b[^\n|;]{0,200}/transfer\b|"
-    r"\bregsvr32\b[^\n|;]{0,160}(?:/i\s*:\s*)?https?://|"
-    r"\brundll32\b[^\n|;]{0,160}https?://|"
-    r"\bmsiexec\b[^\n|;]{0,160}/i\s+https?://|"
-    r"\bcmstp\b[^\n|;]{0,160}https?://"
+    r"\bcertutil(?:\.exe)?\b[^\n|;]{0,200}(?:-urlcache|urlcache|\s+-f\b)[^\n|;]{0,200}https?://|"
+    r"\bcertutil(?:\.exe)?\b[^\n|;]{0,80}(?:-urlcache|urlcache)\b|"
+    r"\bmshta(?:\.exe)?\b[^\n|;]{0,160}https?://|"
+    r"\bbitsadmin(?:\.exe)?\b[^\n|;]{0,200}/transfer\b|"
+    r"\bregsvr32(?:\.exe)?\b[^\n|;]{0,160}(?:/i\s*:\s*)?https?://|"
+    r"\brundll32(?:\.exe)?\b[^\n|;]{0,160}https?://|"
+    r"\bmsiexec(?:\.exe)?\b[^\n|;]{0,160}/i\s+https?://|"
+    r"\bcmstp(?:\.exe)?\b[^\n|;]{0,160}https?://|"
+    r"\b(?:wmic|wmic\.exe)\b[^\n|;]{0,200}process\s+call\s+create\b|"
+    r"\b(?:schtasks|schtasks\.exe)\b[^\n|;]{0,200}/create\b|"
+    r"\b(?:wscript|cscript|mshta)(?:\.exe)?\b[^\n|;]{0,160}https?://|"
+    r"\b(?:installutil|ieexec|pcalua|odbcconf|regasm|regsvcs|msbuild)(?:\.exe)?\b"
+    r"[^\n|;]{0,200}(?:https?://|/c\b|PostBuildEvent)"
     r")"
 )
 
 # Exec trampolines and living-off-the-land binary wrappers (class, not one binary).
+# Anything that runs a payload via an exec-hook option (-exec, checkpoint-action,
+# PostBuildEvent, $(shell), awk/perl system(), …).
+EXEC_HOOK_RE = re.compile(
+    r"(?ix)(?:"
+    r"\b(?:find|find\.exe)\b[^\n|;]{0,240}\s-(?:exec|execdir|ok|okdir)\b"
+    r"|\b(?:xargs|xargs\.exe)\b[^\n|;]{0,80}-(?:I|i|exec)\b"
+    r"|--checkpoint-action\s*=\s*(?:(?:always-)?exec[=:]?)"
+    r"|\b(?:pre|post)buildevent\s*="
+    r"|\$\s*\(\s*shell\b"
+    r"|\b(?:awk|gawk|mawk|nawk)\b[^\n|;]{0,200}\bsystem\s*\("
+    r"|\b(?:perl|ruby)\b[^\n|;]{0,160}\bsystem\s*\("
+    r"|\b(?:vim|nvim|emacs|gdb|lldb)\b[^\n|;]{0,160}\s-(?:c|ex|x)\s+"
+    r")"
+)
 LOLBIN_TRAMPOLINE_RE = re.compile(
     r"(?ix)(?:"
     r"\btar\b[^\n|;]{0,200}--checkpoint-action\s*=\s*(?:exec|always[-]?exec)\b"
@@ -729,16 +765,24 @@ LOLBIN_TRAMPOLINE_RE = re.compile(
     r"|\bmsbuild\b[^\n|;]{0,240}(?:/p:)?PostBuildEvent\s*="
     r"|\bmsbuild\b[^\n|;]{0,240}<(?:Exec|PreBuildEvent|PostBuildEvent|Target)\b"
     r"|\b(?:installutil|ieexec|pcalua|odbcconf|register-cimprovider)\b"
+    r"|\b(?:wmic|wmic\.exe)\b[^\n|;]{0,200}process\s+call\s+create\b"
+    r"|\b(?:schtasks|schtasks\.exe|at\.exe)\b[^\n|;]{0,200}(?:/create|\s/c\b)"
+    r"|\b(?:bash|sh|cmd|cmd\.exe|powershell|pwsh)\b[^\n|;]{0,80}-(?:c|Command)\b[^\n|;]{0,200}"
+    r"(?:https?://|curl|wget|mshta|certutil|powershell)"
     r")"
 )
-# rclone / cloud-sync of a sensitive root to a remote, excluding --dry-run.
+# Transfer / sync tools targeting home, secrets, or a broad user root,
+# excluding an explicit --dry-run.
 CLOUD_SYNC_EXFIL_RE = re.compile(
     r"(?ix)(?:^|[;&|\n]|&&|\|\|)\s*"
-    r"(?:sudo\s+)?(?:rclone|aws\s+s3\s+sync|azcopy|gsutil\s+(-m\s+)?(cp|rsync))\b"
+    r"(?:sudo\s+)?(?:rclone|rsync|scp|sftp|aws\s+s3\s+(?:sync|cp)|azcopy|gsutil\s+(-m\s+)?(cp|rsync)|"
+    r"rclone\.exe|pscp|winscp)\b"
     r"(?!\s+[^\n]{0,200}--dry-run)"
     r"[^\n;]{0,240}"
-    r"(?:\$HOME|\$\{HOME\}|~(?:/|$)|%USERPROFILE%|/etc(?:/|$)|/root(?:/|$)|/home/|/Users/)"
+    r"(?:\$HOME|\$\{HOME\}|~(?:/|$)|%USERPROFILE%|/etc(?:/|$)|/root(?:/|$)|"
+    r"/home/|/Users/|\.ssh(?:/|$)|\.gnupg(?:/|$)|\.aws(?:/|$)|secrets?(?:/|$))"
 )
+
 _DOWNLOADER_RE = re.compile(r"(?i)\b(?:curl|wget|fetch|bitsadmin|certutil|invoke-webrequest|iwr)\b")
 _CHMOD_EXEC_RE = re.compile(r"(?i)\bchmod\b\s+(?:-[a-zA-Z]+\s+)*(?:\+x|[0-7]*[1357]|a\+x|u\+x|ug\+x)\b")
 _EXEC_INTERP_RE = re.compile(r"(?i)^(?:(?:\./)?(?:sh|bash|zsh|dash|ksh|fish|python(?:3)?|perl|ruby|node|powershell|pwsh|cmd|start|cmd\.exe)\b)")
@@ -930,12 +974,14 @@ def classify_command(command: str, source: str, tool: str = "", turn=None, disab
     if _download_then_exec(n):
         add("SF18", "Download-then-execute without a pipe: %s" % _snippet(n, 90))
 
-    if LOLBIN_TRAMPOLINE_RE.search(n) or CLOUD_SYNC_EXFIL_RE.search(n):
-        add("SF19", "LOLBin exec trampoline or cloud-sync exfil: %s" % _snippet(n, 90))
+    if (LOLBIN_TRAMPOLINE_RE.search(n) or CLOUD_SYNC_EXFIL_RE.search(n)
+            or EXEC_HOOK_RE.search(n)):
+        add("SF19", "LOLBin exec trampoline, exec-hook, or home/secret transfer: %s" % _snippet(n, 90))
     if ps_decoded:
         inner = _normalize_cmd(ps_decoded)
-        if LOLBIN_TRAMPOLINE_RE.search(inner) or CLOUD_SYNC_EXFIL_RE.search(inner):
-            add("SF19", "Decoded PowerShell LOLBin/cloud-sync abuse: %s" % _snippet(inner, 90))
+        if (LOLBIN_TRAMPOLINE_RE.search(inner) or CLOUD_SYNC_EXFIL_RE.search(inner)
+                or EXEC_HOOK_RE.search(inner)):
+            add("SF19", "Decoded PowerShell LOLBin/exec-hook/transfer abuse: %s" % _snippet(inner, 90))
 
     # Recursively reason about commands wrapped inside trampolines
     # (tar --checkpoint-action=exec, forfiles /c, MSBuild PostBuildEvent).

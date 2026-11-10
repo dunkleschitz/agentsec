@@ -675,6 +675,455 @@ EMAIL_SKIP_LOCAL = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Data-driven national-ID framework (formats + checksums + context keywords)
+# ---------------------------------------------------------------------------
+
+def _digits(s):
+    return re.sub(r"\D", "", s or "")
+
+
+def _tckn_ok(raw):
+    d = _digits(raw)
+    if len(d) != 11 or d[0] == "0" or not d.isdigit():
+        return False
+    nums = [int(c) for c in d]
+    odd = nums[0] + nums[2] + nums[4] + nums[6] + nums[8]
+    even = nums[1] + nums[3] + nums[5] + nums[7]
+    if ((odd * 7) - even) % 10 != nums[9]:
+        return False
+    return (sum(nums[:10]) % 10) == nums[10]
+
+
+def _rut_ok(raw):
+    s = re.sub(r"[.\s]", "", (raw or "")).upper()
+    m = re.fullmatch(r"(\d{6,9})-?([0-9K])", s)
+    if not m:
+        return False
+    body, chk = m.group(1), m.group(2)
+    total, mul = 0, 2
+    for ch in body[::-1]:
+        total += int(ch) * mul
+        mul = 2 if mul == 7 else mul + 1
+    rem = 11 - (total % 11)
+    expect = "0" if rem == 11 else ("K" if rem == 10 else str(rem))
+    return chk == expect
+
+
+def _za_id_ok(raw):
+    d = _digits(raw)
+    if len(d) != 13:
+        return False
+    yy, mm, dd = int(d[0:2]), int(d[2:4]), int(d[4:6])
+    if not (1 <= mm <= 12 and 1 <= dd <= 31):
+        return False
+    return luhn_ok(d)
+
+
+def _codice_fiscale_ok(raw):
+    s = re.sub(r"\s+", "", (raw or "")).upper()
+    if not re.fullmatch(r"[A-Z]{6}\d{2}[A-EHLMPRST]\d{2}[A-Z]\d{3}[A-Z]", s):
+        return False
+    odd_map = {
+        "0": 1, "1": 0, "2": 5, "3": 7, "4": 9, "5": 13, "6": 15, "7": 17, "8": 19, "9": 21,
+        "A": 1, "B": 0, "C": 5, "D": 7, "E": 9, "F": 13, "G": 15, "H": 17, "I": 19, "J": 21,
+        "K": 2, "L": 4, "M": 18, "N": 20, "O": 11, "P": 3, "Q": 6, "R": 8, "S": 12, "T": 14,
+        "U": 16, "V": 10, "W": 22, "X": 25, "Y": 24, "Z": 23,
+    }
+    even_map = {str(i): i for i in range(10)}
+    even_map.update({chr(65 + i): i for i in range(26)})
+    total = 0
+    for i, ch in enumerate(s[:15]):
+        total += odd_map[ch] if (i % 2) == 0 else even_map[ch]
+    return s[15] == chr(ord("A") + (total % 26))
+
+
+def _bsn_ok(raw):
+    d = _digits(raw)
+    if len(d) == 8:
+        d = "0" + d
+    if len(d) != 9 or d == "0" * 9:
+        return False
+    nums = [int(c) for c in d]
+    total = sum((9 - i) * nums[i] for i in range(8)) - nums[8]
+    return total % 11 == 0
+
+
+def _spain_dni_ok(raw):
+    s = re.sub(r"[\s-]", "", (raw or "")).upper()
+    letters = "TRWAGMYFPDXBNJZSQVHLCKE"
+    m = re.fullmatch(r"(\d{8})([A-Z])", s)
+    if m:
+        return letters[int(m.group(1)) % 23] == m.group(2)
+    m = re.fullmatch(r"([XYZ])(\d{7})([A-Z])", s)
+    if not m:
+        return False
+    prefix = {"X": "0", "Y": "1", "Z": "2"}[m.group(1)]
+    return letters[int(prefix + m.group(2)) % 23] == m.group(3)
+
+
+def _nif_ok(raw):
+    d = _digits(raw)
+    if len(d) != 9 or d[0] not in "1235689":
+        return False
+    total = sum(int(d[i]) * (9 - i) for i in range(8))
+    rem = total % 11
+    check = 0 if rem < 2 else 11 - rem
+    return check == int(d[8])
+
+
+def _belgium_nn_ok(raw):
+    d = _digits(raw)
+    if len(d) != 11:
+        return False
+    body, chk = int(d[:9]), int(d[9:])
+    if (97 - (body % 97)) == chk:
+        return True
+    # persons born in 2000+ use 2||YYMMDDXXX
+    return (97 - (int("2" + d[:9]) % 97)) == chk
+
+
+def _norway_fnr_ok(raw):
+    d = _digits(raw)
+    if len(d) != 11:
+        return False
+    n = [int(c) for c in d]
+    w1 = (3, 7, 6, 1, 8, 9, 4, 5, 2)
+    w2 = (5, 4, 3, 2, 7, 6, 5, 4, 3, 2)
+    c1 = 11 - (sum(n[i] * w1[i] for i in range(9)) % 11)
+    if c1 == 11:
+        c1 = 0
+    if c1 == 10 or c1 != n[9]:
+        return False
+    c2 = 11 - (sum(n[i] * w2[i] for i in range(10)) % 11)
+    if c2 == 11:
+        c2 = 0
+    return c2 != 10 and c2 == n[10]
+
+
+def _finland_hetu_ok(raw):
+    s = re.sub(r"\s+", "", (raw or "")).upper()
+    m = re.fullmatch(r"(\d{6})[-+A](\d{3})([0-9A-Y])", s)
+    if not m:
+        return False
+    chars = "0123456789ABCDEFHJKLMNPRSTUVWXY"
+    n = int(m.group(1) + m.group(2))
+    return chars[n % 31] == m.group(3)
+
+
+def _estonia_ik_ok(raw):
+    d = _digits(raw)
+    if len(d) != 11:
+        return False
+    n = [int(c) for c in d]
+    for weights in ((1, 2, 3, 4, 5, 6, 7, 8, 9, 1), (3, 4, 5, 6, 7, 8, 9, 1, 2, 3)):
+        rem = sum(n[i] * weights[i] for i in range(10)) % 11
+        if rem != 10:
+            return rem == n[10]
+    return n[10] == 0
+
+
+def _romania_cnp_ok(raw):
+    d = _digits(raw)
+    if len(d) != 13 or d[0] not in "123456789":
+        return False
+    w = (2, 7, 9, 1, 4, 6, 3, 5, 8, 2, 7, 9)
+    rem = sum(int(d[i]) * w[i] for i in range(12)) % 11
+    check = 1 if rem == 10 else rem
+    return check == int(d[12])
+
+
+def _bulgaria_egn_ok(raw):
+    d = _digits(raw)
+    if len(d) != 10:
+        return False
+    w = (2, 4, 8, 5, 10, 9, 7, 3, 6)
+    rem = sum(int(d[i]) * w[i] for i in range(9)) % 11
+    check = 0 if rem == 10 else rem
+    return check == int(d[9])
+
+
+def _croatia_oib_ok(raw):
+    d = _digits(raw)
+    if len(d) != 11:
+        return False
+    a = 10
+    for ch in d[:10]:
+        a = (a + int(ch)) % 10
+        if a == 0:
+            a = 10
+        a = (a * 2) % 11
+    check = 11 - a
+    if check == 10:
+        check = 0
+    return check == int(d[10])
+
+
+def _greece_afm_ok(raw):
+    d = _digits(raw)
+    if len(d) != 9:
+        return False
+    total = sum(int(d[i]) * (2 ** (8 - i)) for i in range(8))
+    return (total % 11) % 10 == int(d[8])
+
+
+def _israel_id_ok(raw):
+    d = _digits(raw)
+    if not (5 <= len(d) <= 9):
+        return False
+    d = d.zfill(9)
+    total = 0
+    for i, ch in enumerate(d[:8]):
+        v = int(ch) * (1 if i % 2 == 0 else 2)
+        total += v if v < 10 else (v - 9)
+    return (total + int(d[8])) % 10 == 0
+
+
+def _china_id_ok(raw):
+    s = re.sub(r"\s+", "", (raw or "")).upper()
+    if not re.fullmatch(r"\d{17}[0-9X]", s):
+        return False
+    w = (7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2)
+    remap = "10X98765432"
+    total = sum(int(s[i]) * w[i] for i in range(17))
+    return remap[total % 11] == s[17]
+
+
+def _taiwan_nid_ok(raw):
+    s = re.sub(r"[\s-]", "", (raw or "")).upper()
+    if not re.fullmatch(r"[A-Z][1289AB]\d{8}", s):
+        # classic form: letter + 9 digits (second may be 1/2)
+        if not re.fullmatch(r"[A-Z]\d{9}", s):
+            return False
+    letters = {chr(65 + i): (10 + i) for i in range(26)}
+    # official letter mapping (A=10 ... etc.) is sequential for A-H then slightly different;
+    # use the published table.
+    letters = {
+        "A": 10, "B": 11, "C": 12, "D": 13, "E": 14, "F": 15, "G": 16, "H": 17,
+        "I": 34, "J": 18, "K": 19, "L": 20, "M": 21, "N": 22, "O": 35, "P": 23,
+        "Q": 24, "R": 25, "S": 26, "T": 27, "U": 28, "V": 29, "W": 32, "X": 30,
+        "Y": 31, "Z": 33,
+    }
+    code = letters.get(s[0])
+    if code is None:
+        return False
+    n = [code // 10, code % 10] + [int(c, 16) if c in "AB" else int(c) for c in s[1:]]
+    # last is check
+    weights = [1, 9, 8, 7, 6, 5, 4, 3, 2, 1, 1]
+    if len(n) != 11:
+        return False
+    return sum(n[i] * weights[i] for i in range(11)) % 10 == 0
+
+
+def _hkid_ok(raw):
+    s = re.sub(r"[\s()]", "", (raw or "")).upper()
+    m = re.fullmatch(r"([A-Z]{1,2})(\d{6})([0-9A])", s)
+    if not m:
+        return False
+    chars = m.group(1) + m.group(2)
+    if len(chars) == 7:
+        chars = " " + chars
+    def val(ch):
+        if ch == " ":
+            return 36
+        if ch.isdigit():
+            return int(ch)
+        return ord(ch) - 55  # A=10
+    total = sum(val(ch) * (8 - i) for i, ch in enumerate(chars))
+    rem = total % 11
+    check = "0" if rem == 0 else ("A" if rem == 1 else str(11 - rem))
+    return check == m.group(3)
+
+
+def _thailand_id_ok(raw):
+    d = _digits(raw)
+    if len(d) != 13 or d[0] == "0":
+        return False
+    total = sum(int(d[i]) * (13 - i) for i in range(12))
+    return (11 - (total % 11)) % 10 == int(d[12])
+
+
+def _cuil_ok(raw):
+    d = _digits(raw)
+    if len(d) != 11:
+        return False
+    w = (5, 4, 3, 2, 7, 6, 5, 4, 3, 2)
+    rem = sum(int(d[i]) * w[i] for i in range(10)) % 11
+    check = 0 if rem == 0 else (11 - rem)
+    # some CUIL types remap 10
+    if check == 11:
+        check = 0
+    if check == 10:
+        return False  # those numbers are reissued; treat as invalid here
+    return check == int(d[10])
+
+
+def _nz_ird_ok(raw):
+    d = _digits(raw)
+    if len(d) not in (8, 9):
+        return False
+    d = d.zfill(9)
+    w = (3, 2, 7, 6, 5, 4, 3, 2)
+    rem = sum(int(d[i]) * w[i] for i in range(8)) % 11
+    check = 0 if rem == 0 else 11 - rem
+    if check != 10:
+        return check == int(d[8])
+    w2 = (7, 4, 3, 2, 5, 2, 7, 6)
+    rem = sum(int(d[i]) * w2[i] for i in range(8)) % 11
+    check = 0 if rem == 0 else 11 - rem
+    return check != 10 and check == int(d[8])
+
+
+def _irish_ppsn_ok(raw):
+    s = re.sub(r"\s+", "", (raw or "")).upper()
+    m = re.fullmatch(r"(\d{7})([A-W])([A-IW])?", s)
+    if not m:
+        return False
+    letters = "WABCDEFGHIJKLMNOPQRSTUV"
+    total = sum(int(m.group(1)[i]) * (8 - i) for i in range(7))
+    extra = m.group(3)
+    if extra:
+        total += (ord(extra) - 64) * 9 if extra != "W" else 0
+    return letters[total % 23] == m.group(2)
+
+
+def _swiss_ahv_ok(raw):
+    d = _digits(raw)
+    if len(d) != 13 or not d.startswith("756"):
+        return False
+    # EAN-13
+    total = sum(int(d[i]) * (1 if i % 2 == 0 else 3) for i in range(12))
+    check = (10 - (total % 10)) % 10
+    return check == int(d[12])
+
+
+def _hungary_taj_ok(raw):
+    d = _digits(raw)
+    if len(d) != 9:
+        return False
+    total = sum(int(d[i]) * (3 if i % 2 == 0 else 7) for i in range(8))
+    return total % 10 == int(d[8])
+
+
+def _korea_rrn_ok(raw):
+    d = _digits(raw)
+    if len(d) != 13:
+        return False
+    w = (2, 3, 4, 5, 6, 7, 8, 9, 2, 3, 4, 5)
+    rem = (11 - (sum(int(d[i]) * w[i] for i in range(12)) % 11)) % 10
+    return rem == int(d[12])
+
+
+def _jmbg_ok(raw):
+    d = _digits(raw)
+    if len(d) != 13:
+        return False
+    # DDMMYYY RR SSS K
+    dd, mm = int(d[0:2]), int(d[2:4])
+    if not (1 <= mm <= 12 and 1 <= dd <= 31):
+        return False
+    w = (7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2)
+    rem = 11 - (sum(int(d[i]) * w[i] for i in range(12)) % 11)
+    check = 0 if rem in (10, 11) else rem
+    return check == int(d[12])
+
+
+def _malaysia_nric_ok(raw):
+    d = _digits(raw)
+    if len(d) != 12:
+        return False
+    yy, mm, dd = int(d[0:2]), int(d[2:4]), int(d[4:6])
+    return 1 <= mm <= 12 and 1 <= dd <= 31
+
+
+def _labeled(text, start, keywords):
+    window = text[max(0, start - 48): start].lower()
+    return any(k in window for k in keywords)
+
+
+# (name, keywords, pattern, checker, unlabeled_policy)
+# unlabeled_policy: "checksum" (fire if check passes), "never" (keywords required)
+NATIONAL_ID_SPECS = [
+    ("Turkish TCKN", ("tckn", "tc kimlik", "kimlik no", "turkish id", "türkiye"),
+     r"(?<!\d)(\d{11})(?!\d)", _tckn_ok, "never"),
+    ("Chilean RUT", ("rut", "run", "chilean id", "rol unico", "rol único"),
+     r"(?<![A-Z0-9])(\d{1,2}\.?\d{3}\.?\d{3}-?[0-9Kk])(?![A-Z0-9])", _rut_ok, "checksum"),
+    ("South African ID number", ("south african id", "sa id", "rsa id", "said number"),
+     r"(?<!\d)(\d{13})(?!\d)", _za_id_ok, "never"),
+    ("Italian codice fiscale", ("codice fiscale", "cod. fisc", "italian tax code", "cf:"),
+     r"(?<![A-Z0-9])([A-Z]{6}\d{2}[A-EHLMPRST]\d{2}[A-Z]\d{3}[A-Z])(?![A-Z0-9])",
+     _codice_fiscale_ok, "checksum"),
+    ("Dutch BSN", ("bsn", "burgerservicennummer", "sofinummer", "dutch bsn"),
+     r"(?<!\d)(\d{8,9})(?!\d)", _bsn_ok, "never"),
+    ("Spanish DNI/NIE", ("dni", "nie", "documento nacional", "spanish id"),
+     r"(?<![A-Z0-9])((?:\d{8}|[XYZ]\d{7})[A-Z])(?![A-Z0-9])", _spain_dni_ok, "checksum"),
+    ("Portuguese NIF", ("nif", "número de identificação fiscal", "portuguese tax"),
+     r"(?<!\d)(\d{9})(?!\d)", _nif_ok, "never"),
+    ("Belgian national number", ("rijksregisternummer", "numéro national", "national register", "insz", "niss"),
+     r"(?<!\d)(\d{2}[.\-]?\d{2}[.\-]?\d{2}[.\-]?\d{3}[.\-]?\d{2})(?!\d)", _belgium_nn_ok, "never"),
+    ("Norwegian fødselsnummer", ("fødselsnummer", "fodselsnummer", "norwegian id", "fødselsnr"),
+     r"(?<!\d)(\d{11})(?!\d)", _norway_fnr_ok, "never"),
+    ("Finnish henkilötunnus", ("henkilötunnus", "hetu", "finnish id", "personbeteckning"),
+     r"(?<![A-Z0-9])(\d{6}[-+A]\d{3}[0-9A-Y])(?![A-Z0-9])", _finland_hetu_ok, "checksum"),
+    ("Estonian isikukood", ("isikukood", "estonian id", "eesti isikukood"),
+     r"(?<!\d)(\d{11})(?!\d)", _estonia_ik_ok, "never"),
+    ("Romanian CNP", ("cnp", "cod numeric personal", "romanian cnp"),
+     r"(?<!\d)(\d{13})(?!\d)", _romania_cnp_ok, "never"),
+    ("Bulgarian EGN", ("egn", "единен граждански", "bulgarian egn"),
+     r"(?<!\d)(\d{10})(?!\d)", _bulgaria_egn_ok, "never"),
+    ("Croatian OIB", ("oib", "osobni identifikacijski", "croatian oib"),
+     r"(?<!\d)(\d{11})(?!\d)", _croatia_oib_ok, "never"),
+    ("Serbian/Yugoslav JMBG", ("jmbg", " embg", "maticni broj", "matični broj"),
+     r"(?<!\d)(\d{13})(?!\d)", _jmbg_ok, "never"),
+    ("Greek AFM", ("afm", "αφμ", "greek tax", "arithmos forologikou"),
+     r"(?<!\d)(\d{9})(?!\d)", _greece_afm_ok, "never"),
+    ("Israeli Teudat Zehut", ("teudat zehut", "israeli id", "mispar zehut", "tz number"),
+     r"(?<!\d)(\d{8,9})(?!\d)", _israel_id_ok, "never"),
+    ("Chinese resident ID", ("居民身份证", "shenfenzheng", "chinese id", "resident identity card", "cn id"),
+     r"(?<![A-Z0-9])(\d{17}[\dXx])(?![A-Z0-9])", _china_id_ok, "checksum"),
+    ("South Korean RRN", ("resident registration", "korean rrn", "주민등록번호"),
+     r"(?<!\d)(\d{6}[-\s]?\d{7})(?!\d)", _korea_rrn_ok, "never"),
+    ("Taiwan national ID", ("national id no", "taiwan id", "中華民國身分證", "roc id"),
+     r"(?<![A-Z0-9])([A-Z][12]\d{8})(?![A-Z0-9])", _taiwan_nid_ok, "checksum"),
+    ("Hong Kong identity card", ("hkid", "hong kong id", "hk identity"),
+     r"(?<![A-Z0-9])([A-Z]{1,2}\d{6}(?:\([0-9A]\)|[0-9A]))(?![A-Z0-9])", _hkid_ok, "checksum"),
+    ("Thai national ID", ("thai id", "thailand id", "เลขประจำตัวประชาชน", "thai citizen"),
+     r"(?<!\d)(\d{13})(?!\d)", _thailand_id_ok, "never"),
+    ("Malaysian NRIC", ("mykad", "malaysian nric", "malaysia nric", "mykad no"),
+     r"(?<!\d)(\d{6}[-\s]?\d{2}[-\s]?\d{4})(?!\d)", _malaysia_nric_ok, "never"),
+    ("Argentine CUIL/CUIT", ("cuil", "cuit", "cuil/cuit", "argentina cuil"),
+     r"(?<!\d)(\d{2}[-.\s]\d{8}[-.\s]\d)(?!\d)", _cuil_ok, "checksum"),
+    ("New Zealand IRD number", ("ird number", "nz ird", "inland revenue"),
+     r"(?<!\d)(\d{8,9})(?!\d)", _nz_ird_ok, "never"),
+    ("Irish PPSN", ("ppsn", "pps number", "irish pps"),
+     r"(?<![A-Z0-9])(\d{7}[A-W](?:[A-IW])?)(?![A-Z0-9])", _irish_ppsn_ok, "checksum"),
+    ("Swiss AHV/AVS number", ("ahv", "avs number", "swiss ahv", "sozialversicherungsnummer"),
+     r"(?<!\d)(756(?:[.\s]?\d{4}){2}[.\s]?\d{2})(?!\d)", _swiss_ahv_ok, "checksum"),
+    ("Hungarian TAJ", ("taj szám", "taj number", "hungarian taj", "taj-szám"),
+     r"(?<!\d)(\d{3}[-\s]?\d{3}[-\s]?\d{3})(?!\d)", _hungary_taj_ok, "never"),
+]
+
+
+def _scan_national_id_specs(text, add, is_claimed, claim):
+    """Apply the national-ID table. `add(rule, message, match, start, end)`."""
+    for name, keywords, pattern, checker, policy in NATIONAL_ID_SPECS:
+        rx = re.compile(pattern, re.I)
+        for m in rx.finditer(text):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            if not checker(raw):
+                continue
+            labeled = _labeled(text, m.start(), keywords)
+            if policy == "never" and not labeled:
+                continue
+            if policy == "checksum" and not (labeled or checker(raw)):
+                continue
+            add("PG05", name, raw, *sp)
+            claim(sp)
+
+
 def scan_text(text: str, source: str, turn=None, role="", tool="", disabled=None, _nested=False):
     """Return Finding list for one text segment."""
     disabled = set(disabled or [])
@@ -917,6 +1366,8 @@ def scan_text(text: str, source: str, turn=None, role="", tool="", disabled=None
             if _curp_ok(raw):
                 add("PG05", "Mexican CURP", raw, *sp)
                 claim(sp)
+
+        _scan_national_id_specs(text, add, is_claimed, claim)
 
     # PG06 bank
     if "PG06" not in disabled:

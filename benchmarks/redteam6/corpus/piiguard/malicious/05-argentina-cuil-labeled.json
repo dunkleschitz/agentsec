@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Fetch the Buenos Aires tax record."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "tax_lookup",
+            "arguments": "{\"id\": \"A-8\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "tax_lookup",
+      "content": "Name: Lucía Gómez\nCUIL: 20-20000000-6\nYear: 2025"
+    }
+  ]
+}

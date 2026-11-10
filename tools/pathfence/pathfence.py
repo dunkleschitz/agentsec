@@ -136,6 +136,106 @@ CRED_STORE_RE = re.compile(
     r")"
 )
 
+# Generic sensitive-name classifier: path components / basenames that look
+# like credentials, keys, tokens, vault material, terraform state, keyrings,
+# wallets, sessions, or profile databases — not a per-app denylist.
+SENSITIVE_COMPONENT_RE = re.compile(
+    r"(?i)(?:"
+    r"credential|credentials|secret|secrets|password|passwords|passwd|"
+    r"token|tokens|vault-?token|\.vault-token|"
+    r"keyring|keychain|keystore|wallet|"
+    r"session|sessions|cookies?|logins?|"
+    r"authorized_keys|known_hosts|id_rsa|id_ed25519|id_ecdsa|"
+    r"netrc|npmrc|pypirc|pgpass|git-credentials|htpasswd|"
+    r"tfstate|terraform\.tfstate|"
+    r"recentservers|sitemanager|recent[_-]?servers|"
+    r"age[_-]?keys?|keys\.txt|"
+    r"private[_-]?key|master[_-]?key|service[_-]?account"
+    r")$"
+)
+SENSITIVE_BASENAME_RE = re.compile(
+    r"(?i)^(?:"
+    r".*\.tfstate(?:\.backup)?|"
+    r"keys\.txt|"
+    r"\.vault-token|vault[_-]?token(?:\.[A-Za-z0-9]+)?|"
+    r"recentservers\.xml|sitemanager\.xml|"
+    r".*\.kdbx|"
+    r"login\.keychain(?:-db)?|"
+    r"cookies\.sqlite|logins\.(?:json|sqlite|db)|"
+    r"login data|web data|"
+    r"credentials(?:\.[A-Za-z0-9]+)?|"
+    r"token(?:s)?(?:\.[A-Za-z0-9]+)?"
+    r")$"
+)
+# User-private app config roots (XDG, Application Support, AppData).
+USER_CONFIG_ROOT_RE = re.compile(
+    r"(?i)(?:^|/)(?:\.config|\.local/share|Application Support|AppData/(?:Roaming|Local)(?:/[^/]+)?|"
+    r"Library/Application Support|Library/Keychains)(?:/|$)"
+)
+# Dev-tool config dirs whose config.json is not typically a secret store.
+_DEV_CONFIG_APPS = {
+    "git", "npm", "yarn", "pnpm", "pip", "pipx", "poetry", "uv", "conda",
+    "fish", "zsh", "bash", "oh-my-zsh", "starship", "tmux", "vim", "nvim",
+    "neovim", "emacs", "helix", "htop", "fontconfig", "dconf", "gtk-3.0",
+    "gtk-4.0", "pulse", "systemd", "gh", "hub", "docker", "kubectl",
+    "direnv", "tmuxinator", "alacritty", "kitty", "wezterm", "ghostty",
+    "code", "vscode", "cursor", "zed", "sublime-text",
+}
+# Credential-bearing app dirs (cloud CLIs, messengers, password stores, kube).
+# Any file under these, inside a user-config/XDG root, is treated as sensitive.
+_SECRET_APP_DIRS = {
+    "kubernetes", "kube", "gcloud", "aws", "azure", "gnupg", ".gnupg",
+    "telegramdesktop", "telegram desktop", "signal", "element", "slack",
+    "discord", "whatsapp", "whatsappdesktop", "icloud",
+    "kwallet", "keyrings", "password-store", "1password", "bitwarden",
+    "keepass", "keepassxc", "age", "sops", "filezilla", "tdata",
+}
+_CLUSTER_CONF_BASENAMES = {
+    "admin.conf", "kubeconfig", "kubeconfig.yaml", "kubeconfig.yml",
+    "kubeconfig.json",
+}
+
+
+def _path_parts(n: str):
+    return [p for p in n.replace("\\", "/").split("/") if p and p not in (".", "..")]
+
+
+def _generic_sensitive_reason(n: str, base: str):
+    """Return a short reason if this path looks like a sensitive store, else None."""
+    low_base = (base or "").lower()
+    parts = _path_parts(n)
+    low_parts = [p.lower() for p in parts]
+    if SENSITIVE_BASENAME_RE.match(low_base):
+        return "sensitive basename %r" % base
+    for part in low_parts:
+        stem = part.rsplit(".", 1)[0] if "." in part and not part.startswith(".") else part
+        if SENSITIVE_COMPONENT_RE.search(stem) or SENSITIVE_COMPONENT_RE.search(part):
+            if stem in ("state", "config", "settings", "profile", "user"):
+                continue
+            return "sensitive path component %r" % part
+    if low_base in _CLUSTER_CONF_BASENAMES:
+        return "cluster credential file %r" % base
+    slash = n.replace("\\", "/")
+    in_user_root = bool(USER_CONFIG_ROOT_RE.search(slash))
+    if in_user_root or re.search(r"(?i)(?:^|/)(?:home|Users)/|/root/|^~", slash):
+        for part in low_parts:
+            norm = part.replace(" ", "")
+            if part in _SECRET_APP_DIRS or norm in _SECRET_APP_DIRS:
+                if part in _DEV_CONFIG_APPS or norm in _DEV_CONFIG_APPS:
+                    continue
+                return "known credential/profile app dir %r" % part
+    if in_user_root:
+        if low_base in {"config.json", "config.yml", "config.yaml", "config.cfg",
+                        "settings.json", "settings.yml", "user.json", "secret.json"}:
+            app = low_parts[-2] if len(low_parts) >= 2 else ""
+            if app and app not in _DEV_CONFIG_APPS and app not in {
+                ".config", "application support", "appdata", "roaming", "local",
+                ".local", "share",
+            }:
+                return "user-app profile config %r" % n
+    return None
+
+
 PRIVESC_WRITE_RE = re.compile(
     r"(?is)(?:"
     r"ALL\s*=\s*\(\s*ALL\s*\)\s*NOPASSWD"
@@ -751,6 +851,19 @@ def classify_path(path: str, source: str, tool: str = "", turn=None, op: str = "
     # PF15 password managers / OS keyrings / pass(1) stores
     if CRED_STORE_RE.search(n) or CRED_STORE_RE.search(raw.replace("\\", "/")):
         add("PF15", "Password-manager or credential-store path %r" % n)
+
+    # Generic sensitive-path classifier (tokens, vault, state, profile-db, …)
+    reason = _generic_sensitive_reason(n, base)
+    if reason:
+        already = any(f.rule in ("PF01", "PF02", "PF03", "PF04", "PF14", "PF15") for f in findings)
+        if not already:
+            if re.search(r"(?i)wallet|keystore", reason):
+                add("PF14", "Wallet/keystore path (%s): %r" % (reason, n))
+            elif re.search(r"(?i)keyring|keychain|password-store|login data|cookies", reason):
+                rule = "PF15" if re.search(r"(?i)keyring|keychain|password", reason) else "PF04"
+                add(rule, "Credential or session store (%s): %r" % (reason, n))
+            else:
+                add("PF01", "Sensitive credential/key/state path (%s): %r" % (reason, n))
 
     # PF16 privilege-escalation payload written to a file (path-independent)
     if op == "write" and content and PRIVESC_WRITE_RE.search(content):

@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Look up the Zurich claim."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "benefits_lookup",
+            "arguments": "{\"id\": \"C-3\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "benefits_lookup",
+      "content": "Name: Anna Meier\nAHV: 756.0000.0000.02\nClaim: travel"
+    }
+  ]
+}

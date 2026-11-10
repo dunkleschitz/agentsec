@@ -1,0 +1,17 @@
+{
+  "tools": [
+    {
+      "name": "list_issues",
+      "description": "List open issues in a repository.",
+      "inputSchema": {
+        "type": "object",
+        "title": "List issues",
+        "properties": {
+          "repo": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

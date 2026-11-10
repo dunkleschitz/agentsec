@@ -349,6 +349,36 @@ def is_write_sink(name: str) -> bool:
     return bool(name and SINK_WRITE_RE.search(name.replace("-", "_")))
 
 
+# Tools that only compare values locally (equality, assertion, match) and
+# do not send them anywhere. Reuse in these tools is not a sink.
+_LOCAL_COMPARE_RE = re.compile(
+    r"(?i)^(?:equals?|equal(?:s|_to)?|cmp|compare(?:_to|_with)?|assert(?:_eq|_equal|_equals|_same)?|"
+    r"same(?:_as)?|identical|matches?|is_equal|are_equal|strict[_-]?equal|"
+    r"deepequal|deep_equal|json_equal|values_equal)$"
+)
+_COMPARE_ARG_KEYS = {
+    "left", "right", "a", "b", "expected", "actual", "got", "want",
+    "value", "other", "lhs", "rhs", "x", "y",
+}
+
+
+def is_local_compare(name: str, args=None) -> bool:
+    """True when a tool call is a local equality/assertion, not an outbound sink."""
+    n = (name or "").replace("-", "_").strip()
+    if n and _LOCAL_COMPARE_RE.match(n):
+        return True
+    if not isinstance(args, dict) or not args:
+        return False
+    keys = {str(k).lower() for k in args}
+    if not keys:
+        return False
+    if not keys.issubset(_COMPARE_ARG_KEYS):
+        return False
+    # A compare-shaped arg object still needs a compare-ish tool name or
+    # only those keys (no url/path/command/body that would be a sink).
+    return bool(n and re.search(r"(?i)(equal|compar|assert|match|same|identic)", n))
+
+
 def extract_secrets(text: str):
     """Yield (value, kind, labeled) for secret-shaped spans in text."""
     if not text:
@@ -616,6 +646,8 @@ def analyze(events, source, disabled=None):
         hits = matching_taints(blob, after_turn=e.turn, source_kinds={"tool_result"})
         for t in hits:
             if _is_official_provider_use(t.value, blob):
+                continue
+            if is_local_compare(e.tool, e.args):
                 continue
             masked = mask_secret(t.value)
             is_auth = t.kind in ("bearer", "jwt", "cookie", "authorization") or (

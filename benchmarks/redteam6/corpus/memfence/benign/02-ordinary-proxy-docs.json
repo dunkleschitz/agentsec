@@ -1,0 +1,9 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "Local dev: HTTP calls to the packaged docs server should use http://127.0.0.1:8787. This is only for the in-repo preview, not for production APIs.",
+      "user_id": "u-6"
+    }
+  ]
+}

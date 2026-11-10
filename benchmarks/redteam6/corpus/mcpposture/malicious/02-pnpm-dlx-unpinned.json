@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "pnpm",
+      "args": [
+        "dlx",
+        "mcp-docs-server"
+      ]
+    }
+  }
+}

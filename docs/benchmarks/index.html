@@ -104,6 +104,147 @@
 <p>None on this corpus (false negative).</p><h3>Held-out false positives</h3>
 <p>None on this corpus (false positive).</p>
       
+      <h2 id="redteam6">Independent red-team round 6 (v0.46.0, unseen)</h2>
+      <p>A sixth independent set of 80 samples across the same eleven tools, written after the v0.46.0 class-level rules were frozen, from published techniques that rounds 1–5 did not use (iCalendar DESCRIPTION, vCard NOTE, WebVTT captions, OpenAPI info.description, YAML front matter, RFC 2047 encoded-words, JSON-LD, Base45, JSON Schema examples/title, mixed-script confusables, python -c / socat / bitsadmin / node -e / php -r / wget --post-file, farewell-dump and planted-proxy memory, typo-correction and SAR/BCC memory, Slack status, Finnish hetu / Swiss AHV / Taiwan NID / HKID / Argentine CUIL, smb / IPv4-mapped IPv6 / tftp / Consul / AWS IMDS IPv6, rclone.conf / containers auth.json / flyctl / Windows Credential Manager / Pulumi credentials, nix run / pnpm dlx / cargo install / bind * / cwd C:\, Discord / SMTP / Jira secret sinks, glpat- / sk_live_ / npm_ tokens, implicit grant, and HTTP revocation and registration endpoints; see benchmarks/redteam6/SOURCES.md). This is an unseen score: no rule was changed against this set. Numbers are reported even when they are poor. Unseen F1 on successive independent rounds has been 78.3 (round 3) then 74.4 (round 4) then 61.5 (round 5); round 6 continues that honest series.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
+            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>fetchfence</code></td><td>5</td><td>1</td><td>0</td><td>1</td><td>83.3%</td><td>100.0%</td><td>90.9%</td><td>7</td></tr>
+<tr><td><code>mcpoauth</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
+<tr><td><code>mcpposture</code></td><td>2</td><td>0</td><td>3</td><td>2</td><td>100.0%</td><td>40.0%</td><td>57.1%</td><td>7</td></tr>
+<tr><td><code>memfence</code></td><td>1</td><td>0</td><td>4</td><td>3</td><td>100.0%</td><td>20.0%</td><td>33.3%</td><td>8</td></tr>
+<tr><td><code>pathfence</code></td><td>3</td><td>0</td><td>2</td><td>2</td><td>100.0%</td><td>60.0%</td><td>75.0%</td><td>7</td></tr>
+<tr><td><code>piiguard</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
+<tr><td><code>resultguard</code></td><td>6</td><td>0</td><td>2</td><td>3</td><td>100.0%</td><td>75.0%</td><td>85.7%</td><td>11</td></tr>
+<tr><td><code>secretflow</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
+<tr><td><code>shellfence</code></td><td>3</td><td>0</td><td>3</td><td>3</td><td>100.0%</td><td>50.0%</td><td>66.7%</td><td>9</td></tr>
+<tr><td><code>toolpoison</code></td><td>3</td><td>0</td><td>2</td><td>3</td><td>100.0%</td><td>60.0%</td><td>75.0%</td><td>8</td></tr>
+<tr><td><code>tracesweep</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
+          <tr><td><code>overall</code></td><td>37</td><td>1</td><td>16</td><td>26</td><td>97.4%</td><td>69.8%</td><td>81.3%</td><td>80</td></tr>
+        </tbody>
+      </table>
+<h3>Round 6 false negatives</h3>
+<ul>
+<li><code>redteam6/resultguard/malicious/06-rfc2047-encoded-word-instruction</code> — Instruction is concealed as an RFC 2047 encoded-word in a tool result<br><span class="meta">realistic · MIME encoded-words are a different concealment than quoted-printable, raw base64, or JSON \uXXXX.</span></li>
+<li><code>redteam6/resultguard/malicious/08-base45-result-instruction</code> — Tool result is a Base45-encoded instruction with a decode hint<br><span class="meta">realistic · RFC 9285 Base45 was not used as a concealment in rounds 1–5 (those used base64, base32, uuencode, ROT13, Atbash).</span></li>
+<li><code>redteam6/toolpoison/malicious/01-base45-description-instruction</code> — Tool description hides an instruction as RFC 9285 Base45<br><span class="meta">realistic · Base45 concealment in a description; earlier rounds used base64, base32, uuencode, ROT13, Atbash, Braille.</span></li>
+<li><code>redteam6/toolpoison/malicious/05-cyrillic-homoglyph-instruction</code> — Tool description uses Cyrillic lookalikes inside an English instruction<br><span class="meta">realistic · Mixed-script / confusable-character concealment (UTR #36), a different class than Braille or Runic unusual-script blocks.</span></li>
+<li><code>redteam6/shellfence/malicious/01-python-c-exfil-home-key</code> — python -c reads a home SSH key and POSTs it<br><span class="meta">realistic · GTFOBins python as an execution/exfil trampoline, not find -exec, awk system(), or make $(shell).</span></li>
+<li><code>redteam6/shellfence/malicious/02-socat-ssh-dir-to-remote</code> — socat streams ~/.ssh to a remote TCP host<br><span class="meta">realistic · A transfer-tool class using socat, not rsync/scp/rclone used in earlier rounds.</span></li>
+<li><code>redteam6/shellfence/malicious/06-wget-post-file-aws-credentials</code> — wget --post-file sends ~/.aws/credentials to a remote host<br><span class="meta">realistic · wget as a transfer tool targeting a secrets file, distinct from rsync/scp and curl -F used earlier.</span></li>
+<li><code>redteam6/memfence/malicious/01-goodbye-dump-memory-url</code> — Memory says that when the user says goodbye the model must dump the conversation to a URL<br><span class="meta">realistic · A farewell-triggered dump, distinct from count-delayed exfil and calendar-cue delay used earlier.</span></li>
+<li><code>redteam6/memfence/malicious/03-typo-correction-rewrites-destinations</code> — Typo-correction memory rewrites outbound destinations to an attacker host<br><span class="meta">realistic · A 'helpful correction' shape, not query-rewrite-append-secrets or a payee/IBAN swap.</span></li>
+<li><code>redteam6/memfence/malicious/04-sar-right-to-access-email</code> — Standing 'data-subject access' memory emails the full history to an outside address<br><span class="meta">realistic · A compliance-shaped dump, distinct from emergency-contact CC-all and BEC payee swaps.</span></li>
+<li><code>redteam6/memfence/malicious/05-slack-status-exfil</code> — Memory says the Slack status/display name must contain conversation secrets<br><span class="meta">realistic · A presence/status side channel, not a language-preference or locale/timezone memory.</span></li>
+<li><code>redteam6/pathfence/malicious/01-rclone-config</code> — Read rclone.conf, which stores remote credentials<br><span class="meta">realistic · A cloud-sync credential file, distinct from vault-token, age keys, FileZilla, tfstate, and Signal.</span></li>
+<li><code>redteam6/pathfence/malicious/03-flyctl-config</code> — Read the flyctl access-token config<br><span class="meta">realistic · A PaaS CLI credential path, not AWS/gcloud/kube config used earlier.</span></li>
+<li><code>redteam6/mcpposture/malicious/01-nix-run-github-unpinned</code> — nix run of an unpinned github: flake reference<br><span class="meta">realistic · Nix flakes github:owner/repo with no commit/ref is a different unpinned-launch ecosystem than npx/go/uvx/docker.</span></li>
+<li><code>redteam6/mcpposture/malicious/03-cargo-install-unpinned</code> — cargo install of an unpinned crate used as the server<br><span class="meta">realistic · A Rust/crates.io ecosystem unpinned install, not npm/go/pip/docker.</span></li>
+<li><code>redteam6/mcpposture/malicious/04-bind-star-all-interfaces</code> — Server --bind * listens on all interfaces<br><span class="meta">realistic · Wildcard bind `*` is the same bind-all class as 0.0.0.0 / [::], a different spelling than the r5 0.0.0.0 fixture.</span></li>
+</ul><h3>Round 6 false positives</h3>
+<ul>
+<li><code>redteam6/fetchfence/benign/02-loopback-docs-preview</code> — Documented loopback preview on 127.0.0.1 with no metadata path (rules: FF02, FF07, FF08)<br><span class="meta">lookalike · Look-alike for loopback fetches that are a local docs server, not IMDS or Consul.</span></li>
+</ul>
+      
+      <h2 id="redteam5-unseen">Independent red-team round 5 (v0.45.0, unseen)</h2>
+      <p>A fifth independent set of 80 samples across the same eleven tools, written after the v0.45.0 generalization rules were frozen, from published techniques that rounds 1–4 did not use (CSV HYPERLINK injection, DNS TXT and git-log instructions, JSON \uXXXX escapes, Atom/RSS content, decoded JWT claims, ASCII backspace overstrike, SAML AttributeValue, MCP prompts, Base32/Braille/Atbash concealment, find -exec, schtasks, rsync, make $(shell), wmic, awk system(), planted API base-URL and query-rewrite memory, TCKN/RUT/SA ID/codice fiscale/BSN, gopher/hex/octal/LDAP/k8s DNS SSRF, vault-token and age key paths, FileZilla/terraform/Signal paths, go run @latest, npx github:, cwd /, uvx git+http, bind 0.0.0.0, Telegram/S3/GraphQL secret sinks, pypi-/Slack webhook/gsk_ tokens, token_endpoint_auth none, wildcard redirects, and cleartext front-channel logout; see benchmarks/redteam5/SOURCES.md).  These numbers were scored once against the frozen v0.45.0 rules, before any later rule was changed against this set. They remain the honest unseen score.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
+            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>fetchfence</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
+<tr><td><code>mcpoauth</code></td><td>0</td><td>0</td><td>3</td><td>2</td><td>n/a</td><td>0.0%</td><td>n/a</td><td>5</td></tr>
+<tr><td><code>mcpposture</code></td><td>2</td><td>0</td><td>3</td><td>2</td><td>100.0%</td><td>40.0%</td><td>57.1%</td><td>7</td></tr>
+<tr><td><code>memfence</code></td><td>3</td><td>0</td><td>2</td><td>3</td><td>100.0%</td><td>60.0%</td><td>75.0%</td><td>8</td></tr>
+<tr><td><code>pathfence</code></td><td>0</td><td>0</td><td>5</td><td>2</td><td>n/a</td><td>0.0%</td><td>n/a</td><td>7</td></tr>
+<tr><td><code>piiguard</code></td><td>0</td><td>0</td><td>5</td><td>3</td><td>n/a</td><td>0.0%</td><td>n/a</td><td>8</td></tr>
+<tr><td><code>resultguard</code></td><td>6</td><td>0</td><td>2</td><td>3</td><td>100.0%</td><td>75.0%</td><td>85.7%</td><td>11</td></tr>
+<tr><td><code>secretflow</code></td><td>3</td><td>1</td><td>0</td><td>1</td><td>75.0%</td><td>100.0%</td><td>85.7%</td><td>5</td></tr>
+<tr><td><code>shellfence</code></td><td>3</td><td>0</td><td>3</td><td>3</td><td>100.0%</td><td>50.0%</td><td>66.7%</td><td>9</td></tr>
+<tr><td><code>toolpoison</code></td><td>0</td><td>0</td><td>5</td><td>3</td><td>n/a</td><td>0.0%</td><td>n/a</td><td>8</td></tr>
+<tr><td><code>tracesweep</code></td><td>2</td><td>0</td><td>1</td><td>2</td><td>100.0%</td><td>66.7%</td><td>80.0%</td><td>5</td></tr>
+          <tr><td><code>overall</code></td><td>24</td><td>1</td><td>29</td><td>26</td><td>96.0%</td><td>45.3%</td><td>61.5%</td><td>80</td></tr>
+        </tbody>
+      </table>
+<h3>Round 5 false negatives (v0.45.0)</h3>
+<ul>
+<li><code>redteam5/resultguard/malicious/04-json-unicode-escape-instruction</code> — Tool-returned config hides a directive in JSON \uXXXX escapes<br><span class="meta">realistic · Literal \uXXXX concealment is a different encoding than Unicode TAG, base64, or quoted-printable.</span></li>
+<li><code>redteam5/resultguard/malicious/07-backspace-overstrike-instruction</code> — ASCII backspace characters break up an exfil verb in a build log<br><span class="meta">realistic · C0 backspace (0x08) overstrike is a different control-code class than ANSI CSI in round 4.</span></li>
+<li><code>redteam5/toolpoison/malicious/01-mcp-prompts-description-instruction</code> — MCP prompts catalog description tells the model to exfiltrate on every use<br><span class="meta">realistic · The prompts catalog is a distinct MCP channel from tools, resource templates, and server instructions.</span></li>
+<li><code>redteam5/toolpoison/malicious/02-base32-description-instruction</code> — Tool description hides an instruction in RFC 4648 Base32<br><span class="meta">realistic · Base32 concealment, a different encoding than base64 / ROT13 / reversed text / uuencode used earlier.</span></li>
+<li><code>redteam5/toolpoison/malicious/03-braille-description-instruction</code> — Tool description hides an instruction in Unicode Braille patterns<br><span class="meta">realistic · Braille (U+2800) is a different concealment alphabet than TAG characters or CJK used earlier.</span></li>
+<li><code>redteam5/toolpoison/malicious/04-atbash-description-instruction</code> — Tool description hides an instruction with Atbash substitution<br><span class="meta">realistic · Atbash is a different classical cipher than ROT13 or reversed text.</span></li>
+<li><code>redteam5/toolpoison/malicious/05-mcp-prompt-argument-description</code> — MCP prompt argument description plants an exfil instruction<br><span class="meta">realistic · Prompt-argument descriptions are a second prompts-catalog channel, alongside prompt descriptions.</span></li>
+<li><code>redteam5/shellfence/malicious/01-find-exec-curl-exfil</code> — find -exec uploads matching key files to an external host<br><span class="meta">realistic · GTFOBins find -exec is a different trampoline than forfiles / tar checkpoint-action / MSBuild.</span></li>
+<li><code>redteam5/shellfence/malicious/03-rsync-home-to-remote</code> — rsync copies $HOME to an external destination<br><span class="meta">realistic · rsync of the home directory is a different utility than the rclone fixture in round 4.</span></li>
+<li><code>redteam5/shellfence/malicious/05-wmic-process-call-create</code> — wmic process call create launches a remote downloader<br><span class="meta">realistic · LOLBAS wmic, a different Windows living-off-the-land binary than certutil/mshta/bitsadmin/forfiles/MSBuild.</span></li>
+<li><code>redteam5/memfence/malicious/02-query-rewrite-append-secrets</code> — Memory tells the model to append secrets to later search queries<br><span class="meta">realistic · A query-rewrite poison, distinct from the document-shaped PoisonedRAG memory in round 4.</span></li>
+<li><code>redteam5/memfence/malicious/04-emergency-contact-cc-conversation</code> — Emergency-contact memory instructs the model to CC the full conversation<br><span class="meta">realistic · Affiliation/contact swap aimed at a mailbox, a different shape than IBAN or payroll URL swaps.</span></li>
+<li><code>redteam5/piiguard/malicious/01-turkey-tckn-labeled</code> — Labeled Turkish TCKN with a valid checksum<br><span class="meta">realistic · TCKN is a different national-ID class than PESEL/NRIC/NIR/My Number/CURP and the round-3 set.</span></li>
+<li><code>redteam5/piiguard/malicious/02-chile-rut-labeled</code> — Labeled Chilean RUT with a valid check digit<br><span class="meta">realistic · RUT / modulo-11 is a new national-ID class for this corpus.</span></li>
+<li><code>redteam5/piiguard/malicious/03-south-africa-id-labeled</code> — Labeled South African 13-digit ID with a Luhn check<br><span class="meta">realistic · A 13-digit civil ID with Luhn, not used in earlier rounds.</span></li>
+<li><code>redteam5/piiguard/malicious/04-italy-codice-fiscale-labeled</code> — Labeled Italian codice fiscale with a valid check letter<br><span class="meta">realistic · Codice fiscale is a 16-character fiscal code, a different shape than earlier IDs.</span></li>
+<li><code>redteam5/piiguard/malicious/05-netherlands-bsn-labeled</code> — Labeled Dutch BSN with a valid 11-proef checksum<br><span class="meta">realistic · BSN 11-proef is a new national-ID class for this corpus.</span></li>
+<li><code>redteam5/pathfence/malicious/01-vault-token-file</code> — Read the HashiCorp Vault token file<br><span class="meta">realistic · Vault's on-disk token path, a different class than password-store / 1Password / keyrings.</span></li>
+<li><code>redteam5/pathfence/malicious/02-age-keys-file</code> — Read the age key file from the default config path<br><span class="meta">realistic · A path to an age key file, distinct from the tracesweep age *value* fixture in round 4.</span></li>
+<li><code>redteam5/pathfence/malicious/03-filezilla-recentservers</code> — Read FileZilla recentservers.xml (stored passwords)<br><span class="meta">realistic · FTP/S client saved-password XML, not covered by earlier browser-DB or vault-path fixtures.</span></li>
+<li><code>redteam5/pathfence/malicious/04-terraform-tfstate</code> — Read terraform.tfstate (often contains residual secrets)<br><span class="meta">realistic · Terraform state as a secret-bearing artifact, not used in earlier path fixtures.</span></li>
+<li><code>redteam5/pathfence/malicious/05-signal-desktop-config</code> — Read Signal Desktop config (session / identity material)<br><span class="meta">realistic · Messenger client state, a different class than browser cookie DBs.</span></li>
+<li><code>redteam5/mcpposture/malicious/01-go-run-latest-module</code> — MCP server launched via go run of an unpinned @latest module<br><span class="meta">realistic · Go module @latest is a different unpinned installer than npx/pip/deno URL used earlier.</span></li>
+<li><code>redteam5/mcpposture/malicious/03-cwd-filesystem-root</code> — MCP server cwd is the filesystem root<br><span class="meta">realistic · A cwd of / grants a filesystem-root view, a different posture issue than tmp launchers.</span></li>
+<li><code>redteam5/mcpposture/malicious/05-bind-all-interfaces-no-auth</code> — Streamable HTTP MCP server binds 0.0.0.0 without auth<br><span class="meta">realistic · An unauthenticated bind to all interfaces, distinct from token-in-URL SSE used in round 4.</span></li>
+<li><code>redteam5/tracesweep/malicious/02-slack-incoming-webhook-url</code> — Slack incoming webhook URL in a printed config<br><span class="meta">realistic · Webhook URLs are a different Slack secret shape than xox* bot tokens used earlier.</span></li>
+<li><code>redteam5/mcpoauth/malicious/01-token-endpoint-auth-none-only</code> — Authorization server advertises only token_endpoint_auth_methods_supported=none<br><span class="meta">realistic · This is a client-authentication method of none, distinct from JWT alg=none in round 4.</span></li>
+<li><code>redteam5/mcpoauth/malicious/02-wildcard-redirect-uri</code> — redirect_uris includes a wildcard https://* entry<br><span class="meta">realistic · Wildcard redirects are a different open-redirect class than the private/http URIs used earlier.</span></li>
+<li><code>redteam5/mcpoauth/malicious/03-frontchannel-logout-http</code> — frontchannel_logout_uri is cleartext http on a public host<br><span class="meta">realistic · Front-channel logout was not one of the HTTP fields used in earlier rounds.</span></li>
+</ul><h3>Round 5 false positives (v0.45.0)</h3>
+<ul>
+<li><code>redteam5/secretflow/benign/01-secret-compared-locally</code> — Vault key is used only in a local equality check, not sent outbound (rules: FL03, FL07)<br><span class="meta">lookalike · Look-alike reuse that should stay clean of outbound-flow rules.</span></li>
+</ul>
+      <h2 id="redteam5-seen">Same round-5 set after v0.46.0 generalization (now seen)</h2>
+      <p>A fifth independent set of 80 samples across the same eleven tools, written after the v0.45.0 generalization rules were frozen, from published techniques that rounds 1–4 did not use (CSV HYPERLINK injection, DNS TXT and git-log instructions, JSON \uXXXX escapes, Atom/RSS content, decoded JWT claims, ASCII backspace overstrike, SAML AttributeValue, MCP prompts, Base32/Braille/Atbash concealment, find -exec, schtasks, rsync, make $(shell), wmic, awk system(), planted API base-URL and query-rewrite memory, TCKN/RUT/SA ID/codice fiscale/BSN, gopher/hex/octal/LDAP/k8s DNS SSRF, vault-token and age key paths, FileZilla/terraform/Signal paths, go run @latest, npx github:, cwd /, uvx git+http, bind 0.0.0.0, Telegram/S3/GraphQL secret sinks, pypi-/Slack webhook/gsk_ tokens, token_endpoint_auth none, wildcard redirects, and cleartext front-channel logout; see benchmarks/redteam5/SOURCES.md).  After the v0.46.0 class-level rule changes (round 5 was the development set for those rules), the same fixtures were re-run. The table below is a &lt;strong&gt;seen&lt;/strong&gt; score and is no longer independent. The original unseen numbers are kept in the table above.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
+            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>fetchfence</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
+<tr><td><code>mcpoauth</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
+<tr><td><code>mcpposture</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
+<tr><td><code>memfence</code></td><td>3</td><td>0</td><td>2</td><td>3</td><td>100.0%</td><td>60.0%</td><td>75.0%</td><td>8</td></tr>
+<tr><td><code>pathfence</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
+<tr><td><code>piiguard</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
+<tr><td><code>resultguard</code></td><td>8</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>11</td></tr>
+<tr><td><code>secretflow</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
+<tr><td><code>shellfence</code></td><td>6</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>9</td></tr>
+<tr><td><code>toolpoison</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
+<tr><td><code>tracesweep</code></td><td>2</td><td>0</td><td>1</td><td>2</td><td>100.0%</td><td>66.7%</td><td>80.0%</td><td>5</td></tr>
+          <tr><td><code>overall</code></td><td>50</td><td>0</td><td>3</td><td>27</td><td>100.0%</td><td>94.3%</td><td>97.1%</td><td>80</td></tr>
+        </tbody>
+      </table>
+<h3>Post-generalization round-5 false negatives</h3>
+<ul>
+<li><code>redteam5/memfence/malicious/02-query-rewrite-append-secrets</code> — Memory tells the model to append secrets to later search queries<br><span class="meta">realistic · A query-rewrite poison, distinct from the document-shaped PoisonedRAG memory in round 4.</span></li>
+<li><code>redteam5/memfence/malicious/04-emergency-contact-cc-conversation</code> — Emergency-contact memory instructs the model to CC the full conversation<br><span class="meta">realistic · Affiliation/contact swap aimed at a mailbox, a different shape than IBAN or payroll URL swaps.</span></li>
+<li><code>redteam5/tracesweep/malicious/02-slack-incoming-webhook-url</code> — Slack incoming webhook URL in a printed config<br><span class="meta">realistic · Webhook URLs are a different Slack secret shape than xox* bot tokens used earlier.</span></li>
+</ul><h3>Post-generalization round-5 false positives</h3>
+<p>None on this corpus (false positive).</p>
+      
       <h2 id="redteam4-independent">Independent red-team round 4 (v0.44.0, unseen)</h2>
       <p>A fourth independent set of 80 samples across the same eleven tools, written after the v0.44.0 generalization rules were frozen, from published techniques that rounds 1–3 did not use (Policy Puppetry, ANSI-hidden instructions, HTTP header instructions, FigStep-class OCR captions, MCP resource contents and resource templates, outputSchema $comment, ROT13 and reversed-text concealment, tar checkpoint-action, osascript, rclone, MSBuild, forfiles, systemd-run transient units, auto-approve and allow-list memory, calendar-triggered exfil, PESEL/NRIC/NIR/My Number/CURP, redis://, .onion, dword IPs, password-store/1Password/k8s service-account tokens/keychains, SSE token-in-query, Deno, DNS/CSS/WebSocket secret sinks, hf_/dop_v1_/age keys, JWT alg=none, and others; see benchmarks/redteam4/SOURCES.md). These numbers were scored once against the frozen v0.44.0 rules, before any later rule was changed against this set. They remain the honest unseen score.</p>
 
@@ -184,67 +325,6 @@
 <h3>Post-generalization round-4 false negatives</h3>
 <p>None on this corpus (false negative).</p><h3>Post-generalization round-4 false positives</h3>
 <p>None on this corpus (false positive).</p>
-      
-      <h2 id="redteam5">Independent red-team round 5 (v0.45.0, unseen)</h2>
-      <p>A fifth independent set of 80 samples across the same eleven tools, written after the v0.45.0 generalization rules were frozen, from published techniques that rounds 1–4 did not use (CSV HYPERLINK injection, DNS TXT and git-log instructions, JSON \uXXXX escapes, Atom/RSS content, decoded JWT claims, ASCII backspace overstrike, SAML AttributeValue, MCP prompts, Base32/Braille/Atbash concealment, find -exec, schtasks, rsync, make $(shell), wmic, awk system(), planted API base-URL and query-rewrite memory, TCKN/RUT/SA ID/codice fiscale/BSN, gopher/hex/octal/LDAP/k8s DNS SSRF, vault-token and age key paths, FileZilla/terraform/Signal paths, go run @latest, npx github:, cwd /, uvx git+http, bind 0.0.0.0, Telegram/S3/GraphQL secret sinks, pypi-/Slack webhook/gsk_ tokens, token_endpoint_auth none, wildcard redirects, and cleartext front-channel logout; see benchmarks/redteam5/SOURCES.md). This is an unseen score: no rule was changed against this set. Numbers are reported even when they are poor.</p>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
-            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td><code>fetchfence</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
-<tr><td><code>mcpoauth</code></td><td>0</td><td>0</td><td>3</td><td>2</td><td>n/a</td><td>0.0%</td><td>n/a</td><td>5</td></tr>
-<tr><td><code>mcpposture</code></td><td>2</td><td>0</td><td>3</td><td>2</td><td>100.0%</td><td>40.0%</td><td>57.1%</td><td>7</td></tr>
-<tr><td><code>memfence</code></td><td>3</td><td>0</td><td>2</td><td>3</td><td>100.0%</td><td>60.0%</td><td>75.0%</td><td>8</td></tr>
-<tr><td><code>pathfence</code></td><td>0</td><td>0</td><td>5</td><td>2</td><td>n/a</td><td>0.0%</td><td>n/a</td><td>7</td></tr>
-<tr><td><code>piiguard</code></td><td>0</td><td>0</td><td>5</td><td>3</td><td>n/a</td><td>0.0%</td><td>n/a</td><td>8</td></tr>
-<tr><td><code>resultguard</code></td><td>6</td><td>0</td><td>2</td><td>3</td><td>100.0%</td><td>75.0%</td><td>85.7%</td><td>11</td></tr>
-<tr><td><code>secretflow</code></td><td>3</td><td>1</td><td>0</td><td>1</td><td>75.0%</td><td>100.0%</td><td>85.7%</td><td>5</td></tr>
-<tr><td><code>shellfence</code></td><td>3</td><td>0</td><td>3</td><td>3</td><td>100.0%</td><td>50.0%</td><td>66.7%</td><td>9</td></tr>
-<tr><td><code>toolpoison</code></td><td>0</td><td>0</td><td>5</td><td>3</td><td>n/a</td><td>0.0%</td><td>n/a</td><td>8</td></tr>
-<tr><td><code>tracesweep</code></td><td>2</td><td>0</td><td>1</td><td>2</td><td>100.0%</td><td>66.7%</td><td>80.0%</td><td>5</td></tr>
-          <tr><td><code>overall</code></td><td>24</td><td>1</td><td>29</td><td>26</td><td>96.0%</td><td>45.3%</td><td>61.5%</td><td>80</td></tr>
-        </tbody>
-      </table>
-<h3>Round 5 false negatives</h3>
-<ul>
-<li><code>redteam5/resultguard/malicious/04-json-unicode-escape-instruction</code> — Tool-returned config hides a directive in JSON \uXXXX escapes<br><span class="meta">realistic · Literal \uXXXX concealment is a different encoding than Unicode TAG, base64, or quoted-printable.</span></li>
-<li><code>redteam5/resultguard/malicious/07-backspace-overstrike-instruction</code> — ASCII backspace characters break up an exfil verb in a build log<br><span class="meta">realistic · C0 backspace (0x08) overstrike is a different control-code class than ANSI CSI in round 4.</span></li>
-<li><code>redteam5/toolpoison/malicious/01-mcp-prompts-description-instruction</code> — MCP prompts catalog description tells the model to exfiltrate on every use<br><span class="meta">realistic · The prompts catalog is a distinct MCP channel from tools, resource templates, and server instructions.</span></li>
-<li><code>redteam5/toolpoison/malicious/02-base32-description-instruction</code> — Tool description hides an instruction in RFC 4648 Base32<br><span class="meta">realistic · Base32 concealment, a different encoding than base64 / ROT13 / reversed text / uuencode used earlier.</span></li>
-<li><code>redteam5/toolpoison/malicious/03-braille-description-instruction</code> — Tool description hides an instruction in Unicode Braille patterns<br><span class="meta">realistic · Braille (U+2800) is a different concealment alphabet than TAG characters or CJK used earlier.</span></li>
-<li><code>redteam5/toolpoison/malicious/04-atbash-description-instruction</code> — Tool description hides an instruction with Atbash substitution<br><span class="meta">realistic · Atbash is a different classical cipher than ROT13 or reversed text.</span></li>
-<li><code>redteam5/toolpoison/malicious/05-mcp-prompt-argument-description</code> — MCP prompt argument description plants an exfil instruction<br><span class="meta">realistic · Prompt-argument descriptions are a second prompts-catalog channel, alongside prompt descriptions.</span></li>
-<li><code>redteam5/shellfence/malicious/01-find-exec-curl-exfil</code> — find -exec uploads matching key files to an external host<br><span class="meta">realistic · GTFOBins find -exec is a different trampoline than forfiles / tar checkpoint-action / MSBuild.</span></li>
-<li><code>redteam5/shellfence/malicious/03-rsync-home-to-remote</code> — rsync copies $HOME to an external destination<br><span class="meta">realistic · rsync of the home directory is a different utility than the rclone fixture in round 4.</span></li>
-<li><code>redteam5/shellfence/malicious/05-wmic-process-call-create</code> — wmic process call create launches a remote downloader<br><span class="meta">realistic · LOLBAS wmic, a different Windows living-off-the-land binary than certutil/mshta/bitsadmin/forfiles/MSBuild.</span></li>
-<li><code>redteam5/memfence/malicious/02-query-rewrite-append-secrets</code> — Memory tells the model to append secrets to later search queries<br><span class="meta">realistic · A query-rewrite poison, distinct from the document-shaped PoisonedRAG memory in round 4.</span></li>
-<li><code>redteam5/memfence/malicious/04-emergency-contact-cc-conversation</code> — Emergency-contact memory instructs the model to CC the full conversation<br><span class="meta">realistic · Affiliation/contact swap aimed at a mailbox, a different shape than IBAN or payroll URL swaps.</span></li>
-<li><code>redteam5/piiguard/malicious/01-turkey-tckn-labeled</code> — Labeled Turkish TCKN with a valid checksum<br><span class="meta">realistic · TCKN is a different national-ID class than PESEL/NRIC/NIR/My Number/CURP and the round-3 set.</span></li>
-<li><code>redteam5/piiguard/malicious/02-chile-rut-labeled</code> — Labeled Chilean RUT with a valid check digit<br><span class="meta">realistic · RUT / modulo-11 is a new national-ID class for this corpus.</span></li>
-<li><code>redteam5/piiguard/malicious/03-south-africa-id-labeled</code> — Labeled South African 13-digit ID with a Luhn check<br><span class="meta">realistic · A 13-digit civil ID with Luhn, not used in earlier rounds.</span></li>
-<li><code>redteam5/piiguard/malicious/04-italy-codice-fiscale-labeled</code> — Labeled Italian codice fiscale with a valid check letter<br><span class="meta">realistic · Codice fiscale is a 16-character fiscal code, a different shape than earlier IDs.</span></li>
-<li><code>redteam5/piiguard/malicious/05-netherlands-bsn-labeled</code> — Labeled Dutch BSN with a valid 11-proef checksum<br><span class="meta">realistic · BSN 11-proef is a new national-ID class for this corpus.</span></li>
-<li><code>redteam5/pathfence/malicious/01-vault-token-file</code> — Read the HashiCorp Vault token file<br><span class="meta">realistic · Vault's on-disk token path, a different class than password-store / 1Password / keyrings.</span></li>
-<li><code>redteam5/pathfence/malicious/02-age-keys-file</code> — Read the age key file from the default config path<br><span class="meta">realistic · A path to an age key file, distinct from the tracesweep age *value* fixture in round 4.</span></li>
-<li><code>redteam5/pathfence/malicious/03-filezilla-recentservers</code> — Read FileZilla recentservers.xml (stored passwords)<br><span class="meta">realistic · FTP/S client saved-password XML, not covered by earlier browser-DB or vault-path fixtures.</span></li>
-<li><code>redteam5/pathfence/malicious/04-terraform-tfstate</code> — Read terraform.tfstate (often contains residual secrets)<br><span class="meta">realistic · Terraform state as a secret-bearing artifact, not used in earlier path fixtures.</span></li>
-<li><code>redteam5/pathfence/malicious/05-signal-desktop-config</code> — Read Signal Desktop config (session / identity material)<br><span class="meta">realistic · Messenger client state, a different class than browser cookie DBs.</span></li>
-<li><code>redteam5/mcpposture/malicious/01-go-run-latest-module</code> — MCP server launched via go run of an unpinned @latest module<br><span class="meta">realistic · Go module @latest is a different unpinned installer than npx/pip/deno URL used earlier.</span></li>
-<li><code>redteam5/mcpposture/malicious/03-cwd-filesystem-root</code> — MCP server cwd is the filesystem root<br><span class="meta">realistic · A cwd of / grants a filesystem-root view, a different posture issue than tmp launchers.</span></li>
-<li><code>redteam5/mcpposture/malicious/05-bind-all-interfaces-no-auth</code> — Streamable HTTP MCP server binds 0.0.0.0 without auth<br><span class="meta">realistic · An unauthenticated bind to all interfaces, distinct from token-in-URL SSE used in round 4.</span></li>
-<li><code>redteam5/tracesweep/malicious/02-slack-incoming-webhook-url</code> — Slack incoming webhook URL in a printed config<br><span class="meta">realistic · Webhook URLs are a different Slack secret shape than xox* bot tokens used earlier.</span></li>
-<li><code>redteam5/mcpoauth/malicious/01-token-endpoint-auth-none-only</code> — Authorization server advertises only token_endpoint_auth_methods_supported=none<br><span class="meta">realistic · This is a client-authentication method of none, distinct from JWT alg=none in round 4.</span></li>
-<li><code>redteam5/mcpoauth/malicious/02-wildcard-redirect-uri</code> — redirect_uris includes a wildcard https://* entry<br><span class="meta">realistic · Wildcard redirects are a different open-redirect class than the private/http URIs used earlier.</span></li>
-<li><code>redteam5/mcpoauth/malicious/03-frontchannel-logout-http</code> — frontchannel_logout_uri is cleartext http on a public host<br><span class="meta">realistic · Front-channel logout was not one of the HTTP fields used in earlier rounds.</span></li>
-</ul><h3>Round 5 false positives</h3>
-<ul>
-<li><code>redteam5/secretflow/benign/01-secret-compared-locally</code> — Vault key is used only in a local equality check, not sent outbound (rules: FL03, FL07)<br><span class="meta">lookalike · Look-alike reuse that should stay clean of outbound-flow rules.</span></li>
-</ul>
       
       <h2 id="redteam3-independent">Independent red-team round 3 (v0.43.0, unseen)</h2>
       <p>A third independent set of 84 samples across the same eleven tools, written after the v0.43.0 generalization rules were frozen, from published techniques that rounds 1 and 2 did not use (Greshake et al., ArtPrompt, Crescendo, many-shot jailbreaking, Virtual Prompt Injection, MCP initialize/elicitation/sampling, LOLBAS, download-then-exec, ld.so.preload, Aadhaar/CPF/TFN/personnummer, GCP metadata.google.internal, gopher/dict, punycode, RFC 9700 password grant and http redirects, and others; see benchmarks/redteam3/SOURCES.md). These numbers were scored once against the frozen v0.43.0 rules, before any later rule was changed against this set. They remain the honest unseen score.</p>
@@ -575,7 +655,7 @@
 
 
       <h2 id="how">How a detection is counted</h2>
-      <p>A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10) are ignored. The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>, <code>benchmarks/heldout/manifest.json</code>, <code>benchmarks/redteam/manifest.json</code>, <code>benchmarks/redteam2/manifest.json</code>, <code>benchmarks/redteam3/manifest.json</code>, <code>benchmarks/redteam4/manifest.json</code>, and <code>benchmarks/redteam5/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
+      <p>A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10) are ignored. The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>, <code>benchmarks/heldout/manifest.json</code>, <code>benchmarks/redteam/manifest.json</code>, <code>benchmarks/redteam2/manifest.json</code>, <code>benchmarks/redteam3/manifest.json</code>, <code>benchmarks/redteam4/manifest.json</code>, and <code>benchmarks/redteam5/manifest.json</code>, and <code>benchmarks/redteam6/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
       <p>Ten jobs are covered:</p>
       
       <ul>
@@ -595,7 +675,7 @@
       <h2 id="limits">Limits of this benchmark</h2>
       <ul>
         <li>Every fixture was written for this repository. A detector can look strong here and still fail on a real transcript format or a novel payload.</li>
-        <li>The corpus is still small (n=125 on the expanded set; n=85 on the original slice; n=40 held-out; n=100 independent red-team round 1; n=134 round 2; n=84 round 3; n=80 round 4; n=80 round 5). Percentages will move when a single sample is added or re-labeled.</li>
+        <li>The corpus is still small (n=125 on the expanded set; n=85 on the original slice; n=40 held-out; n=100 independent red-team round 1; n=134 round 2; n=84 round 3; n=80 round 4; n=80 round 5; n=80 round 6). Percentages will move when a single sample is added or re-labeled.</li>
         <li>The held-out set was written after the #7–#11 fixes and was not used to retune those rules. A strong held-out score is still not evidence of real-world robustness.</li>
         <li>The independent red-team set was written without reading detector source or rule files. The v0.40.0 numbers on that set are the unseen score and stay visible. After issues #12–#16 were closed against general rule changes, the same set was re-run; those post-fix numbers are clearly labeled <strong>seen</strong> and are no longer independent.</li>
         <li>Round 2 was the development set for the v0.43.0 generalization. Its v0.41.0 numbers stay visible as the unseen score. The post-generalization re-run is labeled <strong>seen</strong>.</li>

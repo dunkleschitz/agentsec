@@ -398,5 +398,38 @@ class TestV045Generalization(unittest.TestCase):
         self.assertNotIn("PG05", rules_in("PESEL: *********** (redacted)"))
 
 
+
+class TestV046Generalization(unittest.TestCase):
+    def test_labeled_tckn(self):
+        self.assertIn("PG05", rules_in("Name: Ayse Yilmaz\nTCKN: 10000000146\nCity: Ankara"))
+
+    def test_labeled_rut(self):
+        self.assertIn("PG05", rules_in("Cliente: Ana Soto\nRUT: 12345678-5\nCiudad: Santiago"))
+
+    def test_labeled_sa_id(self):
+        self.assertIn("PG05", rules_in("Name: Thabo Nkosi\nSA ID: 8001015000805\nOffice: Johannesburg"))
+
+    def test_labeled_codice_fiscale(self):
+        self.assertIn("PG05", rules_in("Paziente: Mario Rossi\nCodice fiscale: RSSMRA80A01H501U\nCitta: Roma"))
+
+    def test_labeled_bsn(self):
+        self.assertIn("PG05", rules_in("Naam: Jan de Vries\nBSN: 100000009\nPlaats: Utrecht"))
+
+    def test_isbn_not_flagged_as_national_id(self):
+        self.assertNotIn("PG05", rules_in("Order 8822101 shipped. ISBN 978-0-306-40615-7 catalogued."))
+
+    def test_unlabeled_random_8_digits_clean(self):
+        self.assertNotIn("PG05", rules_in("build number 18402931 finished in 12s"))
+
+    def test_unlabeled_order_number_not_fnr(self):
+        self.assertNotIn("PG05", rules_in("Order: 01019900041\nStatus: shipped\nCarrier: DHL"))
+
+    def test_labeled_norway_fnr(self):
+        self.assertIn("PG05", rules_in("Name: Kari Hansen\nFødselsnummer: 01019900041\nClaim: travel"))
+
+    def test_labeled_spain_dni(self):
+        self.assertIn("PG05", rules_in("Name: Ana Lopez\nDNI: 12345678Z\nTitle: Analyst"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -299,5 +299,53 @@ class TestV045Generalization(unittest.TestCase):
         self.assertNotIn("MO15", rules(doc))
 
 
+
+class TestV046Generalization(unittest.TestCase):
+    def _audit(self, doc):
+        findings, _ = mcpoauth.audit_text("t.json", json.dumps(doc))
+        return {f.rule for f in findings if f.rule != "MO14"}
+
+    def test_auth_method_none_only(self):
+        doc = {
+            "issuer": "https://auth.example.test",
+            "authorization_endpoint": "https://auth.example.test/authorize",
+            "token_endpoint": "https://auth.example.test/token",
+            "code_challenge_methods_supported": ["S256"],
+            "token_endpoint_auth_methods_supported": ["none"],
+        }
+        self.assertIn("MO16", self._audit(doc))
+
+    def test_wildcard_redirect(self):
+        doc = {
+            "issuer": "https://auth.example.test",
+            "authorization_endpoint": "https://auth.example.test/authorize",
+            "token_endpoint": "https://auth.example.test/token",
+            "code_challenge_methods_supported": ["S256"],
+            "redirect_uris": ["https://app.example.test/*"],
+        }
+        self.assertIn("MO16", self._audit(doc))
+
+    def test_frontchannel_logout_http(self):
+        doc = {
+            "issuer": "https://auth.example.test",
+            "authorization_endpoint": "https://auth.example.test/authorize",
+            "token_endpoint": "https://auth.example.test/token",
+            "code_challenge_methods_supported": ["S256"],
+            "frontchannel_logout_uri": "http://app.example.test/logout",
+        }
+        self.assertIn("MO05", self._audit(doc))
+
+    def test_exact_https_redirect_is_clean_of_mo16(self):
+        doc = {
+            "issuer": "https://auth.example.test",
+            "authorization_endpoint": "https://auth.example.test/authorize",
+            "token_endpoint": "https://auth.example.test/token",
+            "code_challenge_methods_supported": ["S256"],
+            "token_endpoint_auth_methods_supported": ["client_secret_basic"],
+            "redirect_uris": ["https://app.example.test/cb"],
+        }
+        self.assertNotIn("MO16", self._audit(doc))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Fetch the Kowloon payroll row."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "payroll_lookup",
+            "arguments": "{\"id\": \"H-2\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "payroll_lookup",
+      "content": "Name: Chan Mei\nHKID: A100000A\nDept: Support"
+    }
+  ]
+}
