@@ -36,6 +36,7 @@ HELDOUT_MANIFEST_PATH = HELDOUT_DIR / "manifest.json"
 REDTEAM_DIR = BENCH / "redteam"
 REDTEAM_MANIFEST_PATH = REDTEAM_DIR / "manifest.json"
 BASELINE_PATH = BENCH / "baseline_v0.38.0.json"
+REDTEAM_BASELINE_PATH = BENCH / "baseline_redteam_v0.40.0.json"
 SITE = "https://dunkleschitz.github.io/agentsec"
 
 SEVERITY_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
@@ -339,6 +340,7 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
     comparable = results.get("original_comparable") or {}
     heldout = results.get("heldout") or {}
     redteam = results.get("redteam") or {}
+    redteam_independent = results.get("redteam_independent") or {}
 
     before_after = ""
     if baseline and comparable:
@@ -379,38 +381,81 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
         heldout_html += list_items(heldout.get("false_positives") or [], "false positive")
 
     redteam_html = ""
-    if redteam:
-        rt_intro = (
+    if redteam_independent or redteam:
+        n = (redteam_independent or redteam).get("sample_count") or (redteam or {}).get("sample_count")
+        shared = (
             "An independent red-team wrote %d fresh samples across all ten tools without reading "
             "detector source or rule files (READMEs/usage only). Attacks are drawn from published "
             "research (Invariant Labs, Trail of Bits, CyberArk, Embrace The Red, Aim Security EchoLeak, "
             "PortSwigger SSRF bypasses, Pillar Security, General Analysis / Supabase MCP, Amazon Q wipe "
             "prompt, MINJA, Nx s1ngularity). Benign look-alikes are included. Fixtures live in "
-            "<code>benchmarks/redteam/</code> with citations in <code>SOURCES.md</code>. "
-            "These numbers are the honest independent score; they were not used to retune rules."
-            % redteam["sample_count"]
+            "<code>benchmarks/redteam/</code> with citations in <code>SOURCES.md</code>."
+            % n
         )
-        redteam_html = section_table(
-            "Independent red-team results",
-            "redteam",
-            redteam,
-            rt_intro,
-        )
-        redteam_html += "<h3>Red-team false negatives</h3>\n"
-        redteam_html += list_items(redteam.get("false_negatives") or [], "false negative")
-        redteam_html += "<h3>Red-team false positives</h3>\n"
-        redteam_html += list_items(redteam.get("false_positives") or [], "false positive")
-        redteam_html += (
-            "<h3>Detection-gap issues for this set</h3>\n"
-            "<p>False negatives above are filed as "
-            '<a href="https://github.com/dunkleschitz/agentsec/issues/12">#12</a> (resultguard), '
-            '<a href="https://github.com/dunkleschitz/agentsec/issues/13">#13</a> (toolpoison), '
-            '<a href="https://github.com/dunkleschitz/agentsec/issues/14">#14</a> (tracesweep), '
-            '<a href="https://github.com/dunkleschitz/agentsec/issues/15">#15</a> (shellfence), and '
-            '<a href="https://github.com/dunkleschitz/agentsec/issues/16">#16</a> (memfence). '
-            "They are labeled <code>detection-gap</code>. This release does <strong>not</strong> "
-            "retune rules against the red-team fixtures.</p>\n"
-        )
+        if redteam_independent:
+            frozen = dict(redteam_independent)
+            # section_table expects overall/per_tool like a results block
+            redteam_html += section_table(
+                "Independent red-team results (v0.40.0, unseen)",
+                "redteam-independent",
+                frozen,
+                shared + " These are the original independent numbers, frozen from the v0.40.0 release, "
+                "before any rule was changed against this set. They remain the honest unseen score.",
+            )
+            redteam_html += "<h3>Independent-set false negatives (v0.40.0)</h3>\n"
+            redteam_html += list_items(redteam_independent.get("false_negatives") or [], "false negative")
+            redteam_html += "<h3>Independent-set false positives (v0.40.0)</h3>\n"
+            redteam_html += list_items(redteam_independent.get("false_positives") or [], "false positive")
+        if redteam:
+            if redteam.get("seen"):
+                seen_intro = (
+                    "The same 100 samples after the general rule changes that closed issues "
+                    "#12–#16. This set is now seen: post-fix precision and recall are no longer "
+                    "an independent score. The original unseen numbers are kept in the table above."
+                )
+                title = "Same red-team set after #12–#16 fixes (now seen)"
+                anchor = "redteam-seen"
+            else:
+                seen_intro = shared + " These numbers are the honest independent score; they were not used to retune rules."
+                title = "Independent red-team results"
+                anchor = "redteam"
+            redteam_html += section_table(title, anchor, redteam, seen_intro)
+            redteam_html += "<h3>Post-fix red-team false negatives</h3>\n" if redteam.get("seen") else "<h3>Red-team false negatives</h3>\n"
+            redteam_html += list_items(redteam.get("false_negatives") or [], "false negative")
+            redteam_html += "<h3>Post-fix red-team false positives</h3>\n" if redteam.get("seen") else "<h3>Red-team false positives</h3>\n"
+            redteam_html += list_items(redteam.get("false_positives") or [], "false positive")
+            if redteam.get("seen"):
+                redteam_html += (
+                    "<h3>Detection-gap issues #12–#16</h3>\n"
+                    "<p>The independent misses and false positives were filed as "
+                    '<a href="https://github.com/dunkleschitz/agentsec/issues/12">#12</a> (resultguard), '
+                    '<a href="https://github.com/dunkleschitz/agentsec/issues/13">#13</a> (toolpoison), '
+                    '<a href="https://github.com/dunkleschitz/agentsec/issues/14">#14</a> (tracesweep), '
+                    '<a href="https://github.com/dunkleschitz/agentsec/issues/15">#15</a> (shellfence), and '
+                    '<a href="https://github.com/dunkleschitz/agentsec/issues/16">#16</a> (memfence), '
+                    "plus two mcpposture false positives on pinned <code>npx -y</code> configs. "
+                    "The rule changes in this release are general (quoted-discussion TR01, "
+                    "concealment phrasing, private-to-public copy bait, line-jumping command prefixes, "
+                    "instructional parameter names, documentary TP03, base64 and cross-turn secret "
+                    "reconstruction, home-directory <code>find</code>/<code>rm</code>, DNS exfil, "
+                    "ANSI-C/hex command deobfuscation, paste-into-chat harvest wording, MINJA-style "
+                    "query remapping, and MP04 suppressed when a package is already pinned), not "
+                    "string matches against these fixtures. Those issues are closed against this "
+                    "release. Because the rules were then re-run on the same set, the post-fix table "
+                    "is a <strong>seen</strong> score.</p>\n"
+                )
+            else:
+                redteam_html += (
+                    "<h3>Detection-gap issues for this set</h3>\n"
+                    "<p>False negatives above are filed as "
+                    '<a href="https://github.com/dunkleschitz/agentsec/issues/12">#12</a> (resultguard), '
+                    '<a href="https://github.com/dunkleschitz/agentsec/issues/13">#13</a> (toolpoison), '
+                    '<a href="https://github.com/dunkleschitz/agentsec/issues/14">#14</a> (tracesweep), '
+                    '<a href="https://github.com/dunkleschitz/agentsec/issues/15">#15</a> (shellfence), and '
+                    '<a href="https://github.com/dunkleschitz/agentsec/issues/16">#16</a> (memfence). '
+                    "They are labeled <code>detection-gap</code>. This release does <strong>not</strong> "
+                    "retune rules against the red-team fixtures.</p>\n"
+                )
 
     closed = """
       <h2 id="gaps">Detection-gap issues #7–#11</h2>
@@ -519,7 +564,7 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
         <li>Every fixture was written for this repository. A detector can look strong here and still fail on a real transcript format or a novel payload.</li>
         <li>The corpus is still small (n={results["sample_count"]} on the expanded set; n={comparable.get("sample_count", "85")} on the original slice; n={(heldout or {}).get("sample_count", "?")} held-out; n={(redteam or {}).get("sample_count", "?")} independent red-team). Percentages will move when a single sample is added or re-labeled.</li>
         <li>The held-out set was written after the #7–#11 fixes and was not used to retune those rules. A strong held-out score is still not evidence of real-world robustness.</li>
-        <li>The independent red-team set was written without reading detector source or rule files. Misses on that set are filed as <code>detection-gap</code> issues and are <strong>not</strong> patched away against these fixtures in the same release.</li>
+        <li>The independent red-team set was written without reading detector source or rule files. The v0.40.0 numbers on that set are the unseen score and stay visible. After issues #12–#16 were closed against general rule changes, the same set was re-run; those post-fix numbers are clearly labeled <strong>seen</strong> and are no longer independent.</li>
         <li>Info-level inventory findings are excluded. If we counted them, several tools would “detect” almost every transcript they parse.</li>
         <li>All secrets and personal-data values are fake. tracesweep also suppresses documentation placeholders (the word <code>example</code>, <code>your_api_key</code>, and similar), which is why those values are not used as the malicious keys in this set.</li>
       </ul>
@@ -589,7 +634,7 @@ def canonical_results(results: dict) -> dict:
         "samples": results["samples"] if results["samples"] and "flagged" in results["samples"][0] and "title" not in results["samples"][0]
         else [slim_sample(r) if "outcome" in r and "title" in r else r for r in results["samples"]],
     }
-    for key in ("baseline", "original_comparable", "heldout", "redteam", "issues"):
+    for key in ("baseline", "original_comparable", "heldout", "redteam", "redteam_independent", "issues"):
         if results.get(key) is not None:
             out[key] = results[key]
     return out
@@ -599,6 +644,12 @@ def load_baseline() -> dict | None:
     if not BASELINE_PATH.is_file():
         return None
     return json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+
+
+def load_redteam_baseline() -> dict | None:
+    if not REDTEAM_BASELINE_PATH.is_file():
+        return None
+    return json.loads(REDTEAM_BASELINE_PATH.read_text(encoding="utf-8"))
 
 
 def write_outputs(results: dict, issues: list[dict] | None = None) -> None:
@@ -685,7 +736,7 @@ def main(argv=None) -> int:
     if REDTEAM_MANIFEST_PATH.is_file():
         rt_manifest = json.loads(REDTEAM_MANIFEST_PATH.read_text(encoding="utf-8"))
         rt_raw = run_corpus(rt_manifest, root=REDTEAM_DIR)
-        results["redteam"] = {
+        rt_block = {
             "sample_count": rt_raw["sample_count"],
             "positive_definition": rt_manifest.get("positive_definition"),
             "overall": rt_raw["overall"],
@@ -698,6 +749,20 @@ def main(argv=None) -> int:
             "written_by": rt_manifest.get("written_by"),
             "method": rt_manifest.get("method"),
         }
+        rt_independent = load_redteam_baseline()
+        if rt_independent:
+            results["redteam_independent"] = rt_independent
+            rt_block["seen"] = True
+            rt_block["independent"] = False
+            rt_block["tuned_in"] = "v0.41.0"
+            rt_block["note"] = (
+                "Post-fix numbers on the same 100 samples after the issue #12–#16 "
+                "rule changes. This set is now 'seen' and is no longer an independent score."
+            )
+        else:
+            rt_block["seen"] = False
+            rt_block["independent"] = True
+        results["redteam"] = rt_block
 
     slim = canonical_results(results)
 
@@ -722,6 +787,8 @@ def main(argv=None) -> int:
             or "Held-out set" not in body
             or "Before (v0.38.0)" not in body
             or "Independent red-team results" not in body
+            or "now seen" not in body
+            or "v0.40.0, unseen" not in body
         ):
             sys.stderr.write("run_benchmark: docs/benchmarks/index.html is missing or stale.\n")
             return 1
@@ -742,8 +809,12 @@ def main(argv=None) -> int:
         if results.get("heldout"):
             sys.stdout.write("\nheld-out set:\n")
             sys.stdout.write(text_report(results["heldout"]))
+        if results.get("redteam_independent"):
+            sys.stdout.write("\nindependent red-team set (v0.40.0, unseen):\n")
+            sys.stdout.write(text_report(results["redteam_independent"]))
         if results.get("redteam"):
-            sys.stdout.write("\nindependent red-team set:\n")
+            label = "same red-team set after #12–#16 fixes (now seen)" if results["redteam"].get("seen") else "independent red-team set"
+            sys.stdout.write("\n%s:\n" % label)
             sys.stdout.write(text_report(results["redteam"]))
     return 0
 

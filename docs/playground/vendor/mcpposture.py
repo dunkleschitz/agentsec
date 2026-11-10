@@ -41,8 +41,8 @@ RULES: Dict[str, Dict[str, str]] = {
              "rationale": "Package/image is fetched at launch without an exact version (or @latest); a compromised or hijacked release runs with your privileges on next start.",
              "fix": "Pin an exact version (pkg@1.2.3, pkg==1.2.3, image@sha256:...) and review upgrades deliberately."},
     "MP04": {"name": "auto-install-no-prompt", "severity": "low",
-             "rationale": "`npx -y`/`--yes` installs whatever resolves without confirmation.",
-             "fix": "Pin the version; preferably install once to a vetted location and run the local binary."},
+             "rationale": "`npx -y`/`--yes` installs whatever resolves without confirmation. When the package is already pinned to an exact version, that unattended-install risk is covered by reviewing the pin; MP03 flags unpinned packages.",
+             "fix": "Pin an exact version, or install once to a vetted location and run the local binary."},
     "MP05": {"name": "docker-privileged", "severity": "high",
              "rationale": "Container launched with privileges that weaken isolation (privileged, host network/pid/ipc, added caps, host root or docker.sock mounts, unconfined seccomp/apparmor).",
              "fix": "Drop the flag; mount only the specific directories needed, read-only where possible; never mount docker.sock."},
@@ -674,7 +674,9 @@ def audit_server(srv: Server) -> None:
                 why = "@latest/floating tag" if re.search(r"[@:]latest$", pkg) else "no exact version"
                 add("MP03", f"{what} '{pkg}' launched via {launcher} with {why}", pkg)
         if launcher in ("npx", "bunx", "pnpx", "npm exec") and any(f in ("-y", "--yes") for f in lflags):
-            add("MP04", f"{launcher} -y auto-installs without confirmation", f"{launcher} -y")
+            # -y is mainly a risk when the resolved package is unpinned.
+            if srv.pinned is not True:
+                add("MP04", f"{launcher} -y auto-installs an unpinned package without confirmation", f"{launcher} -y")
 
         # docker
         if is_docker:

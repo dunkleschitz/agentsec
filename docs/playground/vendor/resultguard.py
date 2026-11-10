@@ -46,12 +46,12 @@ TAG_LO, TAG_HI = 0xE0001, 0xE007F
 
 OVERRIDE_RE = re.compile(
     r"(?is)(?:"
-    r"ignore\s+(?:all\s+)?(?:previous|prior|above|earlier)\s+(?:instructions?|rules?|prompts?|directives?)"
-    r"|disregard\s+(?:all\s+|any\s+)?(?:your\s+|the\s+)?(?:system|safety|previous|prior|above|earlier)\s+(?:prompt|instructions?|rules?)"
+    r"ignore\s+(?:all\s+)?(?:previous|prior|above|earlier)\s+(?:instructions?|rules?|prompts?|directives?|constraints?|policies|guidelines?|restrictions?|guardrails?)"
+    r"|disregard\s+(?:all\s+|any\s+)?(?:your\s+|the\s+)?(?:system|safety|previous|prior|above|earlier)\s+(?:prompt|instructions?|rules?|constraints?|policies|guidelines?|restrictions?|guardrails?)"
     # Require an instruction-like noun so "override the system font" stays clean.
     r"|override\s+(?:your|the|all)\s+(?:system\s+|safety\s+|previous\s+)?(?:prompt|instructions?|rules?|policies)"
     r"|you\s+are\s+now\s+(?:in\s+)?(?:DAN|developer|unrestricted|jailbreak|god)\b"
-    r"|jailbreak(?:\s+mode)?"
+    r"|(?:enable|enter|activate|start|use)\s+jailbreak\b|jailbreak\s+mode"
     r"|new\s+(?:system\s+)?(?:instructions?|rules?|directive)\s*:"
     r"|from\s+now\s+on\s+you\s+(?:must|will|shall)\b"
     r"|do\s+not\s+follow\s+(?:your|the)\s+(?:system|original)\s+(?:prompt|instructions?)"
@@ -84,6 +84,10 @@ ACTION_BAIT_RE = re.compile(
     r"|(?:run|execute)\s+(?:bash|sh|zsh|powershell|cmd|shell|terminal)\b"
     r"|send(?:_|\s+)(?:email|mail|message|slack|telegram|tweet)\b"
     r"|exfiltrat(?:e|ion)|upload\s+(?:the\s+)?(?:secrets?|credentials?|keys?|files?)\b"
+    # Private-to-public copy (Invariant Labs GitHub MCP toxic-flow style):
+    # enumerate private resources, then put their contents in a PR/issue/gist.
+    r"|(?:enumerate|list|dump|collect|read)\s+(?:all\s+)?(?:private|secret|internal)\s+(?:repos(?:itories)?|projects?|files?|data)\b"
+    r"|(?:open|create|file|submit)\s+(?:a\s+)?(?:pull\s+request|PR|gist)\b[^\n]{0,160}(?:private|secret|contents?)"
     r")"
 )
 
@@ -119,7 +123,8 @@ HARVEST_RE = re.compile(
 
 CONCEAL_RE = re.compile(
     r"(?is)(?:"
-    r"(?:do\s+not|don't|never)\s+(?:tell|inform|notify|mention\s+to|alert)\s+(?:the\s+)?user"
+    r"(?:do\s+not|don't|never)\s+(?:tell|inform|notify|alert)\s+(?:the\s+)?user"
+    r"|(?:do\s+not|don't|never)\s+mention\s+(?:\S+\s+){0,8}(?:to\s+)?(?:the\s+)?user"
     r"|hide\s+(?:this|it|the\s+(?:action|step|request))\s+from\s+(?:the\s+)?user"
     r"|(?:silently|quietly|covertly)\s+(?:do|perform|execute|run|call|send)"
     r"|without\s+(?:telling|informing|asking|notifying)\s+(?:the\s+)?user"
@@ -469,6 +474,66 @@ def decode_candidates(text):
     return out
 
 
+
+# Typographic and ASCII quotes used to *mention* a jailbreak phrase rather
+# than issue one (research posts, documentation, incident write-ups).
+_QUOTE_PAIRS = (
+    ('"', '"'),
+    ("'", "'"),
+    ("`", "`"),
+    ("\u201c", "\u201d"),
+    ("\u2018", "\u2019"),
+    ("\u00ab", "\u00bb"),
+)
+_DISCUSSION_RE = re.compile(
+    r"(?is)(?:"
+    r"phrases?\s+such\s+as"
+    r"|classic\s+phrases?"
+    r"|examples?\s+(?:of|include|such\s+as)"
+    r"|classif(?:y|ies|ied)\s+.{0,60}?\bas\b"
+    r"|researchers?\b"
+    r"|defenders?\s+should"
+    r"|no\s+action\s+is\s+requested"
+    r"|treat\s+untrusted\s+.{0,60}?as\s+data"
+    r"|discuss(?:es|ed|ing)?\s+.{0,80}?(?:jailbreak|injection|attack|override)"
+    r"|(?:article|post|paper|write-?up|documentation|blog)\b"
+    r")"
+)
+
+
+def _span_is_quoted(text, start, end):
+    """True if [start:end] sits inside a matching pair of quotation marks."""
+    for open_q, close_q in _QUOTE_PAIRS:
+        left = text.rfind(open_q, 0, start)
+        if left == -1:
+            continue
+        right = text.find(close_q, end)
+        if right == -1:
+            continue
+        # The opening quote should be the nearest one; no closer closer-quote
+        # between the opening quote and the match (avoids crossing pairs).
+        if close_q in text[left + len(open_q):start] and open_q != close_q:
+            continue
+        if open_q == close_q and open_q in text[left + 1:start]:
+            # There is a closer opening of the same mark; skip this pair.
+            continue
+        return True
+    return False
+
+
+def _is_quoted_discussion(text, matches):
+    """True when every override match is quoted and the text discusses attacks.
+
+    An unquoted directive still fires. A payload that is only a quoted
+    jailbreak, with no analytical framing, also still fires.
+    """
+    if not matches:
+        return False
+    if not all(_span_is_quoted(text, m.start(), m.end()) for m in matches):
+        return False
+    return bool(_DISCUSSION_RE.search(text))
+
+
 def scan_text(text, source, tool, turn, disabled=None):
     """Run TR01–TR09 against one tool-result body."""
     disabled = set(disabled or [])
@@ -483,15 +548,15 @@ def scan_text(text, source, tool, turn, disabled=None):
 
     if "TR01" not in disabled:
         hit = None
-        for m in OVERRIDE_RE.finditer(text):
-            hit = m
-            break
-        if hit is None:
+        scan_for_override = text
+        matches = list(OVERRIDE_RE.finditer(text))
+        if not matches:
             folded = _normalize_jailbreak_text(text)
             if folded != text:
-                for m in OVERRIDE_RE.finditer(folded):
-                    hit = m
-                    break
+                matches = list(OVERRIDE_RE.finditer(folded))
+                scan_for_override = folded
+        if matches and not _is_quoted_discussion(scan_for_override, matches):
+            hit = matches[0]
         if hit is not None:
             add("TR01", "override/jailbreak phrasing at line %d" % _line_of(text, hit.start()), hit.start())
 

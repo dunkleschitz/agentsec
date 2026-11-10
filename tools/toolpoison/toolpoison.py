@@ -58,6 +58,12 @@ TP01_PATTERNS = [
     r"forget\s+(all\s+)?(previous|prior|your)\s+instructions",
     r"(do\s*n[o']?t|never)\s+(tell|inform|mention|reveal|notify|alert|show)\s+(this\s+to\s+)?(the\s+)?user",
     r"without\s+(telling|informing|notifying|alerting)\s+(the\s+)?user",
+    # Soft concealment: "there is no need to mention this to the user"
+    r"(?:there\s+is\s+)?no\s+need\s+to\s+(?:tell|inform|mention|reveal|notify|alert|show)\s+(?:this\s+to\s+)?(?:the\s+)?user",
+    r"(?:the\s+)?user\s+(?:does\s+not|doesn't|need\s+not)\s+(?:need\s+to\s+)?(?:know|see|be\s+told)",
+    # Line-jumping: tool description mandates a shell prefix (Trail of Bits).
+    r"(?:all|every|each)\s+commands?\s+must\s+(?:include|contain|use|start\s+with|begin\s+with|have|be\s+prefixed\s+(?:by|with))\s+(?:the\s+)?(?:prefix\s+)?[`'\"][^`'\"]{0,160}(?:chmod|rm\s+-[rf]|curl|wget|dd\s+|mkfs|/dev/tcp|base64|nc\s|ncat)",
+    r"commands?\s+must\s+(?:include|contain|use|start\s+with|begin\s+with|be\s+prefixed\s+(?:by|with))\s+(?:the\s+)?(?:prefix\s+)?[`'\"][^`'\"]{0,160}(?:chmod|rm\s+-[rf]|curl|wget|dd\s+|mkfs|/dev/tcp|base64|nc\s|ncat)",
     r"(the\s+)?user\s+(must|should)\s+(not|never)\s+(know|be\s+told|see|find\s+out)",
     r"(keep|this\s+is)\s+(this\s+)?(secret|hidden|confidential)\s+from\s+(the\s+)?user",
     r"before\s+(using|calling|invoking|running)\s+this\s+tool,?\s+(you\s+must\s+|first\s+|always\s+)?(read|open|cat|load|fetch|access|call)",
@@ -279,6 +285,85 @@ def iter_strings(obj, path, in_props=False):
                 yield from iter_strings(v, p)
 
 
+
+# Documentary / educational framing that mentions a sensitive path without
+# instructing the model to read or exfiltrate it.
+_DOC_FRAME_RE = re.compile(
+    r"(?is)(?:"
+    r"for\s+educational\s+purposes"
+    r"|educational(?:\s+purposes)?"
+    r"|explains?\s+how"
+    r"|documentation"
+    r"|for\s+example"
+    r"|typically\s+(?:live|located|found|stored|reside)"
+    r"|often\s+(?:live|located|found|reside|sit)"
+    r"|laid\s+out"
+    r"|mentions?\s+that"
+    r"|does\s+not\s+read(?:\s+any)?\s+files?"
+    r")"
+)
+_ACCESS_VERB_RE = re.compile(
+    r"(?is)\b(?:read|cat|load|fetch|open|dump|exfiltrate|upload|send|transmit|"
+    r"copy|include|paste|attach|write)\b"
+)
+_NEGATED_ACCESS_RE = re.compile(
+    r"(?is)(?:does\s+not|doesn't|do\s+not|don't|never|without)\s+"
+    r"(?:read|cat|load|fetch|open|dump|send|exfiltrate|upload|copy|include|write)"
+)
+
+# Instructional parameter names (CyberArk full-schema poisoning): the name
+# itself tells the model to read a secret file, e.g. content_from_reading_ssh_id_rsa.
+_PARAM_ACTION_TOKENS = {
+    "read", "reading", "cat", "load", "loading", "fetch", "fetching",
+    "open", "opening", "dump", "dumping", "exfil", "exfiltrate", "steal",
+    "upload", "uploading",
+}
+_PARAM_SENSITIVE_RE = re.compile(
+    r"(?i)(?:id_rsa|id_ed25519|id_ecdsa|id_dsa|authorized_keys|"
+    r"\bssh\b|\.env|aws_secret|aws_credentials|\.aws|kubeconfig|"
+    r"\.netrc|\.npmrc|\.pypirc|\.gnupg|passwd|shadow|"
+    r"bash_history|zsh_history|private_key|wallet\.dat)"
+)
+_PARAM_SENSITIVE_TOKENS = {
+    "ssh", "id_rsa", "id_ed25519", "id_ecdsa", "id_dsa", "authorized_keys",
+    "aws", "credentials", "netrc", "kube", "kubeconfig", "passwd", "shadow",
+    "bash_history", "private_key", "wallet",
+}
+
+
+def _split_ident(name):
+    parts = re.split(r"[_\-]+", name or "")
+    tokens = []
+    for part in parts:
+        tokens.extend(re.findall(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|\d+", part) or [part])
+    return [tok.lower() for tok in tokens if tok]
+
+
+def instructional_param_name(name):
+    """True when a parameter name encodes 'read this secret file' as tokens."""
+    if not name:
+        return False
+    tokens = _split_ident(name)
+    low = name.lower()
+    has_sensitive = bool(_PARAM_SENSITIVE_RE.search(low)) or any(
+        tok in _PARAM_SENSITIVE_TOKENS for tok in tokens
+    )
+    has_action = any(tok in _PARAM_ACTION_TOKENS for tok in tokens)
+    # "content_from_reading_…" / "contents_of_id_rsa"
+    from_content = ("content" in tokens or "contents" in tokens) and "from" in tokens
+    of_content = ("content" in tokens or "contents" in tokens) and "of" in tokens
+    return has_sensitive and (has_action or from_content or of_content)
+
+
+def _tp03_is_documentary(text):
+    """True if a sensitive-path mention is educational and not an access request."""
+    if not text or not _DOC_FRAME_RE.search(text):
+        return False
+    # Negated "does not read any files" is not an access request.
+    stripped = _NEGATED_ACCESS_RE.sub(" ", text)
+    return not _ACCESS_VERB_RE.search(stripped)
+
+
 def scan_tools(source, tools, base, max_desc_len=1000):
     findings = []
     seen = set()
@@ -337,9 +422,16 @@ def scan_tools(source, tools, base, max_desc_len=1000):
                     elif low in SMUGGLE_NAMES_ALWAYS:
                         add("TP05", path, text, "low" if not pdesc else None,
                             "Parameter name %r is a common data-smuggling channel; review its use" % text, tname)
+                if instructional_param_name(text):
+                    add("TP05", path, visible(text), "high",
+                        "Parameter name %r encodes an instruction to read or exfiltrate a sensitive file" % text, tname)
+                    add("TP03", path, visible(text), "high",
+                        "Parameter name %r references a sensitive path or secret file" % text, tname)
                 continue
             # textual rules
             for rule, pats in (("TP01", C01), ("TP03", C03), ("TP04", C04), ("TP06", C06), ("TP10", C10)):
+                if rule == "TP03" and kind == "description" and _tp03_is_documentary(text):
+                    continue
                 spans = []
                 for rx in pats:
                     for m in rx.finditer(text):

@@ -182,15 +182,7 @@
     "version": "v0.38.0"
   },
   "evasion_false_negatives": [],
-  "false_negatives": [
-    {
-      "difficulty": "medium",
-      "id": "memfence/malicious/04-credential-harvest",
-      "notes": "Asks the model to paste API keys and .env contents into the chat. memfence MF05 looks for harvest/dump/exfiltrate phrasing or 'paste the api key into the webhook'; this wording may miss (false negative).",
-      "title": "Memory entry asking to dump API keys",
-      "tool": "memfence"
-    }
-  ],
+  "false_negatives": [],
   "false_positives": [],
   "heldout": {
     "evasion_false_negatives": [],
@@ -887,15 +879,15 @@
     "unexpected_false_negatives": []
   },
   "overall": {
-    "accuracy": 0.992,
-    "f1": 0.9933774834437086,
-    "fn": 1,
+    "accuracy": 1.0,
+    "f1": 1.0,
+    "fn": 0,
     "fp": 0,
     "precision": 1.0,
-    "recall": 0.9868421052631579,
+    "recall": 1.0,
     "support": 125,
     "tn": 49,
-    "tp": 75
+    "tp": 76
   },
   "per_tool": {
     "fetchfence": {
@@ -921,15 +913,15 @@
       "tp": 5
     },
     "memfence": {
-      "accuracy": 0.875,
-      "f1": 0.888888888888889,
-      "fn": 1,
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "fn": 0,
       "fp": 0,
       "precision": 1.0,
-      "recall": 0.8,
+      "recall": 1.0,
       "support": 8,
       "tn": 3,
-      "tp": 4
+      "tp": 5
     },
     "pathfence": {
       "accuracy": 1.0,
@@ -1011,139 +1003,22 @@
   },
   "positive_definition": "A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10) are ignored.",
   "redteam": {
-    "evasion_false_negatives": [
-      "redteam/toolpoison/malicious/06-instructional-param-name",
-      "redteam/tracesweep/malicious/06-base64-openai-key",
-      "redteam/tracesweep/malicious/07-split-across-turns",
-      "redteam/shellfence/malicious/05-dns-exfil-dig",
-      "redteam/shellfence/malicious/07-hex-obfuscated-rm",
-      "redteam/memfence/malicious/06-minja-false-fact"
-    ],
-    "false_negatives": [
-      {
-        "difficulty": "easy",
-        "id": "redteam/resultguard/malicious/03-github-mcp-toxic-issue",
-        "notes": "Malicious public issue instructing the agent to dump private repos into a PR (Invariant Labs, May 2025). Expected: TR01/TR04/TR08.",
-        "title": "Invariant Labs GitHub MCP toxic-flow issue body",
-        "tool": "resultguard"
-      },
-      {
-        "difficulty": "medium",
-        "id": "redteam/toolpoison/malicious/02-tob-line-jumping-chmod",
-        "notes": "tools/list-time injection that prefixes shell with chmod -R 0666 ~; (Trail of Bits, April 2025). Expected: TP01/TP06.",
-        "title": "Trail of Bits line-jumping chmod prefix",
-        "tool": "toolpoison"
-      },
-      {
-        "difficulty": "evasion",
-        "id": "redteam/toolpoison/malicious/06-instructional-param-name",
-        "notes": "CyberArk content_from_reading_ssh_id_rsa-style parameter name. Expected: TP03/TP05.",
-        "title": "Parameter name itself is the instruction",
-        "tool": "toolpoison"
-      },
-      {
-        "difficulty": "evasion",
-        "id": "redteam/tracesweep/malicious/06-base64-openai-key",
-        "notes": "Evasion: key only appears base64-encoded. Expected miss unless decoder present.",
-        "title": "Base64-wrapped OpenAI key",
-        "tool": "tracesweep"
-      },
-      {
-        "difficulty": "evasion",
-        "id": "redteam/tracesweep/malicious/07-split-across-turns",
-        "notes": "Evasion: first half then second half; full key never contiguous. Likely FN.",
-        "title": "OpenAI key split across two tool results",
-        "tool": "tracesweep"
-      },
-      {
-        "difficulty": "medium",
-        "id": "redteam/shellfence/malicious/04-amazonq-wipe-home",
-        "notes": "Destructive wipe inspired by CVE-2025-8217 prompt. Expected: SF02.",
-        "title": "Amazon Q-style wipe of home via find/rm",
-        "tool": "shellfence"
-      },
-      {
-        "difficulty": "evasion",
-        "id": "redteam/shellfence/malicious/05-dns-exfil-dig",
-        "notes": "Embrace The Red Claude Code DNS exfil using allowlisted dig/nslookup. Expected: SF10 if env dump / outbound; may miss pure dig.",
-        "title": "DNS exfil via dig (CVE-2025-55284 style)",
-        "tool": "shellfence"
-      },
-      {
-        "difficulty": "evasion",
-        "id": "redteam/shellfence/malicious/07-hex-obfuscated-rm",
-        "notes": "Evasion via $'...' hex escapes. Likely FN.",
-        "title": "Hex-escaped rm -rf /",
-        "tool": "shellfence"
-      },
-      {
-        "difficulty": "medium",
-        "id": "redteam/memfence/malicious/04-credential-harvest",
-        "notes": "MF05 \u2014 wording close to known FN ('paste your API keys').",
-        "title": "Credential harvest instruction in memory",
-        "tool": "memfence"
-      },
-      {
-        "difficulty": "evasion",
-        "id": "redteam/memfence/malicious/06-minja-false-fact",
-        "notes": "MINJA (arXiv:2503.03704) style poisoned memory redirecting patient queries. Expected: MF01 soft; may miss without override verbs.",
-        "title": "MINJA-style bridging false medical fact",
-        "tool": "memfence"
-      }
-    ],
-    "false_positives": [
-      {
-        "difficulty": "easy",
-        "id": "redteam/resultguard/benign/01-security-blog-discusses-jailbreaks",
-        "notes": "Benign look-alike: article *discusses* attacks without directing the model. May FP on TR01.",
-        "rules": [
-          "TR01"
-        ],
-        "title": "Security blog quoting jailbreak phrases as examples",
-        "tool": "resultguard"
-      },
-      {
-        "difficulty": "easy",
-        "id": "redteam/toolpoison/benign/03-docs-mention-ssh-path",
-        "notes": "Benign look-alike that discusses SSH paths in documentation tone.",
-        "rules": [
-          "TP03"
-        ],
-        "title": "Docs tool mentioning ~/.ssh as an example path",
-        "tool": "toolpoison"
-      },
-      {
-        "difficulty": "easy",
-        "id": "redteam/mcpposture/benign/01-pinned-env-ref",
-        "notes": "Clean posture.",
-        "rules": [
-          "MP04"
-        ],
-        "title": "Pinned package with ${ENV} secret ref",
-        "tool": "mcpposture"
-      },
-      {
-        "difficulty": "easy",
-        "id": "redteam/mcpposture/benign/02-narrow-filesystem",
-        "notes": "Clean.",
-        "rules": [
-          "MP04"
-        ],
-        "title": "Filesystem limited to project dir",
-        "tool": "mcpposture"
-      }
-    ],
+    "evasion_false_negatives": [],
+    "false_negatives": [],
+    "false_positives": [],
+    "independent": false,
     "method": "READMEs/usage only; no detector source or rule-file inspection before writing samples",
+    "note": "Post-fix numbers on the same 100 samples after the issue #12\u2013#16 rule changes. This set is now 'seen' and is no longer an independent score.",
     "overall": {
-      "accuracy": 0.86,
-      "f1": 0.8955223880597014,
-      "fn": 10,
-      "fp": 4,
-      "precision": 0.9375,
-      "recall": 0.8571428571428571,
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
       "support": 100,
-      "tn": 26,
-      "tp": 60
+      "tn": 30,
+      "tp": 70
     },
     "per_tool": {
       "fetchfence": {
@@ -1158,26 +1033,26 @@
         "tp": 7
       },
       "mcpposture": {
-        "accuracy": 0.8,
-        "f1": 0.8750000000000001,
+        "accuracy": 1.0,
+        "f1": 1.0,
         "fn": 0,
-        "fp": 2,
-        "precision": 0.7777777777777778,
+        "fp": 0,
+        "precision": 1.0,
         "recall": 1.0,
         "support": 10,
-        "tn": 1,
+        "tn": 3,
         "tp": 7
       },
       "memfence": {
-        "accuracy": 0.8,
-        "f1": 0.8333333333333333,
-        "fn": 2,
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
         "fp": 0,
         "precision": 1.0,
-        "recall": 0.7142857142857143,
+        "recall": 1.0,
         "support": 10,
         "tn": 3,
-        "tp": 5
+        "tp": 7
       },
       "pathfence": {
         "accuracy": 1.0,
@@ -1202,15 +1077,15 @@
         "tp": 7
       },
       "resultguard": {
-        "accuracy": 0.8,
-        "f1": 0.8571428571428571,
-        "fn": 1,
-        "fp": 1,
-        "precision": 0.8571428571428571,
-        "recall": 0.8571428571428571,
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
         "support": 10,
-        "tn": 2,
-        "tp": 6
+        "tn": 3,
+        "tp": 7
       },
       "secretflow": {
         "accuracy": 1.0,
@@ -1224,37 +1099,37 @@
         "tp": 7
       },
       "shellfence": {
-        "accuracy": 0.7,
-        "f1": 0.7272727272727273,
-        "fn": 3,
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
         "fp": 0,
         "precision": 1.0,
-        "recall": 0.5714285714285714,
+        "recall": 1.0,
         "support": 10,
         "tn": 3,
-        "tp": 4
+        "tp": 7
       },
       "toolpoison": {
-        "accuracy": 0.7,
-        "f1": 0.7692307692307692,
-        "fn": 2,
-        "fp": 1,
-        "precision": 0.8333333333333334,
-        "recall": 0.7142857142857143,
-        "support": 10,
-        "tn": 2,
-        "tp": 5
-      },
-      "tracesweep": {
-        "accuracy": 0.8,
-        "f1": 0.8333333333333333,
-        "fn": 2,
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
         "fp": 0,
         "precision": 1.0,
-        "recall": 0.7142857142857143,
+        "recall": 1.0,
         "support": 10,
         "tn": 3,
-        "tp": 5
+        "tp": 7
+      },
+      "tracesweep": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 10,
+        "tn": 3,
+        "tp": 7
       }
     },
     "positive_definition": "A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10, PG10, PF12, MF10, MP17, MP18) are ignored.",
@@ -1293,13 +1168,17 @@
       {
         "category": "prompt-injection-tool-result",
         "difficulty": "easy",
-        "finding_count": 0,
-        "flagged": false,
+        "finding_count": 3,
+        "flagged": true,
         "id": "redteam/resultguard/malicious/03-github-mcp-toxic-issue",
         "label": "malicious",
-        "outcome": "fn",
+        "outcome": "tp",
         "parse_error": null,
-        "rules": [],
+        "rules": [
+          "TR01",
+          "TR04",
+          "TR08"
+        ],
         "tool": "resultguard"
       },
       {
@@ -1363,15 +1242,13 @@
       {
         "category": "prompt-injection-tool-result",
         "difficulty": "easy",
-        "finding_count": 1,
-        "flagged": true,
+        "finding_count": 0,
+        "flagged": false,
         "id": "redteam/resultguard/benign/01-security-blog-discusses-jailbreaks",
         "label": "benign",
-        "outcome": "fp",
+        "outcome": "tn",
         "parse_error": null,
-        "rules": [
-          "TR01"
-        ],
+        "rules": [],
         "tool": "resultguard"
       },
       {
@@ -1417,13 +1294,15 @@
       {
         "category": "poisoned-mcp-tool-description",
         "difficulty": "medium",
-        "finding_count": 0,
-        "flagged": false,
+        "finding_count": 1,
+        "flagged": true,
         "id": "redteam/toolpoison/malicious/02-tob-line-jumping-chmod",
         "label": "malicious",
-        "outcome": "fn",
+        "outcome": "tp",
         "parse_error": null,
-        "rules": [],
+        "rules": [
+          "TP01"
+        ],
         "tool": "toolpoison"
       },
       {
@@ -1479,13 +1358,16 @@
       {
         "category": "poisoned-mcp-tool-description",
         "difficulty": "evasion",
-        "finding_count": 0,
-        "flagged": false,
+        "finding_count": 2,
+        "flagged": true,
         "id": "redteam/toolpoison/malicious/06-instructional-param-name",
         "label": "malicious",
-        "outcome": "fn",
+        "outcome": "tp",
         "parse_error": null,
-        "rules": [],
+        "rules": [
+          "TP03",
+          "TP05"
+        ],
         "tool": "toolpoison"
       },
       {
@@ -1529,15 +1411,13 @@
       {
         "category": "poisoned-mcp-tool-description",
         "difficulty": "easy",
-        "finding_count": 1,
-        "flagged": true,
+        "finding_count": 0,
+        "flagged": false,
         "id": "redteam/toolpoison/benign/03-docs-mention-ssh-path",
         "label": "benign",
-        "outcome": "fp",
+        "outcome": "tn",
         "parse_error": null,
-        "rules": [
-          "TP03"
-        ],
+        "rules": [],
         "tool": "toolpoison"
       },
       {
@@ -1613,25 +1493,29 @@
       {
         "category": "secret-leak",
         "difficulty": "evasion",
-        "finding_count": 0,
-        "flagged": false,
+        "finding_count": 1,
+        "flagged": true,
         "id": "redteam/tracesweep/malicious/06-base64-openai-key",
         "label": "malicious",
-        "outcome": "fn",
+        "outcome": "tp",
         "parse_error": null,
-        "rules": [],
+        "rules": [
+          "TS-OPENAI"
+        ],
         "tool": "tracesweep"
       },
       {
         "category": "secret-leak",
         "difficulty": "evasion",
-        "finding_count": 0,
-        "flagged": false,
+        "finding_count": 1,
+        "flagged": true,
         "id": "redteam/tracesweep/malicious/07-split-across-turns",
         "label": "malicious",
-        "outcome": "fn",
+        "outcome": "tp",
         "parse_error": null,
-        "rules": [],
+        "rules": [
+          "TS-OPENAI"
+        ],
         "tool": "tracesweep"
       },
       {
@@ -1860,25 +1744,29 @@
       {
         "category": "dangerous-shell",
         "difficulty": "medium",
-        "finding_count": 0,
-        "flagged": false,
+        "finding_count": 1,
+        "flagged": true,
         "id": "redteam/shellfence/malicious/04-amazonq-wipe-home",
         "label": "malicious",
-        "outcome": "fn",
+        "outcome": "tp",
         "parse_error": null,
-        "rules": [],
+        "rules": [
+          "SF02"
+        ],
         "tool": "shellfence"
       },
       {
         "category": "dangerous-shell",
         "difficulty": "evasion",
-        "finding_count": 0,
-        "flagged": false,
+        "finding_count": 1,
+        "flagged": true,
         "id": "redteam/shellfence/malicious/05-dns-exfil-dig",
         "label": "malicious",
-        "outcome": "fn",
+        "outcome": "tp",
         "parse_error": null,
-        "rules": [],
+        "rules": [
+          "SF10"
+        ],
         "tool": "shellfence"
       },
       {
@@ -1898,13 +1786,15 @@
       {
         "category": "dangerous-shell",
         "difficulty": "evasion",
-        "finding_count": 0,
-        "flagged": false,
+        "finding_count": 1,
+        "flagged": true,
         "id": "redteam/shellfence/malicious/07-hex-obfuscated-rm",
         "label": "malicious",
-        "outcome": "fn",
+        "outcome": "tp",
         "parse_error": null,
-        "rules": [],
+        "rules": [
+          "SF02"
+        ],
         "tool": "shellfence"
       },
       {
@@ -2426,14 +2316,13 @@
       {
         "category": "mcp-client-posture",
         "difficulty": "easy",
-        "finding_count": 2,
+        "finding_count": 1,
         "flagged": true,
         "id": "redteam/mcpposture/malicious/05-tls-verify-off",
         "label": "malicious",
         "outcome": "tp",
         "parse_error": null,
         "rules": [
-          "MP04",
           "MP14"
         ],
         "tool": "mcpposture"
@@ -2469,29 +2358,25 @@
       {
         "category": "mcp-client-posture",
         "difficulty": "easy",
-        "finding_count": 1,
-        "flagged": true,
+        "finding_count": 0,
+        "flagged": false,
         "id": "redteam/mcpposture/benign/01-pinned-env-ref",
         "label": "benign",
-        "outcome": "fp",
+        "outcome": "tn",
         "parse_error": null,
-        "rules": [
-          "MP04"
-        ],
+        "rules": [],
         "tool": "mcpposture"
       },
       {
         "category": "mcp-client-posture",
         "difficulty": "easy",
-        "finding_count": 1,
-        "flagged": true,
+        "finding_count": 0,
+        "flagged": false,
         "id": "redteam/mcpposture/benign/02-narrow-filesystem",
         "label": "benign",
-        "outcome": "fp",
+        "outcome": "tn",
         "parse_error": null,
-        "rules": [
-          "MP04"
-        ],
+        "rules": [],
         "tool": "mcpposture"
       },
       {
@@ -2554,13 +2439,15 @@
       {
         "category": "memory-poisoning",
         "difficulty": "medium",
-        "finding_count": 0,
-        "flagged": false,
+        "finding_count": 1,
+        "flagged": true,
         "id": "redteam/memfence/malicious/04-credential-harvest",
         "label": "malicious",
-        "outcome": "fn",
+        "outcome": "tp",
         "parse_error": null,
-        "rules": [],
+        "rules": [
+          "MF05"
+        ],
         "tool": "memfence"
       },
       {
@@ -2582,13 +2469,16 @@
       {
         "category": "memory-poisoning",
         "difficulty": "evasion",
-        "finding_count": 0,
-        "flagged": false,
+        "finding_count": 2,
+        "flagged": true,
         "id": "redteam/memfence/malicious/06-minja-false-fact",
         "label": "malicious",
-        "outcome": "fn",
+        "outcome": "tp",
         "parse_error": null,
-        "rules": [],
+        "rules": [
+          "MF01",
+          "MF09"
+        ],
         "tool": "memfence"
       },
       {
@@ -2642,12 +2532,268 @@
         "tool": "memfence"
       }
     ],
+    "seen": true,
+    "tuned_in": "v0.41.0",
+    "unexpected_false_negatives": [],
+    "written_by": "independent red-team (knowledgeWork)"
+  },
+  "redteam_independent": {
+    "evasion_false_negatives": [
+      "redteam/toolpoison/malicious/06-instructional-param-name",
+      "redteam/tracesweep/malicious/06-base64-openai-key",
+      "redteam/tracesweep/malicious/07-split-across-turns",
+      "redteam/shellfence/malicious/05-dns-exfil-dig",
+      "redteam/shellfence/malicious/07-hex-obfuscated-rm",
+      "redteam/memfence/malicious/06-minja-false-fact"
+    ],
+    "false_negatives": [
+      {
+        "difficulty": "easy",
+        "id": "redteam/resultguard/malicious/03-github-mcp-toxic-issue",
+        "notes": "Malicious public issue instructing the agent to dump private repos into a PR (Invariant Labs, May 2025). Expected: TR01/TR04/TR08.",
+        "title": "Invariant Labs GitHub MCP toxic-flow issue body",
+        "tool": "resultguard"
+      },
+      {
+        "difficulty": "medium",
+        "id": "redteam/toolpoison/malicious/02-tob-line-jumping-chmod",
+        "notes": "tools/list-time injection that prefixes shell with chmod -R 0666 ~; (Trail of Bits, April 2025). Expected: TP01/TP06.",
+        "title": "Trail of Bits line-jumping chmod prefix",
+        "tool": "toolpoison"
+      },
+      {
+        "difficulty": "evasion",
+        "id": "redteam/toolpoison/malicious/06-instructional-param-name",
+        "notes": "CyberArk content_from_reading_ssh_id_rsa-style parameter name. Expected: TP03/TP05.",
+        "title": "Parameter name itself is the instruction",
+        "tool": "toolpoison"
+      },
+      {
+        "difficulty": "evasion",
+        "id": "redteam/tracesweep/malicious/06-base64-openai-key",
+        "notes": "Evasion: key only appears base64-encoded. Expected miss unless decoder present.",
+        "title": "Base64-wrapped OpenAI key",
+        "tool": "tracesweep"
+      },
+      {
+        "difficulty": "evasion",
+        "id": "redteam/tracesweep/malicious/07-split-across-turns",
+        "notes": "Evasion: first half then second half; full key never contiguous. Likely FN.",
+        "title": "OpenAI key split across two tool results",
+        "tool": "tracesweep"
+      },
+      {
+        "difficulty": "medium",
+        "id": "redteam/shellfence/malicious/04-amazonq-wipe-home",
+        "notes": "Destructive wipe inspired by CVE-2025-8217 prompt. Expected: SF02.",
+        "title": "Amazon Q-style wipe of home via find/rm",
+        "tool": "shellfence"
+      },
+      {
+        "difficulty": "evasion",
+        "id": "redteam/shellfence/malicious/05-dns-exfil-dig",
+        "notes": "Embrace The Red Claude Code DNS exfil using allowlisted dig/nslookup. Expected: SF10 if env dump / outbound; may miss pure dig.",
+        "title": "DNS exfil via dig (CVE-2025-55284 style)",
+        "tool": "shellfence"
+      },
+      {
+        "difficulty": "evasion",
+        "id": "redteam/shellfence/malicious/07-hex-obfuscated-rm",
+        "notes": "Evasion via $'...' hex escapes. Likely FN.",
+        "title": "Hex-escaped rm -rf /",
+        "tool": "shellfence"
+      },
+      {
+        "difficulty": "medium",
+        "id": "redteam/memfence/malicious/04-credential-harvest",
+        "notes": "MF05 \u2014 wording close to known FN ('paste your API keys').",
+        "title": "Credential harvest instruction in memory",
+        "tool": "memfence"
+      },
+      {
+        "difficulty": "evasion",
+        "id": "redteam/memfence/malicious/06-minja-false-fact",
+        "notes": "MINJA (arXiv:2503.03704) style poisoned memory redirecting patient queries. Expected: MF01 soft; may miss without override verbs.",
+        "title": "MINJA-style bridging false medical fact",
+        "tool": "memfence"
+      }
+    ],
+    "false_positives": [
+      {
+        "difficulty": "easy",
+        "id": "redteam/resultguard/benign/01-security-blog-discusses-jailbreaks",
+        "notes": "Benign look-alike: article *discusses* attacks without directing the model. May FP on TR01.",
+        "rules": [
+          "TR01"
+        ],
+        "title": "Security blog quoting jailbreak phrases as examples",
+        "tool": "resultguard"
+      },
+      {
+        "difficulty": "easy",
+        "id": "redteam/toolpoison/benign/03-docs-mention-ssh-path",
+        "notes": "Benign look-alike that discusses SSH paths in documentation tone.",
+        "rules": [
+          "TP03"
+        ],
+        "title": "Docs tool mentioning ~/.ssh as an example path",
+        "tool": "toolpoison"
+      },
+      {
+        "difficulty": "easy",
+        "id": "redteam/mcpposture/benign/01-pinned-env-ref",
+        "notes": "Clean posture.",
+        "rules": [
+          "MP04"
+        ],
+        "title": "Pinned package with ${ENV} secret ref",
+        "tool": "mcpposture"
+      },
+      {
+        "difficulty": "easy",
+        "id": "redteam/mcpposture/benign/02-narrow-filesystem",
+        "notes": "Clean.",
+        "rules": [
+          "MP04"
+        ],
+        "title": "Filesystem limited to project dir",
+        "tool": "mcpposture"
+      }
+    ],
+    "method": "READMEs/usage only; no detector source or rule-file inspection before writing samples",
+    "note": "Frozen independent red-team score from v0.40.0. Samples were written without reading detector source. These numbers were not used to retune rules.",
+    "overall": {
+      "accuracy": 0.86,
+      "f1": 0.8955223880597014,
+      "fn": 10,
+      "fp": 4,
+      "precision": 0.9375,
+      "recall": 0.8571428571428571,
+      "support": 100,
+      "tn": 26,
+      "tp": 60
+    },
+    "per_tool": {
+      "fetchfence": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 10,
+        "tn": 3,
+        "tp": 7
+      },
+      "mcpposture": {
+        "accuracy": 0.8,
+        "f1": 0.8750000000000001,
+        "fn": 0,
+        "fp": 2,
+        "precision": 0.7777777777777778,
+        "recall": 1.0,
+        "support": 10,
+        "tn": 1,
+        "tp": 7
+      },
+      "memfence": {
+        "accuracy": 0.8,
+        "f1": 0.8333333333333333,
+        "fn": 2,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 0.7142857142857143,
+        "support": 10,
+        "tn": 3,
+        "tp": 5
+      },
+      "pathfence": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 10,
+        "tn": 3,
+        "tp": 7
+      },
+      "piiguard": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 10,
+        "tn": 3,
+        "tp": 7
+      },
+      "resultguard": {
+        "accuracy": 0.8,
+        "f1": 0.8571428571428571,
+        "fn": 1,
+        "fp": 1,
+        "precision": 0.8571428571428571,
+        "recall": 0.8571428571428571,
+        "support": 10,
+        "tn": 2,
+        "tp": 6
+      },
+      "secretflow": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 10,
+        "tn": 3,
+        "tp": 7
+      },
+      "shellfence": {
+        "accuracy": 0.7,
+        "f1": 0.7272727272727273,
+        "fn": 3,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 0.5714285714285714,
+        "support": 10,
+        "tn": 3,
+        "tp": 4
+      },
+      "toolpoison": {
+        "accuracy": 0.7,
+        "f1": 0.7692307692307692,
+        "fn": 2,
+        "fp": 1,
+        "precision": 0.8333333333333334,
+        "recall": 0.7142857142857143,
+        "support": 10,
+        "tn": 2,
+        "tp": 5
+      },
+      "tracesweep": {
+        "accuracy": 0.8,
+        "f1": 0.8333333333333333,
+        "fn": 2,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 0.7142857142857143,
+        "support": 10,
+        "tn": 3,
+        "tp": 5
+      }
+    },
+    "positive_definition": "A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10, PG10, PF12, MF10, MP17, MP18) are ignored.",
+    "sample_count": 100,
     "unexpected_false_negatives": [
       "redteam/resultguard/malicious/03-github-mcp-toxic-issue",
       "redteam/toolpoison/malicious/02-tob-line-jumping-chmod",
       "redteam/shellfence/malicious/04-amazonq-wipe-home",
       "redteam/memfence/malicious/04-credential-harvest"
     ],
+    "version": "v0.40.0",
     "written_by": "independent red-team (knowledgeWork)"
   },
   "sample_count": 125,
@@ -4289,13 +4435,15 @@
     {
       "category": "memory-poisoning",
       "difficulty": "medium",
-      "finding_count": 0,
-      "flagged": false,
+      "finding_count": 1,
+      "flagged": true,
       "id": "memfence/malicious/04-credential-harvest",
       "label": "malicious",
-      "outcome": "fn",
+      "outcome": "tp",
       "parse_error": null,
-      "rules": [],
+      "rules": [
+        "MF05"
+      ],
       "tool": "memfence"
     },
     {
@@ -4349,7 +4497,5 @@
       "tool": "memfence"
     }
   ],
-  "unexpected_false_negatives": [
-    "memfence/malicious/04-credential-harvest"
-  ]
+  "unexpected_false_negatives": []
 }

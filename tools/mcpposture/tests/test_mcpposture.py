@@ -137,6 +137,11 @@ class TestPinning(unittest.TestCase):
         self.assertTrue(mp.image_pinned("foo/bar@sha256:" + "0" * 64))
         self.assertFalse(mp.image_pinned("localhost:5000/bar"))
 
+    def test_npx_y_pinned_is_clean(self):
+        rep = audit_cfg({"s": {"command": "npx", "args": ["-y", "@scope/pkg@2025.4.8"]}})
+        self.assertNotIn("MP04", ids(rep))
+        self.assertNotIn("MP03", ids(rep))
+
     def test_npx_y(self):
         rep = audit_cfg({"s": {"command": "npx", "args": ["-y", "some-mcp"]}})
         self.assertTrue({"MP03", "MP04"} <= ids(rep))

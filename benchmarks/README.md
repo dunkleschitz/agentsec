@@ -36,7 +36,7 @@ The committed table lives at [dunkleschitz.github.io/agentsec/benchmarks/](https
 
 Numbers will move when a single sample is added or re-labeled; treat percentages as a snapshot, not a product claim.
 
-- **Independent red-team** (`benchmarks/redteam/`): ~100 adversarial + benign look-alike samples written without reading detector source/rule files, citing published research in `SOURCES.md`. Reported separately on the Pages page.
+- **Independent red-team** (`benchmarks/redteam/`): 100 adversarial + benign look-alike samples written without reading detector source/rule files, citing published research in `SOURCES.md`. The v0.40.0 score on that set is frozen in `baseline_redteam_v0.40.0.json` and stays on the Pages page as the unseen number. After issues #12–#16 were closed in v0.41.0, the same set was re-run and is labeled **seen**; those post-fix numbers are no longer independent.
 
 ## Layout
 
@@ -46,6 +46,7 @@ benchmarks/
 ├── manifest.json              labels for the main (expanded) corpus
 ├── results.json               last committed precision/recall snapshot
 ├── baseline_v0.38.0.json      frozen v0.38.0 numbers for the before table
+├── baseline_redteam_v0.40.0.json  frozen independent red-team score (unseen)
 ├── run_benchmark.py           stdlib runner and Pages generator
 ├── corpus/                    main corpus, including the original 85 plus five new tools
 ├── heldout/

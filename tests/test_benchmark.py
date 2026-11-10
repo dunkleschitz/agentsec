@@ -79,6 +79,9 @@ class ResultsTests(unittest.TestCase):
         self.assertIn("Before (v0.38.0)", page)
         self.assertIn("Held-out set", page)
         self.assertIn("Independent red-team results", page)
+        self.assertIn("v0.40.0, unseen", page)
+        self.assertIn("now seen", page)
+        self.assertIn("no longer an independent score", page.lower())
         results = json.loads(RESULTS.read_text(encoding="utf-8"))
         # After the #7-#11 fixes the original 85-sample slice is clean.
         comparable = results["original_comparable"]
@@ -140,6 +143,18 @@ class ResultsTests(unittest.TestCase):
         self.assertIn("false_negatives", redteam)
         self.assertIn("false_positives", redteam)
         self.assertIn("overall", redteam)
+        self.assertTrue(redteam.get("seen"))
+        self.assertFalse(redteam.get("independent"))
+        # Frozen independent numbers from v0.40.0 stay visible and unchanged.
+        independent = results["redteam_independent"]
+        self.assertEqual(independent["version"], "v0.40.0")
+        self.assertEqual(independent["sample_count"], 100)
+        self.assertEqual(independent["overall"]["tp"], 60)
+        self.assertEqual(independent["overall"]["fp"], 4)
+        self.assertEqual(independent["overall"]["fn"], 10)
+        self.assertEqual(independent["overall"]["tn"], 26)
+        self.assertEqual(results["redteam_independent"]["overall"],
+                         json.loads((BENCH / "baseline_redteam_v0.40.0.json").read_text(encoding="utf-8"))["overall"])
         for sample in samples:
             path = BENCH / "redteam" / sample["path"]
             self.assertTrue(path.is_file(), sample["path"])

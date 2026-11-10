@@ -76,7 +76,11 @@ DESTRUCTIVE_RE = re.compile(
     r"(?ix)"
     r"("
     r"\brm\s+(?:-[a-zA-Z]*[rf][a-zA-Z]*\s+)*-(?:[a-zA-Z]*[rf][a-zA-Z]*)\s+(?:--\s+)?"
-    r"(?:/|/\*|/\$\{?\w+\}?|/home(?:/|\b)|/Users(?:/|\b)|/var(?:/|\b)|/etc(?:/|\b)|~/?\s*$|~/?\*)"
+    r"(?:/|/\*|/\$\{?\w+\}?|/home(?:/|\b)|/Users(?:/|\b)|/var(?:/|\b)|/etc(?:/|\b)|"
+    r"~/?\s*$|~/?\*|\$\{?HOME\}?(?:/|\b|\*)?)"
+    r"|"
+    r"\bfind\s+(?:\$\{?HOME\}?|~|/home(?:/|\b)|/Users(?:/|\b)|/)\b[^\n|;]{0,250}"
+    r"(?:-delete\b|-exec\s+rm\b)"
     r"|"
     r"\brm\s+(?:-[a-zA-Z]+\s+)*(?:--no-preserve-root\b)"
     r"|"
@@ -225,6 +229,11 @@ ENV_EXFIL_RE = re.compile(
     r"\bcurl\b[^\n|;]{0,80}-d\s+[\"']?\$\{?\w*(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)"
     r"|"
     r"\bwget\b[^\n|;]{0,80}--post-data\s*[\"']?\$\{?\w*(?:KEY|TOKEN|SECRET)"
+    r"|"
+    r"\b(?:dig|nslookup|host)\b[^\n|;]{0,200}\$(?:\{)?[A-Za-z_][A-Za-z0-9_]*"
+    r"|"
+    r"\b(?:dig|nslookup|host)\b[^\n|;]{0,200}"
+    r"(?:collector|oast(?:ify)?|dnslog|exfil|burpcollab|interact\.sh|canarytokens|\boob\b)"
     r")"
 )
 
@@ -474,18 +483,47 @@ def load_events(path: str, as_commands: bool = False):
     return extract_commands_from_obj(doc, source)
 
 
+def _decode_shell_escapes(s: str) -> str:
+    """Decode ANSI-C quoting (``$'...'``) and loose ``\\xHH`` / ``\\nnn`` escapes.
+
+    Applied a few times so double-escaped payloads such as ``$'\\x72\\x6d...'``
+    still collapse to the underlying command before the rule regexes run.
+    """
+    def hex_replace(m):
+        return chr(int(m.group(1), 16))
+
+    def oct_replace(m):
+        return chr(int(m.group(1), 8) & 0xFF)
+
+    def ansi_body(m):
+        return _decode_shell_escapes(m.group(1))
+
+    out = s
+    for _ in range(6):
+        nxt = re.sub(r"\$'((?:\\.|[^'\\])*)'", ansi_body, out)
+        # Prefer double-backslash hex (JSON-escaped $'\\x72...') then single.
+        nxt = re.sub(r"\\\\x([0-9A-Fa-f]{2})", hex_replace, nxt)
+        nxt = re.sub(r"\\x([0-9A-Fa-f]{2})", hex_replace, nxt)
+        nxt = re.sub(r"\\([0-7]{3})", oct_replace, nxt)
+        if nxt == out:
+            break
+        out = nxt
+    return out
+
+
 def _normalize_cmd(cmd: str) -> str:
     """Light normalize for matching: undo trivial obfuscation, collapse whitespace.
 
     Handles empty quotes used to break tokens (``b''ash``), ``$IFS`` as a
-    separator, and simple ``{ cmd; }`` / ``( cmd )`` groups. The goal is to
-    let SF01 see ``curl … | bash`` after those wrappers, not to fully parse
-    the shell.
+    separator, ANSI-C / hex escapes, and simple ``{ cmd; }`` / ``( cmd )``
+    groups. The goal is to let SF01/SF02 see the underlying command after
+    those wrappers, not to fully parse the shell.
     """
     if not cmd:
         return ""
     s = cmd.strip()
     s = s.replace("\\\n", " ")
+    s = _decode_shell_escapes(s)
     # ${IFS} / $IFS used in place of whitespace or to split a token
     s = re.sub(r"\$\{IFS\}|\$IFS", " ", s)
     # Quoted empty strings inserted to break a word: b''ash, ba""sh

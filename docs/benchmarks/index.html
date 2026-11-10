@@ -35,7 +35,7 @@
     <p class="kicker">Offline · stdlib-only · MIT</p>
     <h1>Detection benchmark</h1>
     <hr class="rule">
-    <p class="lede">On the expanded 125-sample synthetic corpus (ten tools), overall precision is 100.0% and recall is 98.7% (75 true positives, 0 false positives, 1 false negatives). On the original 85-sample, 5-tool slice the same run scores precision 100.0% and recall 100.0% (was 91.5% / 84.3% in v0.38.0).</p>
+    <p class="lede">On the expanded 125-sample synthetic corpus (ten tools), overall precision is 100.0% and recall is 100.0% (76 true positives, 0 false positives, 0 false negatives). On the original 85-sample, 5-tool slice the same run scores precision 100.0% and recall 100.0% (was 91.5% / 84.3% in v0.38.0).</p>
     <p class="note">This is a small, author-written, synthetic corpus. It is not a red-team dataset, not drawn from production traffic, and not a claim about performance on real attacks. Heuristic scanners miss things; misses are listed on purpose.</p>
 
     <article>
@@ -104,8 +104,8 @@
 <p>None on this corpus (false negative).</p><h3>Held-out false positives</h3>
 <p>None on this corpus (false positive).</p>
       
-      <h2 id="redteam">Independent red-team results</h2>
-      <p>An independent red-team wrote 100 fresh samples across all ten tools without reading detector source or rule files (READMEs/usage only). Attacks are drawn from published research (Invariant Labs, Trail of Bits, CyberArk, Embrace The Red, Aim Security EchoLeak, PortSwigger SSRF bypasses, Pillar Security, General Analysis / Supabase MCP, Amazon Q wipe prompt, MINJA, Nx s1ngularity). Benign look-alikes are included. Fixtures live in &lt;code&gt;benchmarks/redteam/&lt;/code&gt; with citations in &lt;code&gt;SOURCES.md&lt;/code&gt;. These numbers are the honest independent score; they were not used to retune rules.</p>
+      <h2 id="redteam-independent">Independent red-team results (v0.40.0, unseen)</h2>
+      <p>An independent red-team wrote 100 fresh samples across all ten tools without reading detector source or rule files (READMEs/usage only). Attacks are drawn from published research (Invariant Labs, Trail of Bits, CyberArk, Embrace The Red, Aim Security EchoLeak, PortSwigger SSRF bypasses, Pillar Security, General Analysis / Supabase MCP, Amazon Q wipe prompt, MINJA, Nx s1ngularity). Benign look-alikes are included. Fixtures live in &lt;code&gt;benchmarks/redteam/&lt;/code&gt; with citations in &lt;code&gt;SOURCES.md&lt;/code&gt;. These are the original independent numbers, frozen from the v0.40.0 release, before any rule was changed against this set. They remain the honest unseen score.</p>
 
       <table>
         <thead>
@@ -128,7 +128,7 @@
           <tr><td><code>overall</code></td><td>60</td><td>4</td><td>10</td><td>26</td><td>93.8%</td><td>85.7%</td><td>89.6%</td><td>100</td></tr>
         </tbody>
       </table>
-<h3>Red-team false negatives</h3>
+<h3>Independent-set false negatives (v0.40.0)</h3>
 <ul>
 <li><code>redteam/resultguard/malicious/03-github-mcp-toxic-issue</code> — Invariant Labs GitHub MCP toxic-flow issue body<br><span class="meta">easy · Malicious public issue instructing the agent to dump private repos into a PR (Invariant Labs, May 2025). Expected: TR01/TR04/TR08.</span></li>
 <li><code>redteam/toolpoison/malicious/02-tob-line-jumping-chmod</code> — Trail of Bits line-jumping chmod prefix<br><span class="meta">medium · tools/list-time injection that prefixes shell with chmod -R 0666 ~; (Trail of Bits, April 2025). Expected: TP01/TP06.</span></li>
@@ -140,14 +140,41 @@
 <li><code>redteam/shellfence/malicious/07-hex-obfuscated-rm</code> — Hex-escaped rm -rf /<br><span class="meta">evasion · Evasion via $'...' hex escapes. Likely FN.</span></li>
 <li><code>redteam/memfence/malicious/04-credential-harvest</code> — Credential harvest instruction in memory<br><span class="meta">medium · MF05 — wording close to known FN ('paste your API keys').</span></li>
 <li><code>redteam/memfence/malicious/06-minja-false-fact</code> — MINJA-style bridging false medical fact<br><span class="meta">evasion · MINJA (arXiv:2503.03704) style poisoned memory redirecting patient queries. Expected: MF01 soft; may miss without override verbs.</span></li>
-</ul><h3>Red-team false positives</h3>
+</ul><h3>Independent-set false positives (v0.40.0)</h3>
 <ul>
 <li><code>redteam/resultguard/benign/01-security-blog-discusses-jailbreaks</code> — Security blog quoting jailbreak phrases as examples (rules: TR01)<br><span class="meta">easy · Benign look-alike: article *discusses* attacks without directing the model. May FP on TR01.</span></li>
 <li><code>redteam/toolpoison/benign/03-docs-mention-ssh-path</code> — Docs tool mentioning ~/.ssh as an example path (rules: TP03)<br><span class="meta">easy · Benign look-alike that discusses SSH paths in documentation tone.</span></li>
 <li><code>redteam/mcpposture/benign/01-pinned-env-ref</code> — Pinned package with ${ENV} secret ref (rules: MP04)<br><span class="meta">easy · Clean posture.</span></li>
 <li><code>redteam/mcpposture/benign/02-narrow-filesystem</code> — Filesystem limited to project dir (rules: MP04)<br><span class="meta">easy · Clean.</span></li>
-</ul><h3>Detection-gap issues for this set</h3>
-<p>False negatives above are filed as <a href="https://github.com/dunkleschitz/agentsec/issues/12">#12</a> (resultguard), <a href="https://github.com/dunkleschitz/agentsec/issues/13">#13</a> (toolpoison), <a href="https://github.com/dunkleschitz/agentsec/issues/14">#14</a> (tracesweep), <a href="https://github.com/dunkleschitz/agentsec/issues/15">#15</a> (shellfence), and <a href="https://github.com/dunkleschitz/agentsec/issues/16">#16</a> (memfence). They are labeled <code>detection-gap</code>. This release does <strong>not</strong> retune rules against the red-team fixtures.</p>
+</ul>
+      <h2 id="redteam-seen">Same red-team set after #12–#16 fixes (now seen)</h2>
+      <p>The same 100 samples after the general rule changes that closed issues #12–#16. This set is now seen: post-fix precision and recall are no longer an independent score. The original unseen numbers are kept in the table above.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
+            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>fetchfence</code></td><td>7</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>10</td></tr>
+<tr><td><code>mcpposture</code></td><td>7</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>10</td></tr>
+<tr><td><code>memfence</code></td><td>7</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>10</td></tr>
+<tr><td><code>pathfence</code></td><td>7</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>10</td></tr>
+<tr><td><code>piiguard</code></td><td>7</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>10</td></tr>
+<tr><td><code>resultguard</code></td><td>7</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>10</td></tr>
+<tr><td><code>secretflow</code></td><td>7</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>10</td></tr>
+<tr><td><code>shellfence</code></td><td>7</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>10</td></tr>
+<tr><td><code>toolpoison</code></td><td>7</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>10</td></tr>
+<tr><td><code>tracesweep</code></td><td>7</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>10</td></tr>
+          <tr><td><code>overall</code></td><td>70</td><td>0</td><td>0</td><td>30</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>100</td></tr>
+        </tbody>
+      </table>
+<h3>Post-fix red-team false negatives</h3>
+<p>None on this corpus (false negative).</p><h3>Post-fix red-team false positives</h3>
+<p>None on this corpus (false positive).</p><h3>Detection-gap issues #12–#16</h3>
+<p>The independent misses and false positives were filed as <a href="https://github.com/dunkleschitz/agentsec/issues/12">#12</a> (resultguard), <a href="https://github.com/dunkleschitz/agentsec/issues/13">#13</a> (toolpoison), <a href="https://github.com/dunkleschitz/agentsec/issues/14">#14</a> (tracesweep), <a href="https://github.com/dunkleschitz/agentsec/issues/15">#15</a> (shellfence), and <a href="https://github.com/dunkleschitz/agentsec/issues/16">#16</a> (memfence), plus two mcpposture false positives on pinned <code>npx -y</code> configs. The rule changes in this release are general (quoted-discussion TR01, concealment phrasing, private-to-public copy bait, line-jumping command prefixes, instructional parameter names, documentary TP03, base64 and cross-turn secret reconstruction, home-directory <code>find</code>/<code>rm</code>, DNS exfil, ANSI-C/hex command deobfuscation, paste-into-chat harvest wording, MINJA-style query remapping, and MP04 suppressed when a package is already pinned), not string matches against these fixtures. Those issues are closed against this release. Because the rules were then re-run on the same set, the post-fix table is a <strong>seen</strong> score.</p>
 
       
       <h2 id="expanded">Expanded corpus (ten tools)</h2>
@@ -163,7 +190,7 @@
         <tbody>
           <tr><td><code>fetchfence</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
 <tr><td><code>mcpposture</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
-<tr><td><code>memfence</code></td><td>4</td><td>0</td><td>1</td><td>3</td><td>100.0%</td><td>80.0%</td><td>88.9%</td><td>8</td></tr>
+<tr><td><code>memfence</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
 <tr><td><code>pathfence</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
 <tr><td><code>piiguard</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
 <tr><td><code>resultguard</code></td><td>12</td><td>0</td><td>0</td><td>8</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>20</td></tr>
@@ -171,14 +198,12 @@
 <tr><td><code>shellfence</code></td><td>12</td><td>0</td><td>0</td><td>8</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>20</td></tr>
 <tr><td><code>toolpoison</code></td><td>10</td><td>0</td><td>0</td><td>8</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>18</td></tr>
 <tr><td><code>tracesweep</code></td><td>10</td><td>0</td><td>0</td><td>6</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>16</td></tr>
-          <tr><td><code>overall</code></td><td>75</td><td>0</td><td>1</td><td>49</td><td>100.0%</td><td>98.7%</td><td>99.3%</td><td>125</td></tr>
+          <tr><td><code>overall</code></td><td>76</td><td>0</td><td>0</td><td>49</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>125</td></tr>
         </tbody>
       </table>
 
       <h3>Expanded-corpus false negatives</h3>
-      <ul>
-<li><code>memfence/malicious/04-credential-harvest</code> — Memory entry asking to dump API keys<br><span class="meta">medium · Asks the model to paste API keys and .env contents into the chat. memfence MF05 looks for harvest/dump/exfiltrate phrasing or 'paste the api key into the webhook'; this wording may miss (false negative).</span></li>
-</ul>
+      <p>None on this corpus (false negative).</p>
       <h3>Expanded-corpus false positives</h3>
       <p>None on this corpus (false positive).</p>
       
@@ -222,7 +247,7 @@
         <li>Every fixture was written for this repository. A detector can look strong here and still fail on a real transcript format or a novel payload.</li>
         <li>The corpus is still small (n=125 on the expanded set; n=85 on the original slice; n=40 held-out; n=100 independent red-team). Percentages will move when a single sample is added or re-labeled.</li>
         <li>The held-out set was written after the #7–#11 fixes and was not used to retune those rules. A strong held-out score is still not evidence of real-world robustness.</li>
-        <li>The independent red-team set was written without reading detector source or rule files. Misses on that set are filed as <code>detection-gap</code> issues and are <strong>not</strong> patched away against these fixtures in the same release.</li>
+        <li>The independent red-team set was written without reading detector source or rule files. The v0.40.0 numbers on that set are the unseen score and stay visible. After issues #12–#16 were closed against general rule changes, the same set was re-run; those post-fix numbers are clearly labeled <strong>seen</strong> and are no longer independent.</li>
         <li>Info-level inventory findings are excluded. If we counted them, several tools would “detect” almost every transcript they parse.</li>
         <li>All secrets and personal-data values are fake. tracesweep also suppresses documentation placeholders (the word <code>example</code>, <code>your_api_key</code>, and similar), which is why those values are not used as the malicious keys in this set.</li>
       </ul>

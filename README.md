@@ -196,7 +196,7 @@ jobs:
 
 Inputs and outputs are documented in [action.yml](action.yml). Per-tool reports land in
 `agentsec-sarif/` (SARIF when the tool supports `--sarif`, otherwise JSON). Pin a release
-tag (`@v0` or `@v0.40.0`) once you rely on it; `@main` always tracks the latest commit.
+tag (`@v0` or `@v0.41.0`) once you rely on it; `@main` always tracks the latest commit.
 
 To also gate MCP tool-definition drift, set `mcp-snapshot` and `mcp-lock` and include
 `toolpin` in `tools`. The action will run `toolpin check` against those files.
@@ -220,7 +220,7 @@ The repository ships [`.pre-commit-hooks.yaml`](.pre-commit-hooks.yaml) so other
 ```yaml
 repos:
   - repo: https://github.com/dunkleschitz/agentsec
-    rev: v0.40.0
+    rev: v0.41.0
     hooks:
       - id: agentsec-secretflow
         files: '(transcripts|agent-runs)/.*\.(json|jsonl)$'
@@ -251,14 +251,14 @@ A non-root `python:3.12-slim` image is published to the GitHub Container Registr
 
 ```sh
 # Scan a local file. Mount the directory read-only; the process runs as uid 1000.
-docker run --rm -v "$PWD:/work:ro" ghcr.io/dunkleschitz/agentsec:v0.40.0 \
+docker run --rm -v "$PWD:/work:ro" ghcr.io/dunkleschitz/agentsec:v0.41.0 \
   mcpposture /work/mcp.json
 
-docker run --rm -v "$PWD:/work:ro" ghcr.io/dunkleschitz/agentsec:v0.40.0 \
+docker run --rm -v "$PWD:/work:ro" ghcr.io/dunkleschitz/agentsec:v0.41.0 \
   resultguard /work/transcript.json --json --fail-on high
 ```
 
-Tags: `v0.40.0` (this release), `v0` (floating major, follows the latest `v0.x` tag), and `latest` (the tip of `main`). The image `ENTRYPOINT` is `agentsec`; arguments after the image name are passed to the CLI. The first pull from `ghcr.io` on a public repository may require the package to be set public in GitHub → Packages if a fresh publish created it as private.
+Tags: `v0.41.0` (this release), `v0` (floating major, follows the latest `v0.x` tag), and `latest` (the tip of `main`). The image `ENTRYPOINT` is `agentsec`; arguments after the image name are passed to the CLI. The first pull from `ghcr.io` on a public repository may require the package to be set public in GitHub → Packages if a fresh publish created it as private.
 
 Build a local copy from a clone with `docker build -t ghcr.io/dunkleschitz/agentsec:local .`. The workflow at [`.github/workflows/docker.yml`](.github/workflows/docker.yml) authenticates to `ghcr.io` with `GITHUB_TOKEN`.
 
@@ -280,7 +280,7 @@ MCP client configs are handed to `mcpposture` directly. Every secret in the fixt
   through a series of build sessions, one tool at a time. A human chose the direction and
   reviewed the result before release. Treat the code as you would any new, lightly reviewed
   open-source project: read it before relying on it.
-- **What it was tested against.** Each tool ships with a unittest suite (1717 tests in total)
+- **What it was tested against.** Each tool ships with a unittest suite (1742 tests in total)
   and with example inputs built from **synthetic, fake data**: fake keys, fake transcripts,
   fake configs and fake documents. The tests check rule behavior, output formats and CLI exit
   codes against those fixtures. A small labeled corpus in [`benchmarks/`](benchmarks/)

@@ -103,6 +103,14 @@ CREDS_HARVEST_RE = re.compile(
     r"|"
     r"(?:include|append|paste)\s+(?:the\s+)?(?:api[_ ]?key|secret|password|token)\s+"
     r"(?:in|into|to)\s+(?:the\s+)?(?:url|request|webhook|reply|response)"
+    r"|"
+    r"(?:ask\s+(?:the\s+)?user\s+to\s+)?"
+    r"(?:paste|include|append|provide|share|send|type|enter)\s+"
+    r"(?:(?:me|us|here|your|the|their|all|any)\s+)*"
+    r"(?:api[_ ]?keys?|secrets?|passwords?|tokens?|credentials?|"
+    r"(?:the\s+)?contents?\s+of\s+(?:the\s+)?\.env(?:\s+file)?|\.env(?:\s+(?:file|contents?))?)"
+    r".{0,80}?"
+    r"(?:in|into|to)\s+(?:the\s+)?(?:chat|conversation|message|prompt|url|request|webhook|reply|response)"
     r")"
 )
 
@@ -154,6 +162,22 @@ PERSIST_RE = re.compile(
     r"remember\s+(?:this|that)\s+(?:forever|permanently|for\s+all\s+future\s+sessions)"
     r"|"
     r"in\s+every\s+future\s+(?:session|conversation|turn|chat)\s+(?:you\s+)?(?:must|should|will)"
+    r"|"
+    r"(?:authoritative|standing|binding)\s+(?:policy|rule)\s+for\s+(?:all\s+)?future\s+sessions"
+    r")"
+)
+
+# MINJA-style query remapping: when asked about A, discuss B instead.
+REMAP_RE = re.compile(
+    r"(?is)"
+    r"("
+    r"when\s+(?:the\s+)?user\s+(?:asks|inquires|queries|asks\s+you)\s+about\s+"
+    r".{1,80}?"
+    r",?\s+(?:always\s+)?(?:retrieve|discuss|return|use|show|report|look\s+up|answer\s+with|substitute)\s+"
+    r".{1,80}?\s+instead"
+    r"|"
+    r"treat\s+this\s+(?:mapping|substitution|alias|remapping|override)\s+as\s+"
+    r"(?:authoritative|binding|standing|mandatory)\s+(?:policy|rule|fact|instruction)"
     r")"
 )
 
@@ -591,6 +615,9 @@ def classify_entry(entry: MemoryEntry, disabled=None):
     if OVERRIDE_RE.search(scan):
         m = OVERRIDE_RE.search(scan)
         add("MF01", "Override/jailbreak phrasing in memory entry %s" % label, m.group(0) if m else scan)
+    elif REMAP_RE.search(scan):
+        m = REMAP_RE.search(scan)
+        add("MF01", "Cross-entity query remapping planted in memory entry %s" % label, m.group(0) if m else scan)
 
     if FAKE_ROLE_RE.search(scan):
         m = FAKE_ROLE_RE.search(scan)

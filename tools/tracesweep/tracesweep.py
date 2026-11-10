@@ -14,6 +14,7 @@ Standard library only. Python 3.8+.
 
 import argparse
 import base64
+import binascii
 import hashlib
 import json
 import math
@@ -265,7 +266,124 @@ def join_concatenated_secrets(text):
     return text
 
 
-def scan_text(text, entropy=False, entropy_threshold=4.0, rules=None):
+
+_B64_BLOB_RE = re.compile(
+    r"(?<![A-Za-z0-9+/])([A-Za-z0-9+/]{32,}={0,2})(?![A-Za-z0-9+/=])"
+)
+_HEX_BLOB_RE = re.compile(
+    r"(?<![0-9A-Fa-f])((?:[0-9A-Fa-f]{2}){20,})(?![0-9A-Fa-f])"
+)
+_PREFIX_HEAD_RE = re.compile(
+    r"(?<![A-Za-z0-9_-])(?P<head>(?:" + _CONCAT_PREFIX + r")[A-Za-z0-9_-]{4,})"
+)
+_TAIL_TOKEN_RE = re.compile(
+    r"(?<![A-Za-z0-9_-])([A-Za-z0-9_-]{8,80})(?![A-Za-z0-9_-])"
+)
+
+
+def _decode_b64_blob(blob):
+    try:
+        pad = "=" * ((4 - (len(blob) % 4)) % 4)
+        raw = base64.b64decode(blob + pad, validate=False)
+    except (ValueError, binascii.Error):
+        return None
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    if not text or not any(ch.isprintable() or ch in "\t\n\r" for ch in text):
+        return None
+    return text
+
+
+def _decode_hex_blob(blob):
+    if len(blob) % 2:
+        return None
+    try:
+        raw = bytes.fromhex(blob)
+        return raw.decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return None
+
+
+def iter_decoded_blobs(text):
+    """Yield (start, end, decoded_text) for base64/hex blobs that decode as UTF-8."""
+    if not text:
+        return
+    seen = set()
+    for m in _B64_BLOB_RE.finditer(text):
+        dec = _decode_b64_blob(m.group(1))
+        if dec and dec != m.group(1) and (m.start(), dec) not in seen:
+            seen.add((m.start(), dec))
+            yield m.start(), m.end(), dec
+    for m in _HEX_BLOB_RE.finditer(text):
+        # 40-char hex is often a git SHA; only keep decodes that look textual.
+        dec = _decode_hex_blob(m.group(1))
+        if dec and dec != m.group(1) and any(c.isalpha() for c in dec):
+            if (m.start(), dec) not in seen:
+                seen.add((m.start(), dec))
+                yield m.start(), m.end(), dec
+
+
+def _incomplete_prefix_heads(text):
+    """Known-prefix fragments that are not already a complete secret."""
+    heads = []
+    complete = {h["secret"] for h in scan_text(text, decode=False)}
+    for m in _PREFIX_HEAD_RE.finditer(text or ""):
+        head = m.group("head")
+        if head not in complete:
+            heads.append(head)
+    return heads
+
+
+def _tail_tokens(text, skip=None):
+    skip = set(skip or ())
+    out = []
+    for m in _TAIL_TOKEN_RE.finditer(text or ""):
+        tok = m.group(1)
+        if tok in skip:
+            continue
+        # Don't treat a complete known-prefix secret as a tail piece.
+        if _PREFIX_HEAD_RE.match(tok) and scan_text(tok, decode=False):
+            continue
+        # Skip bare identifiers (tool names, roles) that lack a digit.
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", tok) and not re.search(r"\d", tok):
+            continue
+        out.append(tok)
+    return out
+
+
+def reconstruct_split_secret_candidates(texts):
+    """Join incomplete prefix-headed fragments with later alphanumeric tails.
+
+    Secrets are sometimes split across tool results so that no single turn
+    contains a contiguous `sk-proj-…` (or similar) string. Only prefixes
+    already recognized by the detector are reconstructed, and only with
+    later fragments, to keep chance concatenations down.
+    """
+    candidates = []
+    heads_by_i = [_incomplete_prefix_heads(t) for t in texts]
+    tails_by_i = [_tail_tokens(t, skip=heads_by_i[i]) for i, t in enumerate(texts)]
+    for i, heads in enumerate(heads_by_i):
+        later_tails = []
+        for j in range(i, len(texts)):
+            later_tails.extend(tails_by_i[j] if j > i else [t for t in tails_by_i[j] if t not in heads])
+        for head in heads:
+            for n, tail in enumerate(later_tails):
+                candidates.append(head + tail)
+                if n + 1 < len(later_tails):
+                    candidates.append(head + tail + later_tails[n + 1])
+    # Unique, stable order
+    seen = set()
+    out = []
+    for c in candidates:
+        if c not in seen:
+            seen.add(c)
+            out.append(c)
+    return out
+
+
+def scan_text(text, entropy=False, entropy_threshold=4.0, rules=None, decode=True):
     """Scan a string. Returns list of dicts {rule, secret, start, end}."""
     text = join_concatenated_secrets(text or "")
     hits = []
@@ -278,6 +396,15 @@ def scan_text(text, entropy=False, entropy_threshold=4.0, rules=None):
                 continue
             hits.append({"rule": rule, "secret": secret,
                          "start": m.start("secret"), "end": m.end("secret")})
+    if decode and text:
+        for start, end, decoded in iter_decoded_blobs(text):
+            inner = scan_text(decoded, entropy=entropy,
+                              entropy_threshold=entropy_threshold,
+                              rules=rules, decode=False)
+            for h in inner:
+                # Attribute the hit to the encoded blob in the original text.
+                hits.append({"rule": h["rule"], "secret": h["secret"],
+                             "start": start, "end": end})
     if entropy:
         for m in ENTROPY_RULE.regex.finditer(text):
             s = m.group("secret")
@@ -636,6 +763,7 @@ def scan_source(name, raw, entropy=False, entropy_threshold=4.0):
                     findings.remove(prev)
                 seen[key] = f
                 findings.append(f)
+        findings.extend(_reconstruct_across_segments(name, segs, findings))
         findings.extend(_echo_rescan_segments(name, segs, findings))
         if mode == "json":
             _json_line_numbers(raw, findings)
@@ -651,6 +779,53 @@ def _known_secrets(findings):
         if len(f["_secret"]) >= 8 and f["rule"] != "TS-ENTROPY":
             known.setdefault(f["_secret"], RULES_BY_ID[f["rule"]])
     return known
+
+
+
+def _reconstruct_segment_ok(seg):
+    if getattr(seg, "synthetic", False):
+        return False
+    if getattr(seg, "kind", None) not in ("tool_output", "message", "text"):
+        return False
+    text = (seg.text or "").strip()
+    if len(text) < 8:
+        return False
+    if text.lower() in {"user", "assistant", "system", "tool", "function", "model"}:
+        return False
+    # JSON walkers also emit tool names as short identifier segments.
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", text):
+        return False
+    return True
+
+
+def _reconstruct_across_segments(name, segs, findings):
+    """Detect secrets that only become complete when later turns are joined."""
+    usable = [s for s in segs if _reconstruct_segment_ok(s)]
+    if len(usable) < 2:
+        return []
+    already = set()
+    for f in findings:
+        already.add(f.get("_secret") or "")
+        already.add(f.get("secret") or "")
+    extra = []
+    texts = [s.text or "" for s in usable]
+    for candidate in reconstruct_split_secret_candidates(texts):
+        if candidate in already:
+            continue
+        hits = scan_text(candidate, decode=False)
+        for h in hits:
+            secret = h["secret"]
+            if secret in already or (h["rule"].check_placeholder and is_placeholder(secret)):
+                continue
+            already.add(secret)
+            # Attribute to the last contributing segment (the tail usually
+            # arrives after the prefix-headed head).
+            seg = usable[-1]
+            f = _finding(name, h, seg.line, seg.record, seg.turn, seg.role,
+                         seg.tool, seg.kind)
+            f["match"] = "reconstructed"
+            extra.append(f)
+    return extra
 
 
 def _echo_rescan_segments(name, segs, findings):

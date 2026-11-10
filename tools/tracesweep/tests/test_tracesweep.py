@@ -136,6 +136,40 @@ class TestDetectors(unittest.TestCase):
             self.assertEqual(run_cli(["--entropy", p])[0], 1)
 
 
+
+class TestEncodedAndSplitSecrets(unittest.TestCase):
+    def test_base64_wrapped_openai_key(self):
+        secret = FAKE["TS-OPENAI"]
+        blob = base64.b64encode(secret.encode()).decode()
+        self.assertIn("TS-OPENAI", rules_in("CONFIG_B64=" + blob))
+        hits = [h for h in ts.scan_text("CONFIG_B64=" + blob) if h["rule"].id == "TS-OPENAI"]
+        self.assertEqual(hits[0]["secret"], secret)
+
+    def test_base64_placeholder_stays_clean(self):
+        blob = base64.b64encode(b"OPENAI_API_KEY=your_api_key_here").decode()
+        self.assertNotIn("TS-OPENAI", rules_in("CONFIG_B64=" + blob))
+
+    def test_key_split_across_tool_results(self):
+        secret = FAKE["TS-OPENAI"]
+        mid = 14
+        doc = {
+            "messages": [
+                {"role": "user", "content": "Assemble the key from parts."},
+                {"role": "tool", "name": "read_file", "content": "PART1=" + secret[:mid]},
+                {"role": "tool", "name": "read_file", "content": "PART2=" + secret[mid:]},
+            ]
+        }
+        findings = ts.scan_source("mem", json.dumps(doc))
+        secrets = [f["_secret"] for f in findings if f["rule"] == "TS-OPENAI"]
+        self.assertIn(secret, secrets)
+        # Neither half alone should already have been a complete key.
+        self.assertTrue(all(len(secret[:mid]) < len(secret) for _ in [0]))
+
+    def test_git_sha_is_not_a_secret(self):
+        sha = "5bf4a85c0e1d2f3a4b5c6d7e8f901234567890ab"
+        self.assertEqual(rules_in(sha), [])
+
+
 class TestPlaceholders(unittest.TestCase):
     def test_placeholders_suppressed(self):
         for text in ("AKIAIOSFODNN7EXAMPLE",
