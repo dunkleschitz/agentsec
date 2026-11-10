@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>tracesweep: detect secrets leaked into agent transcripts in AI agents — agentsec</title>
+  <meta name="description" content="tracesweep scans AI agent transcripts and logs for secrets that leaked into the conversation. That covers API keys printed by a tool, tokens passed as…">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/tracesweep/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="tracesweep: detect secrets leaked into agent transcripts in AI agents — agentsec">
+  <meta property="og:description" content="tracesweep scans AI agent transcripts and logs for secrets that leaked into the conversation. That covers API keys printed by a tool, tokens passed as…">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/tracesweep/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="tracesweep: detect secrets leaked into agent transcripts in AI agents — agentsec">
+  <meta name="twitter:description" content="tracesweep scans AI agent transcripts and logs for secrets that leaked into the conversation. That covers API keys printed by a tool, tokens passed as…">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "tracesweep: detect secrets leaked into agent transcripts in AI agents",
+  "description": "tracesweep scans AI agent transcripts and logs for secrets that leaked into the conversation. That covers API keys printed by a tool, tokens passed as…",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/tracesweep/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a> · tracesweep</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>tracesweep: detect secrets leaked into agent transcripts in AI agents</h1>
+    <hr class="rule">
+    <p class="lede">tracesweep scans AI agent transcripts and logs for secrets that leaked into the conversation. That covers API keys printed by a tool, tokens passed as tool-call arguments, and credentials the model repeated back. It attributes each finding to the place it surfaced: file, line or record, turn, role, tool name, and location kind. It also flags secrets that propagated across turns. For example, a key can first appear in a cat .env tool output and then show up again in the assistant&#x27;s reply.</p>
+
+    <article>
+<h2 id="what-it-detects">What it detects</h2>
+<p><strong>tracesweep</strong> scans AI agent transcripts and logs for secrets that leaked into the conversation. That covers API keys printed by a tool, tokens passed as tool-call arguments, and credentials the model repeated back. It attributes each finding to the place it surfaced: file, line or record, turn, role, tool name, and location kind. It also flags secrets that <strong>propagated</strong> across turns. For example, a key can first appear in a <code>cat .env</code> tool output and then show up again in the assistant&#x27;s reply.</p>
+<blockquote><p><strong>Honesty notice.</strong> tracesweep is <strong>pattern-based</strong>. It <strong>can miss secrets</strong>: custom token formats, secrets split across messages, or encoded/obfuscated values. It <strong>can also produce false positives</strong>. It does <strong>not</strong> verify whether a key is live or valid, and it never contacts any service. A clean result does not prove that a transcript is free of secrets. Treat findings as leads to triage, and rotate any real credential that you find.</p></blockquote>
+<h2 id="rules">Rules</h2>
+<table>
+<thead><tr><th>Rule</th><th>Severity</th><th>Matches</th></tr></thead>
+<tbody>
+<tr><td>TS-PRIVKEY</td><td>critical</td><td>PEM <code>-----BEGIN ... PRIVATE KEY-----</code> blocks (also a header alone, as in truncated output)</td></tr>
+<tr><td>TS-AWS-AKID</td><td>high</td><td>AWS access key IDs <code>AKIA…</code>/<code>ASIA…</code></td></tr>
+<tr><td>TS-AWS-SECRET</td><td>critical</td><td>40-char secret near <code>aws…secret… =</code>/<code>:</code></td></tr>
+<tr><td>TS-GITHUB</td><td>high</td><td><code>ghp_ gho_ ghs_ ghu_ ghr_ github_pat_</code></td></tr>
+<tr><td>TS-ANTHROPIC</td><td>critical</td><td><code>sk-ant-…</code></td></tr>
+<tr><td>TS-OPENAI</td><td>critical</td><td><code>sk-…</code>, <code>sk-proj-…</code> (excluding <code>sk-ant-</code>)</td></tr>
+<tr><td>TS-SLACK</td><td>high</td><td><code>xoxb- xoxa- xoxp- xoxr- xoxs-</code></td></tr>
+<tr><td>TS-STRIPE</td><td>critical</td><td><code>sk_live_…</code>, <code>rk_live_…</code></td></tr>
+<tr><td>TS-GOOGLE-API</td><td>high</td><td><code>AIza…</code> (39 chars)</td></tr>
+<tr><td>TS-JWT</td><td>medium</td><td><code>eyJ….….…</code> where the header base64url-decodes to JSON containing <code>alg</code></td></tr>
+<tr><td>TS-URL-CREDS</td><td>high</td><td><code>scheme://user:pass@host</code> (the password is the secret)</td></tr>
+<tr><td>TS-GENERIC</td><td>medium</td><td><code>password/secret/token/api_key/... = value</code> assignments, including JSON keys like <code>{&quot;api_key&quot;: &quot;...&quot;}</code></td></tr>
+<tr><td>TS-ENTROPY</td><td>low</td><td>high-Shannon-entropy tokens (≥24 chars). <strong>Off by default</strong>; enable with <code>--entropy</code> (<code>--entropy-threshold</code>, default 4.0)</td></tr>
+</tbody>
+</table>
+<h2 id="usage">Usage</h2>
+<pre><code>python3 tracesweep.py session.jsonl                    # table
+python3 tracesweep.py ~/agent-logs/                    # recursive
+cat run.log | python3 tracesweep.py -                  # stdin
+python3 tracesweep.py --json --min-severity high logs/ # machine-readable, high+ only
+python3 tracesweep.py --sarif logs/ &gt; tracesweep.sarif # SARIF 2.1.0 for code-scanning UIs
+python3 tracesweep.py --entropy logs/                  # add noisy entropy fallback
+python3 tracesweep.py --redact clean/ logs/            # write redacted copies
+python3 tracesweep.py --list-rules</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec tracesweep …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
+<h2 id="example">Example output</h2>
+<p>The examples in <code>examples/</code> contain <strong>synthetic, fake</strong> keys that only match the token shapes. They are <strong>not committed</strong> (so secret scanners don&#x27;t flag shape-valid fakes); generate them with <code>python3 examples/make_examples.py</code> before running the commands below. The test suite generates them automatically.</p>
+<p>Line 6 of <code>claude_session.jsonl</code> mentions <code>AKIAIOSFODNN7EXAMPLE</code> and <code>your_api_key</code>, and <code>clean.json</code> contains <code>OPENAI_API_KEY=your_api_key_here</code> and <code>max_tokens: 4096</code>. Both are correctly ignored.</p>
+<p>Captured against the bundled fixtures (fake data only):</p>
+<pre><code>$ python3 tracesweep.py examples/agent_run.log
+SEV     RULE          FILE:LINE                 REC  TURN  ROLE       TOOL  WHERE  PREVIEW    ECHO
+------  ------------  ------------------------  ---  ----  ---------  ----  -----  ---------  ----
+MEDIUM  TS-GENERIC    examples/agent_run.log:3  3    3     tool       bash  text   hunt...ss  x2
+HIGH    TS-URL-CREDS  examples/agent_run.log:4  4    4     tool       bash  text   Fak3...d!
+MEDIUM  TS-GENERIC    examples/agent_run.log:5  5    5     assistant  -     text   hunt...ss  x2
+
+3 finding(s) (1 high, 2 medium) in 1 file(s); 1 secret(s) echoed across turns.
+Propagation:
+  examples/agent_run.log TS-GENERIC hunt...ss: text(turn 3) -&gt; text(turn 5)
+Note: pattern-based; may miss secrets or flag false positives; keys are not verified as live.</code></pre>
+<h2 id="sarif-ci">SARIF and CI</h2>
+<pre><code>agentsec tracesweep path/to/input --sarif &gt; tracesweep.sarif
+
+# GitHub Actions (composite action ships with the repo)
+- uses: dunkleschitz/agentsec@v0
+  with:
+    tools: tracesweep
+    paths: path/to/input
+    fail-on: high
+</code></pre><p>SARIF 2.1.0 can be uploaded to GitHub code scanning. The composite action writes per-tool reports under <code>agentsec-sarif/</code> by default.</p>
+<h2 id="owasp">OWASP mapping</h2>
+<p>Heuristic mapping of what this tool helps a reviewer look for. Not an official OWASP endorsement, and not complete coverage of any item. Sources: <a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a> and <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a>.</p><ul><li><strong>LLM02 Sensitive Information Disclosure</strong> — OWASP LLM Top 10 (2025)</li></ul>
+<h2 id="limits">Known limits</h2>
+<ul><li>Regex/heuristic only, with no live-key verification and no provider API calls.</li><li>Secrets split across chunks or messages, or base64/URL-encoded inside other data, are usually missed.</li><li>Turn numbering is best-effort and depends on the log format. Echo detection is per file.</li><li>Line numbers for pretty-printed JSON arrays are located by searching the raw text, so they are best-effort.</li><li>Very large files are read fully into memory.</li></ul>
+<p>Full source, tests, and fixtures: <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/tracesweep">tools/tracesweep/</a> in the repository. Install the kit with <code>pip install git+https://github.com/dunkleschitz/agentsec.git</code>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

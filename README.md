@@ -195,18 +195,64 @@ jobs:
 
 Inputs and outputs are documented in [action.yml](action.yml). Per-tool reports land in
 `agentsec-sarif/` (SARIF when the tool supports `--sarif`, otherwise JSON). Pin a release
-tag (`@v0` or `@v0.36.0`) once you rely on it; `@main` always tracks the latest commit.
+tag (`@v0` or `@v0.37.0`) once you rely on it; `@main` always tracks the latest commit.
 
 To also gate MCP tool-definition drift, set `mcp-snapshot` and `mcp-lock` and include
 `toolpin` in `tools`. The action will run `toolpin check` against those files.
 
 ## Guides
 
-Three short writeups live on the site:
+Three short writeups live on the site, plus a per-tool reference and a comparison page:
 
 - [Prompt injection through tool results](https://dunkleschitz.github.io/agentsec/guides/prompt-injection-through-tool-results/)
 - [Pinning MCP tools against drift](https://dunkleschitz.github.io/agentsec/guides/pinning-mcp-tools-against-drift/)
 - [A 10-minute security audit for your AI agent](https://dunkleschitz.github.io/agentsec/guides/ten-minute-agent-security-audit/)
+- [Tool reference](https://dunkleschitz.github.io/agentsec/tools/) — one page per tool (what it detects, usage, example output, SARIF/CI, OWASP mapping). Regenerated from each tool README by `scripts/generate_tool_pages.py`.
+- [Why agentsec](https://dunkleschitz.github.io/agentsec/why/) — a factual comparison with other open-source agent-security scanners.
+
+## Use with pre-commit
+
+The repository ships [`.pre-commit-hooks.yaml`](.pre-commit-hooks.yaml) so other projects can run selected scanners on commit. Point `rev` at a release tag:
+
+```yaml
+repos:
+  - repo: https://github.com/dunkleschitz/agentsec
+    rev: v0.37.0
+    hooks:
+      - id: agentsec-secretflow
+        files: '(transcripts|agent-runs)/.*\.(json|jsonl)$'
+      - id: agentsec-piiguard
+        files: '(transcripts|agent-runs)/.*\.(json|jsonl)$'
+      - id: agentsec-pathfence
+        files: '(transcripts|agent-runs)/.*\.(json|jsonl)$'
+      - id: agentsec-shellfence
+        files: '(transcripts|agent-runs)/.*\.(json|jsonl)$'
+      - id: agentsec-resultguard
+        files: '(transcripts|agent-runs)/.*\.(json|jsonl)$'
+      - id: agentsec-mcpposture
+      - id: agentsec-rulesguard
+      - id: agentsec-toolpin
+        args: ["--fail-on", "high", "-l", "toolpin.lock.json"]
+        files: 'mcp-tools-snapshot\.json$'
+```
+
+Available hook ids: `agentsec-secretflow`, `agentsec-piiguard`, `agentsec-toolpin`, `agentsec-pathfence`, `agentsec-shellfence`, `agentsec-resultguard`, `agentsec-fetchfence`, `agentsec-tracesweep`, `agentsec-mcpposture`, `agentsec-rulesguard`, `agentsec-promptleak`, `agentsec-hitlguard`, `agentsec-memfence`, `agentsec-tmplfence`, and `agentsec-schemafence`.
+
+Default `files:` filters are conservative but still worth narrowing to the directories where you store transcripts or configs. Most hooks pass `--fail-on high` so info and low findings do not block a commit. `agentsec-toolpin` runs `toolpin check`; you must pass the lockfile with `args` and limit `files` to the snapshot you want checked.
+
+These are the same heuristic scanners as the CLI. A clean hook is not a security boundary.
+
+## Framework examples
+
+[`examples/frameworks/`](examples/frameworks/) has short, stdlib-only demos that run agentsec on fake exports from LangChain, the OpenAI Agents SDK, CrewAI, and Cursor / Claude Desktop MCP configs. No framework packages are installed. Transcript-style dumps are rewritten into the OpenAI-shaped messages the tools already parse:
+
+```sh
+python3 examples/frameworks/run_demo.py
+python3 examples/frameworks/normalize.py examples/frameworks/langchain/export.json -o /tmp/transcript.json
+python3 -m agentsec resultguard /tmp/transcript.json --fail-on high
+```
+
+MCP client configs are handed to `mcpposture` directly. Every secret in the fixtures is fake.
 
 ## How this was built
 
@@ -214,7 +260,7 @@ Three short writeups live on the site:
   through a series of build sessions, one tool at a time. A human chose the direction and
   reviewed the result before release. Treat the code as you would any new, lightly reviewed
   open-source project: read it before relying on it.
-- **What it was tested against.** Each tool ships with a unittest suite (1605 tests in total)
+- **What it was tested against.** Each tool ships with a unittest suite (1628 tests in total)
   and with example inputs built from **synthetic, fake data**: fake keys, fake transcripts,
   fake configs and fake documents. The tests check rule behavior, output formats and CLI exit
   codes against those fixtures. The tools have **not** been benchmarked against real-world
@@ -242,12 +288,15 @@ Three short writeups live on the site:
 agentsec/
 ├── agentsec/            unified CLI package (`pip install .` → `agentsec <tool>`)
 ├── tools/<name>/        one folder per tool: <name>.py, README.md, tests/, examples/
-├── docs/                GitHub Pages site, including /guides/ (https://dunkleschitz.github.io/agentsec/)
-├── tests/               tests for the unified CLI
+├── docs/                GitHub Pages site (/tools/, /guides/, /why/)
+├── examples/frameworks/ stdlib-only demos for LangChain, OpenAI Agents, CrewAI, MCP clients
+├── tests/               tests for the unified CLI, Action, pages generator, hooks, and examples
+├── scripts/             Action runner and generate_tool_pages.py
 ├── action.yml           reusable composite Action (`uses: dunkleschitz/agentsec@v0`)
+├── .pre-commit-hooks.yaml
 ├── pyproject.toml       packaging (stdlib-only; no publish until you follow PUBLISHING.md)
 ├── run_tests.py         runs every suite, enforces the zero-test rule
-├── Makefile             `make test`
+├── Makefile             `make test` and `make pages`
 ├── .github/workflows/   CI, Action self-test, and a manual-only PyPI publish workflow
 ├── CODE_OF_CONDUCT.md   CONTRIBUTING.md   SECURITY.md   LICENSE   PUBLISHING.md
 ```

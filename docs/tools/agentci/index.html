@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>agentci: detect prompt injection in AI-agent GitHub Actions in AI agents — agentsec</title>
+  <meta name="description" content="Audits GitHub Actions workflows that run AI agents for prompt injection and excess privilege, offline.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/agentci/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="agentci: detect prompt injection in AI-agent GitHub Actions in AI agents — agentsec">
+  <meta property="og:description" content="Audits GitHub Actions workflows that run AI agents for prompt injection and excess privilege, offline.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/agentci/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="agentci: detect prompt injection in AI-agent GitHub Actions in AI agents — agentsec">
+  <meta name="twitter:description" content="Audits GitHub Actions workflows that run AI agents for prompt injection and excess privilege, offline.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "agentci: detect prompt injection in AI-agent GitHub Actions in AI agents",
+  "description": "Audits GitHub Actions workflows that run AI agents for prompt injection and excess privilege, offline.",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/agentci/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a> · agentci</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>agentci: detect prompt injection in AI-agent GitHub Actions in AI agents</h1>
+    <hr class="rule">
+    <p class="lede">Audits GitHub Actions workflows that run AI agents for prompt injection and excess privilege, offline.</p>
+
+    <article>
+<h2 id="what-it-detects">What it detects</h2>
+<p>Audits <strong>GitHub Actions workflows that run AI agents</strong> for prompt injection and excess privilege, offline.</p>
+<p>Agent actions (Claude Code, Codex, Gemini CLI, <code>actions/ai-inference</code>, home-grown <code>claude -p</code> / <code>curl api.openai.com</code> steps) are increasingly wired to <code>issues</code>, <code>issue_comment</code> and <code>pull_request_target</code>. That means any GitHub user can write text that lands in an LLM prompt, and that LLM often holds a write-scoped <code>GITHUB_TOKEN</code>, cloud secrets and a shell. This is the &quot;prompt injection in CI&quot; class (sometimes called *PromptPwnd*). agentci finds the AI steps in your workflows and reports how untrusted text reaches them, who can trigger them, and what they can do once hijacked.</p>
+<p>Standard library only (it has its own small YAML-subset parser). No network.</p>
+<h2 id="rules">Rules</h2>
+<table>
+<thead><tr><th>Rule</th><th>Default severity</th><th>Finding</th></tr></thead>
+<tbody>
+<tr><td>AC01</td><td>critical (high outside the agent step)</td><td>Untrusted event text (<code>issue.title/body</code>, <code>comment.body</code>, <code>pull_request.title/body/head.ref</code>, <code>github.head_ref</code>, commit messages, <code>toJSON(github.event)</code>, ...) interpolated with <code>${{ }}</code> into the agent step, or into a <code>run</code>/<code>env</code>/prompt-like input of another step in the AI job</td></tr>
+<tr><td>AC02</td><td>medium (high for <code>*</code>)</td><td>Outsider trigger (<code>issues</code>, <code>issue_comment</code>, <code>pull_request_target</code>, <code>discussion*</code>, <code>workflow_run</code>, review events) with no <code>author_association</code> / actor / label gate in the job or step <code>if:</code>. <code>anthropics/claude-code-action</code> checks write access itself, so it is only flagged when <code>allowed_non_write_users</code> / <code>allowed_bots</code> is set</td></tr>
+<tr><td>AC03</td><td>critical (high for <code>gh pr checkout</code>)</td><td><code>pull_request_target</code> / <code>workflow_run</code> job that checks out the PR head (or fetches <code>pull/N</code>), so the agent reads attacker-controlled <code>CLAUDE.md</code>, <code>AGENTS.md</code>, scripts and configs with secrets in scope</td></tr>
+<tr><td>AC04</td><td>low / medium / high</td><td>AI job token scope: no <code>permissions:</code> block (low), <code>write-all</code> (high), write to contents/actions/packages/pages/... (high with outsider triggers), <code>id-token: write</code> (high)</td></tr>
+<tr><td>AC05</td><td>critical with outsider triggers, else high</td><td>Agent shell/sandbox unlocked: <code>Bash(*)</code> or bare <code>Bash</code> in allowed tools, <code>--dangerously-skip-permissions</code>, <code>--dangerously-bypass-approvals-and-sandbox</code>, <code>danger-full-access</code>, Codex <code>safety-strategy: unsafe</code>, Gemini <code>--yolo</code>, <code>bypassPermissions</code>, approvals <code>never</code></td></tr>
+<tr><td>AC06</td><td>medium / high / critical</td><td>Secrets reachable by the agent that are not model API keys (workflow, job or step <code>env</code>/<code>with</code>), and <code>toJSON(secrets)</code> (critical)</td></tr>
+<tr><td>AC07</td><td>low (medium for <code>@main</code>/no ref)</td><td>AI action not pinned to a full 40-character commit SHA</td></tr>
+<tr><td>AC08</td><td>low</td><td><code>actions/checkout</code> in the AI job without <code>persist-credentials: false</code> (token left in <code>.git/config</code>)</td></tr>
+<tr><td>AC09</td><td>info</td><td>Inventory: which step is an AI agent and how it was recognised</td></tr>
+</tbody>
+</table>
+<h2 id="usage">Usage</h2>
+<pre><code>cd tools/agentci
+python3 agentci.py examples/risky              # 3 workflows, 26 findings, exit 1
+python3 agentci.py examples/clean --fail-on any # 2 AI workflows, 0 findings, exit 0
+python3 agentci.py                              # defaults to ./.github/workflows
+python3 agentci.py .github/workflows --sarif &gt; agentci.sarif
+python3 agentci.py . --ai-action &#x27;acme/review-bot*&#x27; --json --min-severity medium</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec agentci …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
+<h2 id="example">Example output</h2>
+<p>Captured against the bundled fixtures (fake data only):</p>
+<pre><code>$ python3 agentci.py examples/clean/plain-ci.yml --fail-on none
+1 workflow file(s), 0 with AI agents; 0 finding(s): none</code></pre>
+<h2 id="sarif-ci">SARIF and CI</h2>
+<pre><code>agentsec agentci path/to/input --sarif &gt; agentci.sarif
+
+# GitHub Actions (composite action ships with the repo)
+- uses: dunkleschitz/agentsec@v0
+  with:
+    tools: agentci
+    paths: path/to/input
+    fail-on: high
+</code></pre><p>SARIF 2.1.0 can be uploaded to GitHub code scanning. The composite action writes per-tool reports under <code>agentsec-sarif/</code> by default.</p>
+<h2 id="owasp">OWASP mapping</h2>
+<p>Heuristic mapping of what this tool helps a reviewer look for. Not an official OWASP endorsement, and not complete coverage of any item. Sources: <a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a> and <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a>.</p><ul><li><strong>LLM01 Prompt Injection</strong> — OWASP LLM Top 10 (2025)</li><li><strong>ASI01 Agent Goal Hijack</strong> — OWASP Agentic Top 10 (2026)</li><li><strong>ASI05 Unexpected Code Execution (RCE)</strong> — OWASP Agentic Top 10 (2026)</li></ul>
+<h2 id="limits">Known limits</h2>
+<ul><li><strong>Heuristic and static.</strong> It reads YAML, not runtime behaviour. It does not know what an agent will do</li></ul>
+<p>with the text it is given, and a clean report does not mean the workflow is safe.</p>
+<ul><li><strong>AI step detection</strong> uses a list of known action names and globs plus a regex for common CLIs and API</li></ul>
+<p>hosts. Unusual wrappers, composite/reusable workflows (<code>uses: ./...</code> or <code>workflow_call</code>) and Docker actions are not followed; add them with <code>--ai-action</code>.</p>
+<ul><li><strong>Indirect injection is not traced.</strong> An agent that fetches an issue or PR body itself is still exposed</li></ul>
+<p>to its content; agentci only flags the trigger/gate/permission side of that (AC02, AC04, AC05). Data flowing through step outputs (<code>steps.x.outputs.y</code>) into prompts is not followed.</p>
+<ul><li><strong>Gate detection</strong> is a regex over <code>if:</code> (author_association, actor, sender, label, ...). It cannot tell</li></ul>
+<p>whether a condition is actually correct.</p>
+<ul><li><strong>YAML subset.</strong> Anchors/aliases, tags and complex keys are not supported; unusual files fail with a parse</li></ul>
+<p>error (exit 2) instead of being guessed at. Action input names change between versions; checks use the names documented as of 2026.</p>
+<ul><li><code>claude-code-action</code>&#x27;s built-in write-access check is assumed to be on; other actions are assumed to have none.</li></ul>
+<p>Full source, tests, and fixtures: <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/agentci">tools/agentci/</a> in the repository. Install the kit with <code>pip install git+https://github.com/dunkleschitz/agentsec.git</code>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

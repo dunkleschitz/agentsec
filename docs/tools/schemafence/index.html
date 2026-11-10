@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>schemafence: detect unconstrained high-privilege tool parameters in AI agents — agentsec</title>
+  <meta name="description" content="Offline tool-schema privilege auditor for AI agent / MCP / OpenAI / Anthropic tool definitions.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/schemafence/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="schemafence: detect unconstrained high-privilege tool parameters in AI agents — agentsec">
+  <meta property="og:description" content="Offline tool-schema privilege auditor for AI agent / MCP / OpenAI / Anthropic tool definitions.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/schemafence/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="schemafence: detect unconstrained high-privilege tool parameters in AI agents — agentsec">
+  <meta name="twitter:description" content="Offline tool-schema privilege auditor for AI agent / MCP / OpenAI / Anthropic tool definitions.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "schemafence: detect unconstrained high-privilege tool parameters in AI agents",
+  "description": "Offline tool-schema privilege auditor for AI agent / MCP / OpenAI / Anthropic tool definitions.",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/schemafence/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a> · schemafence</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>schemafence: detect unconstrained high-privilege tool parameters in AI agents</h1>
+    <hr class="rule">
+    <p class="lede">Offline tool-schema privilege auditor for AI agent / MCP / OpenAI / Anthropic tool definitions.</p>
+
+    <article>
+<h2 id="what-it-detects">What it detects</h2>
+<p>Offline <strong>tool-schema privilege auditor</strong> for AI agent / MCP / OpenAI / Anthropic tool definitions.</p>
+<p>Before an agent can call tools, someone decided which parameters the model may fill in. Unconstrained <code>command</code>, <code>url</code>, <code>path</code>, <code>to</code>, <code>api_key</code>, or <code>sql</code> fields turn a single prompt injection into shell, SSRF, path traversal, email exfil, credential harvest, or SQLi. schemafence reviews those *input schemas* (not live calls) and reports privilege risks with tool and parameter attribution.</p>
+<p>Standard library only. It never connects to a network and never invokes a tool.</p>
+<h2 id="rules">Rules</h2>
+<table>
+<thead><tr><th>Rule</th><th>Severity</th><th>What it flags</th></tr></thead>
+<tbody>
+<tr><td>SK01</td><td>critical</td><td>Unconstrained <code>command</code> / <code>shell</code> / <code>code</code> / <code>script</code> / <code>argv</code> parameter</td></tr>
+<tr><td>SK02</td><td>high</td><td>Unconstrained <code>url</code> / <code>uri</code> / <code>endpoint</code> / <code>webhook</code> parameter</td></tr>
+<tr><td>SK03</td><td>high</td><td>Unconstrained <code>path</code> / <code>filepath</code> / <code>directory</code> parameter</td></tr>
+<tr><td>SK04</td><td>high</td><td>Unconstrained <code>to</code> / <code>recipient</code> / <code>email</code> / <code>channel</code> / <code>phone</code> parameter</td></tr>
+<tr><td>SK05</td><td>medium</td><td><code>additionalProperties: true</code> on a sensitive or consequential tool</td></tr>
+<tr><td>SK06</td><td>high</td><td>Model-supplied secret/credential parameter (<code>api_key</code>, <code>token</code>, <code>password</code>, …)</td></tr>
+<tr><td>SK07</td><td>high</td><td>Annotation contradiction (<code>readOnlyHint</code> / <code>destructiveHint</code> / <code>openWorldHint</code> vs params or name)</td></tr>
+<tr><td>SK08</td><td>medium</td><td>Consequential tool (shell / pay / delete / deploy) with no <code>required</code> params</td></tr>
+<tr><td>SK09</td><td>high</td><td>Unconstrained <code>sql</code> / <code>query</code> parameter on a data tool</td></tr>
+<tr><td>SK10</td><td>info</td><td>Inventory of tools and sensitive parameter names (disable in CI with <code>--disable SK10</code>)</td></tr>
+</tbody>
+</table>
+<h2 id="usage">Usage</h2>
+<pre><code>python3 schemafence.py tools.json [more.jsonl dir/ -]
+  --disable RULE ...    skip rule ids (e.g. SK10 SK05)
+  --json                machine-readable output
+  --min-severity S      hide findings below S (default info)
+  --fail-on S           exit 1 if any finding &gt;= S (default high; any, none)
+  --list-rules</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec schemafence …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
+<h2 id="example">Example output</h2>
+<p>Flags SK01/SK03/SK05/SK07 on <code>run_shell</code>, SK02/SK06/SK07 on <code>fetch_url</code>, SK03/SK07 on <code>write_file</code>, SK04 on <code>send_email</code>, SK07/SK08 on <code>delete_record</code> / <code>deploy_service</code>, SK09 on <code>run_sql</code> (exit 1). <code>examples/clean_openai.json</code> is clean under <code>--fail-on high</code> (exit 0): cities/URLs/note ids are enum- or pattern-constrained. See also <code>risky_anthropic.json</code>, <code>multi_server.json</code> and <code>generic_tools.jsonl</code>.</p>
+<p>Captured against the bundled fixtures (fake data only):</p>
+<pre><code>$ python3 schemafence.py examples/risky_mcp.json --fail-on none
+schemafence 0.1.0 — 7 tool(s), 24 finding(s)
+
+RULE   SEV      TOOL                         MESSAGE
+----------------------------------------------------------------------------------------------------
+SK01   critical run_shell                    Tool run_shell accepts unconstrained command parameter &#x27;command&#x27; (comm
+       param: command
+       at:    examples/risky_mcp.json
+SK02   high     fetch_url                    Tool fetch_url accepts unconstrained URL parameter &#x27;url&#x27; (SSRF / open-
+       param: url
+       at:    examples/risky_mcp.json
+SK03   high     run_shell                    Tool run_shell accepts unconstrained path parameter &#x27;cwd&#x27; (traversal /
+       param: cwd
+       at:    examples/risky_mcp.json
+SK03   high     write_file                   Tool write_file accepts unconstrained path parameter &#x27;path&#x27; (traversal
+       param: path
+       at:    examples/risky_mcp.json
+SK04   high     send_email                   Tool send_email accepts unconstrained recipient parameter &#x27;to&#x27; (send/e
+       param: to
+       at:    examples/risky_mcp.json
+SK06   high     fetch_url                    Tool fetch_url accepts model-supplied secret/credential parameter &#x27;api
+       param: api_key
+       at:    examples/risky_mcp.json
+SK07   high     delete_record                Tool delete_record has destructiveHint=false but name implies destruct
+       param: destructiveHint
+       at:    examples/risky_mcp.json
+SK07   high     fetch_url                    Tool fetch_url has openWorldHint=false but accepts unconstrained-looki
+       param: openWorldHint
+       at:    examples/risky_mcp.json
+SK07   high     run_shell                    Tool run_shell has destructiveHint=false but accepts command/code para
+       param: destructiveHint
+       at:    examples/risky_mcp.json
+SK07   high     run_shell                    Tool run_shell has readOnlyHint=true but accepts command/code paramete
+       param: readOnlyHint
+       at:    examples/risky_mcp.json
+SK07   high     write_file                   Tool write_file has readOnlyHint=true but looks like a write (path + c
+       param: readOnlyHint
+       at:    examples/risky_mcp.json
+SK07   high     write_file                   Tool write_file has readOnlyHint=true but name implies mutation
+       param: readOnlyHint
+       at:    examples/risky_mcp.json
+… (truncated)</code></pre>
+<h2 id="sarif-ci">SARIF and CI</h2>
+<pre><code>agentsec schemafence path/to/input --sarif &gt; schemafence.sarif
+
+# GitHub Actions (composite action ships with the repo)
+- uses: dunkleschitz/agentsec@v0
+  with:
+    tools: schemafence
+    paths: path/to/input
+    fail-on: high
+</code></pre><p>SARIF 2.1.0 can be uploaded to GitHub code scanning. The composite action writes per-tool reports under <code>agentsec-sarif/</code> by default.</p>
+<h2 id="owasp">OWASP mapping</h2>
+<p>Heuristic mapping of what this tool helps a reviewer look for. Not an official OWASP endorsement, and not complete coverage of any item. Sources: <a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a> and <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a>.</p><ul><li><strong>LLM06 Excessive Agency</strong> — OWASP LLM Top 10 (2025)</li><li><strong>ASI02 Tool Misuse and Exploitation</strong> — OWASP Agentic Top 10 (2026)</li></ul>
+<h2 id="limits">Known limits</h2>
+<ul><li>Heuristic parameter-name matching. A custom field named <code>target</code> that holds a</li></ul>
+<p>shell string may be missed; rename detection is name-based, not semantic.</p>
+<ul><li>Constraints are only what appears in the schema. Runtime allowlists enforced</li></ul>
+<p>only in server code are invisible here — pair with mcpsink / toolgate.</p>
+<ul><li><code>additionalProperties</code> omitted (common) is not flagged; only explicit <code>true</code>.</li><li>Annotation defaults differ across MCP clients; contradictions are best-effort.</li><li>A clean schemafence result does not mean the tool implementation is safe.</li></ul>
+<p>Full source, tests, and fixtures: <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/schemafence">tools/schemafence/</a> in the repository. Install the kit with <code>pip install git+https://github.com/dunkleschitz/agentsec.git</code>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>secretflow: detect secrets flowing into later tool arguments in AI agents — agentsec</title>
+  <meta name="description" content="Offline data-flow secret-propagation detector for AI agent transcripts.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/secretflow/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="secretflow: detect secrets flowing into later tool arguments in AI agents — agentsec">
+  <meta property="og:description" content="Offline data-flow secret-propagation detector for AI agent transcripts.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/secretflow/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="secretflow: detect secrets flowing into later tool arguments in AI agents — agentsec">
+  <meta name="twitter:description" content="Offline data-flow secret-propagation detector for AI agent transcripts.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "secretflow: detect secrets flowing into later tool arguments in AI agents",
+  "description": "Offline data-flow secret-propagation detector for AI agent transcripts.",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/secretflow/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a> · secretflow</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>secretflow: detect secrets flowing into later tool arguments in AI agents</h1>
+    <hr class="rule">
+    <p class="lede">Offline data-flow secret-propagation detector for AI agent transcripts.</p>
+
+    <article>
+<h2 id="what-it-detects">What it detects</h2>
+<p>Offline <strong>data-flow secret-propagation</strong> detector for AI agent transcripts.</p>
+<p><a href="https://dunkleschitz.github.io/agentsec/tools/tracesweep/">tracesweep</a> asks whether a secret *appeared* in a run. <strong>secretflow</strong> asks the next question: once a secret showed up in a tool result (or earlier message), was that *same value* later passed into another tool&#x27;s arguments — especially an outbound HTTP/webhook/email tool or a shell? That reuse pattern is the classic agent exfiltration hop (<code>read .env</code> → <code>http_post</code> webhook).</p>
+<p>Standard library only. It never connects to a network.</p>
+<h2 id="rules">Rules</h2>
+<table>
+<thead><tr><th>Rule</th><th>Severity</th><th>What it flags</th></tr></thead>
+<tbody>
+<tr><td>FL01</td><td>critical</td><td>Secret from a tool result propagated into an outbound/exfil tool&#x27;s arguments</td></tr>
+<tr><td>FL02</td><td>critical</td><td>Secret from a tool result propagated into a shell/command tool&#x27;s arguments</td></tr>
+<tr><td>FL03</td><td>high</td><td>Secret from a tool result reused in a later tool call&#x27;s arguments</td></tr>
+<tr><td>FL04</td><td>critical</td><td>Auth/session token (Bearer, JWT, Cookie, Authorization) reused in later tool args</td></tr>
+<tr><td>FL05</td><td>high</td><td>Secret echoed by the assistant, then passed into a subsequent tool call</td></tr>
+<tr><td>FL06</td><td>high</td><td>Multi-hop: same secret value appears in arguments of two or more distinct tools</td></tr>
+<tr><td>FL07</td><td>high</td><td>Labeled secret value (<code>api_key=</code> / <code>password=</code> / <code>token=</code> / env <code>*_KEY=</code>) reused later</td></tr>
+<tr><td>FL08</td><td>medium</td><td>User-supplied secret forwarded into an outbound/exfil tool</td></tr>
+<tr><td>FL09</td><td>medium</td><td>Secret from a tool result written to a file/log/memory sink tool</td></tr>
+<tr><td>FL10</td><td>info</td><td>Inventory of tainted secret sources and observed sinks</td></tr>
+</tbody>
+</table>
+<h2 id="usage">Usage</h2>
+<pre><code>python3 secretflow.py transcript.json [more.jsonl dir/ -]
+  --disable RULE ...  skip rule ids (e.g. FL10)
+  --json              machine-readable output
+  --min-severity S    hide findings below S (default info)
+  --fail-on S         exit 1 if any finding &gt;= S (default high; any, none)
+  --list-rules</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec secretflow …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
+<h2 id="example">Example output</h2>
+<p>Flags the staging <code>API_KEY</code> flowing into <code>http_post</code> (FL01), the session token into <code>bash</code> (FL02/FL04), assistant echo then tool use (FL05), labeled env reuse (FL07), stripe key into <code>write_file</code> (FL09), and multi-tool hops (FL06). Exit 1.</p>
+<p><code>examples/clean_openai.json</code> is clean under <code>--fail-on high</code> (exit 0).</p>
+<p>Captured against the bundled fixtures (fake data only):</p>
+<pre><code>$ python3 secretflow.py examples/risky_openai.json --fail-on none
+secretflow 0.1.0 — 1 file(s), 12 event(s), 10 finding(s)
+
+RULE   SEV      TOOL             MESSAGE
+----------------------------------------------------------------------------------------------------
+FL01   critical http_post        Secret FAKE…9c2e (env_secret) from tool &#x27;read_file&#x27; turn 3 flowed into outbound tool &#x27;ht
+       at: examples/risky_openai.json turn=4  ← read_file turn=3  secret=FAKE…9c2e
+FL02   critical bash             Secret FAKE…ccdd (env_secret) from tool &#x27;read_file&#x27; turn 3 flowed into shell tool &#x27;bash&#x27;
+       at: examples/risky_openai.json turn=4  ← read_file turn=3  secret=FAKE…ccdd
+FL05   high     http_post        Secret FAKE…9c2e echoed by assistant (turn 4) then passed to tool &#x27;http_post&#x27;
+       at: examples/risky_openai.json turn=4  ← read_file turn=3  secret=FAKE…9c2e
+FL07   high     bash             Labeled secret FAKE…ccdd from &#x27;read_file&#x27; reused in tool &#x27;bash&#x27;
+       at: examples/risky_openai.json turn=4  ← read_file turn=3  secret=FAKE…ccdd
+FL07   high     http_post        Labeled secret FAKE…9c2e from &#x27;read_file&#x27; reused in tool &#x27;http_post&#x27;
+       at: examples/risky_openai.json turn=4  ← read_file turn=3  secret=FAKE…9c2e
+FL07   high     write_file       Labeled secret sk_t…0001 from &#x27;read_file&#x27; reused in tool &#x27;write_file&#x27;
+       at: examples/risky_openai.json turn=7  ← read_file turn=3  secret=sk_t…0001
+FL09   medium   write_file       Secret sk_t…0001 (env_secret) from tool &#x27;read_file&#x27; turn 3 written via sink tool &#x27;write_
+       at: examples/risky_openai.json turn=7  ← read_file turn=3  secret=sk_t…0001
+FL10   info     read_file        Taint source FAKE…9c2e (env_secret) from tool_result &#x27;read_file&#x27; turn 3 → sinks: http_po
+       at: examples/risky_openai.json turn=3  secret=FAKE…9c2e
+FL10   info     read_file        Taint source FAKE…ccdd (env_secret) from tool_result &#x27;read_file&#x27; turn 3 → sinks: bash
+       at: examples/risky_openai.json turn=3  secret=FAKE…ccdd
+FL10   info     read_file        Taint source sk_t…0001 (env_secret) from tool_result &#x27;read_file&#x27; turn 3 → sinks: write_f
+       at: examples/risky_openai.json turn=3  secret=sk_t…0001</code></pre>
+<h2 id="sarif-ci">SARIF and CI</h2>
+<pre><code>agentsec secretflow path/to/input --sarif &gt; secretflow.sarif
+
+# GitHub Actions (composite action ships with the repo)
+- uses: dunkleschitz/agentsec@v0
+  with:
+    tools: secretflow
+    paths: path/to/input
+    fail-on: high
+</code></pre><p>SARIF 2.1.0 can be uploaded to GitHub code scanning. The composite action writes per-tool reports under <code>agentsec-sarif/</code> by default.</p>
+<h2 id="owasp">OWASP mapping</h2>
+<p>Heuristic mapping of what this tool helps a reviewer look for. Not an official OWASP endorsement, and not complete coverage of any item. Sources: <a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a> and <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a>.</p><ul><li><strong>LLM02 Sensitive Information Disclosure</strong> — OWASP LLM Top 10 (2025)</li><li><strong>ASI02 Tool Misuse and Exploitation</strong> — OWASP Agentic Top 10 (2026)</li></ul>
+<h2 id="limits">Known limits</h2>
+<ul><li>Value-equality taint only (exact substring). Transformed secrets (base64 of a</li></ul>
+<p>key, truncated, hashed, or concatenated differently) are invisible.</p>
+<ul><li>Secret shapes are heuristic (FAKE-EXAMPLE-*, labeled assignments, JWT, Bearer,</li></ul>
+<p>common provider prefixes, <code>*_KEY=</code> env lines). Novel formats are missed; long benign tokens can false-positive — review masked snippets.</p>
+<ul><li>Only sees what was logged. A clean secretflow result does not mean no secrets</li></ul>
+<p>were present — run <strong>tracesweep</strong> for presence, and treat this as a propagation / exfil-hop review aid, not a security boundary.</p>
+<ul><li>Outbound / shell / write-sink classification is by tool-name tokens; renamed</li></ul>
+<p>wrappers may be under-counted (they still hit FL03 on any later reuse).</p>
+<p>Full source, tests, and fixtures: <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/secretflow">tools/secretflow/</a> in the repository. Install the kit with <code>pip install git+https://github.com/dunkleschitz/agentsec.git</code>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

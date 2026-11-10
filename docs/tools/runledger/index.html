@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>runledger: detect token and cost overruns in agent runs in AI agents — agentsec</title>
+  <meta name="description" content="Offline, stdlib-only Python CLI for token and cost accounting of AI agent runs, computed from transcripts and usage logs you already have.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/runledger/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="runledger: detect token and cost overruns in agent runs in AI agents — agentsec">
+  <meta property="og:description" content="Offline, stdlib-only Python CLI for token and cost accounting of AI agent runs, computed from transcripts and usage logs you already have.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/runledger/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="runledger: detect token and cost overruns in agent runs in AI agents — agentsec">
+  <meta name="twitter:description" content="Offline, stdlib-only Python CLI for token and cost accounting of AI agent runs, computed from transcripts and usage logs you already have.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "runledger: detect token and cost overruns in agent runs in AI agents",
+  "description": "Offline, stdlib-only Python CLI for token and cost accounting of AI agent runs, computed from transcripts and usage logs you already have.",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/runledger/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a> · runledger</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>runledger: detect token and cost overruns in agent runs in AI agents</h1>
+    <hr class="rule">
+    <p class="lede">Offline, stdlib-only Python CLI for token and cost accounting of AI agent runs, computed from transcripts and usage logs you already have.</p>
+
+    <article>
+<h2 id="what-it-detects">What it detects</h2>
+<p>Offline, stdlib-only Python CLI for <strong>token and cost accounting of AI agent runs</strong>, computed from transcripts and usage logs you already have.</p>
+<blockquote><p><strong>Honesty note.</strong> runledger counts what your logs report. It cannot see your provider&#x27;s bill, cannot verify billing, and does not know about discounts, batch pricing, tiers, minimums, taxes, or price changes. Every dollar figure is an <strong>estimate</strong> from a price table *you* control. The shipped <code>prices.json</code> is an <strong>EXAMPLE</strong> only - prices change and those numbers are not authoritative. Models missing from the table are reported as <strong>unpriced</strong>, never guessed.</p></blockquote>
+<h2 id="rules">Rules</h2>
+<p class="note">This tool does not publish a numbered rules table; see the README for what it flags.</p>
+<h2 id="usage">Usage</h2>
+<pre><code>python3 runledger.py examples/                          # table report for a directory
+python3 runledger.py run.jsonl --json &gt; report.json     # machine-readable
+python3 runledger.py logs/ --csv &gt; turns.csv            # one row per turn
+python3 runledger.py logs/ --csv --csv-group tool       # one row per tool
+cat run.jsonl | python3 runledger.py - --top 10         # stdin
+python3 runledger.py logs/ --budget 5.00                # exit 1 if estimate &gt; $5
+python3 runledger.py logs/ --prices my_prices.json      # your own price table
+python3 runledger.py logs/ --no-prices                  # tokens only</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec runledger …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
+<h2 id="example">Example output</h2>
+<p>Real run on the bundled fake logs (<code>python3 runledger.py examples</code>):</p>
+<p><code>*</code> marks totals that exclude unpriced turns. With <code>--budget 0.05 --top 3</code> the exit code is 1 and stderr says:</p>
+<p><code>--csv --csv-group model</code>:</p>
+<p>Captured against the bundled fixtures (fake data only):</p>
+<pre><code>$ python3 runledger.py examples/openai_run.jsonl
+runledger 0.1.0 - token &amp; cost ESTIMATES from logs (not a bill)
+
+Turns: 4   Input: 3,262   Cache read: 6,528   Cache write: 0   Output: 1,375 (reasoning 896)
+Total tokens: 11,165   Cache hit ratio: 66.7%   Estimated cost: $0.0163
+
+By run:
+run       turns  input  cache_rd  cache_wr  output  total  cache%     cost
+--------  -----  -----  --------  --------  ------  -----  ------  -------
+run-oa-2      2  1,924     5,376         0   1,300  8,600    73.6  $0.0108
+run-oa-1      2  1,338     1,152         0      75  2,565    46.3  $0.0055
+
+By model:
+model    turns  input  cache_rd  cache_wr  output  total  cache%     cost
+-------  -----  -----  --------  --------  ------  -----  ------  -------
+o3-mini      2  1,924     5,376         0   1,300  8,600    73.6  $0.0108
+gpt-4o       2  1,338     1,152         0      75  2,565    46.3  $0.0055
+
+By tool:
+tool         turns  input  cache_rd  cache_wr  output  total  cache%     cost
+-----------  -----  -----  --------  --------  ------  -----  ------  -------
+search_docs      2  1,924     5,376         0   1,300  8,600    73.6  $0.0108
+get_weather      2  1,338     1,152         0      75  2,565    46.3  $0.0055
+
+By session:
+session     turns  input  cache_rd  cache_wr  output  total  cache%     cost
+----------  -----  -----  --------  --------  ------  -----  ------  -------
+sess-beta       2  1,924     5,376         0   1,300  8,600    73.6  $0.0108
+sess-alpha      2  1,338     1,152         0      75  2,565    46.3  $0.0055
+
+Top 4 most expensive turns:
+turn                  model         tool  tokens     cost
+------------------  -------  -----------  ------  -------
+openai_run.jsonl:3  o3-mini  search_docs   4,300  $0.0066
+openai_run.jsonl:4  o3-mini  search_docs   4,300  $0.0042
+openai_run.jsonl:1   gpt-4o  get_weather   1,245  $0.0034
+openai_run.jsonl:2   gpt-4o  get_weather   1,320  $0.0021</code></pre>
+<h2 id="sarif-ci">SARIF and CI</h2>
+<pre><code>agentsec runledger path/to/input --json &gt; runledger.json
+# runledger does not yet emit SARIF; use --json and keep --fail-on for CI.
+
+# GitHub Actions (composite action ships with the repo)
+- uses: dunkleschitz/agentsec@v0
+  with:
+    tools: runledger
+    paths: path/to/input
+    fail-on: high
+</code></pre><p><code>--sarif</code> is not available on this tool yet (resultguard and toolpoison are reserved as good first issues). Use <code>--json</code> and a <code>--fail-on</code> exit gate instead.</p>
+<h2 id="owasp">OWASP mapping</h2>
+<p>Heuristic mapping of what this tool helps a reviewer look for. Not an official OWASP endorsement, and not complete coverage of any item. Sources: <a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a> and <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a>.</p><ul><li><strong>LLM10 Unbounded Consumption</strong> — OWASP LLM Top 10 (2025)</li></ul>
+<h2 id="limits">Known limits</h2>
+<p class="note">Heuristic scanner, not a security boundary. A clean result does not mean something is safe. All example secrets in this repository are fake.</p>
+<p>Full source, tests, and fixtures: <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/runledger">tools/runledger/</a> in the repository. Install the kit with <code>pip install git+https://github.com/dunkleschitz/agentsec.git</code>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

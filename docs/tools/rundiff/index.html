@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>rundiff: detect behavioral drift between agent runs in AI agents — agentsec</title>
+  <meta name="description" content="Offline behavioral diff for two AI agent run transcripts.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/rundiff/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="rundiff: detect behavioral drift between agent runs in AI agents — agentsec">
+  <meta property="og:description" content="Offline behavioral diff for two AI agent run transcripts.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/rundiff/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="rundiff: detect behavioral drift between agent runs in AI agents — agentsec">
+  <meta name="twitter:description" content="Offline behavioral diff for two AI agent run transcripts.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "rundiff: detect behavioral drift between agent runs in AI agents",
+  "description": "Offline behavioral diff for two AI agent run transcripts.",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/rundiff/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a> · rundiff</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>rundiff: detect behavioral drift between agent runs in AI agents</h1>
+    <hr class="rule">
+    <p class="lede">Offline behavioral diff for two AI agent run transcripts.</p>
+
+    <article>
+<h2 id="what-it-detects">What it detects</h2>
+<p><strong>Offline behavioral diff for two AI agent run transcripts.</strong></p>
+<p>You changed a system prompt, swapped a model, or added a tool. Did the agent&#x27;s *behavior* change? <code>rundiff</code> compares a <strong>baseline</strong> run and a <strong>candidate</strong> run and tells you which tool calls were added, removed, or reordered, which arguments changed, where tool results diverged, how similar the final answers are, and, for security review, what <strong>new surface</strong> the candidate touches (new tools, network hosts, filesystem paths, shell programs).</p>
+<p>Single file, Python 3 standard library only, no network access, no dependencies.</p>
+<h2 id="rules">Rules</h2>
+<table>
+<thead><tr><th>exit</th><th>meaning</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>no difference of the gated kind (always 0 with <code>--fail-on none</code>, the default)</td></tr>
+<tr><td>1</td><td><code>--fail-on</code> condition met</td></tr>
+<tr><td>2</td><td>error (unreadable file, invalid JSON, bad arguments)</td></tr>
+</tbody>
+</table>
+<h2 id="usage">Usage</h2>
+<pre><code>python3 rundiff.py BASELINE CANDIDATE [--format auto|openai|anthropic|generic]
+                   [--ignore-keys k1,k2,glob*] [--json] [--no-color]
+                   [--fail-on any|new-surface|args|none]</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec rundiff …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
+<h2 id="example">Example output</h2>
+<p>The bundled <code>examples/</code> pair: the candidate drops <code>list_dir</code>, changes <code>search_docs.limit</code> from 5 to 20, <code>curl</code>s <code>./docs/RELEASE.md</code> to an unfamiliar paste host, and writes a file with a new <code>write_file</code> tool.</p>
+<p>With <code>--fail-on new-surface</code> (or <code>any</code>, or <code>args</code>), this example exits <strong>1</strong>. Comparing a run with itself exits <strong>0</strong>.</p>
+<p>Captured against the bundled fixtures (fake data only):</p>
+<pre><code>$ python3 rundiff.py examples/candidate.jsonl --fail-on none
+usage: rundiff [-h] [--format {auto,openai,anthropic,generic}]
+               [--ignore-keys IGNORE_KEYS] [--json] [--no-color]
+               [--fail-on {any,new-surface,args,none}] [--version]
+               baseline candidate
+rundiff: error: the following arguments are required: candidate</code></pre>
+<h2 id="sarif-ci">SARIF and CI</h2>
+<pre><code>agentsec rundiff path/to/input --json &gt; rundiff.json
+# rundiff does not yet emit SARIF; use --json and keep --fail-on for CI.
+
+# GitHub Actions (composite action ships with the repo)
+- uses: dunkleschitz/agentsec@v0
+  with:
+    tools: rundiff
+    paths: path/to/input
+    fail-on: high
+</code></pre><p><code>--sarif</code> is not available on this tool yet (resultguard and toolpoison are reserved as good first issues). Use <code>--json</code> and a <code>--fail-on</code> exit gate instead.</p>
+<h2 id="owasp">OWASP mapping</h2>
+<p>Heuristic mapping of what this tool helps a reviewer look for. Not an official OWASP endorsement, and not complete coverage of any item. Sources: <a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a> and <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a>.</p><ul><li><strong>ASI08 Cascading Failures</strong> — OWASP Agentic Top 10 (2026)</li></ul>
+<h2 id="limits">Known limits</h2>
+<p class="note">Heuristic scanner, not a security boundary. A clean result does not mean something is safe. All example secrets in this repository are fake.</p>
+<p>Full source, tests, and fixtures: <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/rundiff">tools/rundiff/</a> in the repository. Install the kit with <code>pip install git+https://github.com/dunkleschitz/agentsec.git</code>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

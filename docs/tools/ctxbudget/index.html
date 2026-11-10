@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ctxbudget: detect oversized tool results and context blowups in AI agents — agentsec</title>
+  <meta name="description" content="Offline tool-result size / context-window DoS budget checker for AI agent transcripts.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/ctxbudget/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="ctxbudget: detect oversized tool results and context blowups in AI agents — agentsec">
+  <meta property="og:description" content="Offline tool-result size / context-window DoS budget checker for AI agent transcripts.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/ctxbudget/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="ctxbudget: detect oversized tool results and context blowups in AI agents — agentsec">
+  <meta name="twitter:description" content="Offline tool-result size / context-window DoS budget checker for AI agent transcripts.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "ctxbudget: detect oversized tool results and context blowups in AI agents",
+  "description": "Offline tool-result size / context-window DoS budget checker for AI agent transcripts.",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/ctxbudget/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a> · ctxbudget</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>ctxbudget: detect oversized tool results and context blowups in AI agents</h1>
+    <hr class="rule">
+    <p class="lede">Offline tool-result size / context-window DoS budget checker for AI agent transcripts.</p>
+
+    <article>
+<h2 id="what-it-detects">What it detects</h2>
+<p>Offline <strong>tool-result size / context-window DoS budget checker</strong> for AI agent transcripts.</p>
+<p>A single huge tool result — a multi-megabyte dump, a base64 blob, a minified one-liner, or a flood of large results from one tool — can exhaust the model&#x27;s context window, hide payloads from human reviewers, or starve later turns of budget. ctxbudget measures every tool result in a saved transcript, compares it to absolute and relative budgets, and reports findings with tool and turn attribution.</p>
+<p>Standard library only. It never runs an agent and never contacts the network.</p>
+<h2 id="rules">Rules</h2>
+<table>
+<thead><tr><th>Rule</th><th>Severity</th><th>What it flags</th></tr></thead>
+<tbody>
+<tr><td>CB01</td><td>high</td><td>Single tool result exceeds <code>--max-bytes</code> (default 100_000)</td></tr>
+<tr><td>CB02</td><td>critical</td><td>Single tool result exceeds <code>--critical-bytes</code> (default 500_000)</td></tr>
+<tr><td>CB03</td><td>high</td><td>One result is ≥ <code>--share</code> of all tool-result bytes (default 0.40)</td></tr>
+<tr><td>CB04</td><td>medium</td><td>Large base64 / hex blob inside a result (<code>--blob-bytes</code>, default 8192)</td></tr>
+<tr><td>CB05</td><td>high</td><td>Pathological single-line length (<code>--line-bytes</code>, default 32768)</td></tr>
+<tr><td>CB06</td><td>medium</td><td>Null bytes / high control-char ratio (binary-looking text)</td></tr>
+<tr><td>CB07</td><td>high</td><td>Same tool emitted ≥ <code>--flood-count</code> oversized results</td></tr>
+<tr><td>CB08</td><td>medium</td><td>Total tool-result bytes exceed <code>--total-bytes</code> (default 1_000_000)</td></tr>
+<tr><td>CB09</td><td>low</td><td>JSON nesting depth ≥ <code>--max-depth</code> (default 32)</td></tr>
+<tr><td>CB10</td><td>info</td><td>Inventory of the largest tool results</td></tr>
+</tbody>
+</table>
+<h2 id="usage">Usage</h2>
+<pre><code>python3 ctxbudget.py transcript.json [more.jsonl dir/ -]
+  --max-bytes N         CB01 per-result budget (default 100000)
+  --critical-bytes N    CB02 critical budget (default 500000)
+  --share F             CB03 fraction of total (default 0.40)
+  --blob-bytes N        CB04 encoded-blob minimum (default 8192)
+  --line-bytes N        CB05 max line length (default 32768)
+  --flood-count N       CB07 oversized count from one tool (default 5)
+  --flood-min-bytes N   CB07 minimum size to count (default 20000)
+  --total-bytes N       CB08 run-wide budget (default 1000000)
+  --max-depth N         CB09 JSON depth budget (default 32)
+  --top N               CB10 inventory size (default 5)
+  --disable RULE ...    skip rule ids
+  --json                machine-readable output
+  --min-severity S      hide findings below S (default info)
+  --fail-on S           exit 1 if any finding &gt;= S (default high; any, none)
+  --list-rules</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec ctxbudget …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
+<h2 id="example">Example output</h2>
+<p>Flags CB02 on the half-megabyte dump, CB01 on the 120 KB dump, CB04/CB05/CB06/CB07/CB09 on the blob, long line, binary, flood and deep tree, and CB08 when the run total crosses 1 MB (exit 1). <code>examples/clean_openai.json</code> stays clean at default budgets (exit 0 aside from the CB10 info inventory — use <code>--min-severity low</code> or <code>--disable CB10</code> in CI). See also <code>risky_anthropic.json</code> and <code>generic_results.jsonl</code>. All payloads are synthetic (<code>FAKE-EXAMPLE-*</code> / repeated filler bytes); nothing is a real secret.</p>
+<p>Captured against the bundled fixtures (fake data only):</p>
+<pre><code>$ python3 ctxbudget.py examples/risky_openai.json --fail-on none
+ctxbudget 0.1.0 — 12 tool result(s), 842437 total bytes, 11 finding(s)
+
+RULE   SEV      TOOL                    BYTES  MESSAGE
+------------------------------------------------------------------------------------------------
+CB02   critical dump_all               520000  Tool result is 520000 bytes (critical budget 500000)
+       at:  examples/risky_openai.json turn=7
+CB01   high     dump_db                120000  Tool result is 120000 bytes (budget 100000)
+       at:  examples/risky_openai.json turn=2
+CB03   high     dump_all               520000  Tool result is 62% of all tool-result bytes (520000 / 842437)
+       at:  examples/risky_openai.json turn=7
+CB05   high     cat_minified            40000  Longest line is 40000 bytes (budget 32768)
+       at:  examples/risky_openai.json turn=4
+CB05   high     dump_all               520000  Longest line is 520000 bytes (budget 32768)
+       at:  examples/risky_openai.json turn=7
+CB05   high     dump_db                120000  Longest line is 120000 bytes (budget 32768)
+       at:  examples/risky_openai.json turn=2
+CB07   high     read_log                25011  Tool &#x27;read_log&#x27; produced 6 oversized results (&gt;= 20000 bytes each)
+       at:  examples/risky_openai.json turn=13
+CB04   medium   get_artifact            12026  Large base64 blob (12000 bytes) inside tool result
+       at:  examples/risky_openai.json turn=3
+CB06   medium   read_binary                36  Null byte(s) present in tool result text
+       at:  examples/risky_openai.json turn=6
+CB09   low      get_tree                  309  JSON nesting depth 37 exceeds 32
+       at:  examples/risky_openai.json turn=5
+CB10   info     dump_all               520000  Largest tool results: dump_all=520000B, dump_db=120000B, cat_minified=40000B, 
+       at:  examples/risky_openai.json turn=7</code></pre>
+<h2 id="sarif-ci">SARIF and CI</h2>
+<pre><code>agentsec ctxbudget path/to/input --sarif &gt; ctxbudget.sarif
+
+# GitHub Actions (composite action ships with the repo)
+- uses: dunkleschitz/agentsec@v0
+  with:
+    tools: ctxbudget
+    paths: path/to/input
+    fail-on: high
+</code></pre><p>SARIF 2.1.0 can be uploaded to GitHub code scanning. The composite action writes per-tool reports under <code>agentsec-sarif/</code> by default.</p>
+<h2 id="owasp">OWASP mapping</h2>
+<p>Heuristic mapping of what this tool helps a reviewer look for. Not an official OWASP endorsement, and not complete coverage of any item. Sources: <a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a> and <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a>.</p><ul><li><strong>LLM10 Unbounded Consumption</strong> — OWASP LLM Top 10 (2025)</li><li><strong>ASI06 Memory and Context Poisoning</strong> — OWASP Agentic Top 10 (2026)</li></ul>
+<h2 id="limits">Known limits</h2>
+<ul><li>Heuristic transcript parsing. A custom logger that stores results under an unusual key</li></ul>
+<p>may be missed; prefer a generic <code>{tool, result}</code> JSONL if your harness is exotic.</p>
+<ul><li>Byte counts are UTF-8 length of the *logged* text. They are not tokenizer counts —</li></ul>
+<p>pair with runledger when you need billed tokens.</p>
+<ul><li>Base64/hex detection is regex-based and can miss unusual alphabets or flag dense</li></ul>
+<p>identifiers. Tune <code>--blob-bytes</code> or <code>--disable CB04</code> if noisy.</p>
+<ul><li>It analyzes what was saved. It cannot cap a live tool result; enforce size limits in</li></ul>
+<p>the tool wrapper or a pre-context-compaction gate in front of the model.</p>
+<p>Full source, tests, and fixtures: <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/ctxbudget">tools/ctxbudget/</a> in the repository. Install the kit with <code>pip install git+https://github.com/dunkleschitz/agentsec.git</code>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

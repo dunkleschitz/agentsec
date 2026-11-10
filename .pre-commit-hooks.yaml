@@ -1,0 +1,148 @@
+# Official hook definitions for https://github.com/dunkleschitz/agentsec
+# Use from another repo:
+#   repos:
+#     - repo: https://github.com/dunkleschitz/agentsec
+#       rev: v0.37.0
+#       hooks:
+#         - id: agentsec-secretflow
+#           files: '(transcripts|agent-runs)/.*\.(json|jsonl)$'
+#
+# These hooks install agentsec (stdlib only) and pass filenames through.
+# Default file filters are conservative; override `files:` in your config.
+# Most hooks use --fail-on high so info/low findings do not block a commit.
+# Heuristic scanners: a clean hook is not proof that something is safe.
+
+- id: agentsec-secretflow
+  name: agentsec secretflow
+  description: Detect secrets from tool results reused in later tool arguments
+  entry: agentsec secretflow
+  language: python
+  language_version: python3
+  files: \.(json|jsonl)$
+  args: ["--fail-on", "high"]
+
+- id: agentsec-piiguard
+  name: agentsec piiguard
+  description: Scan agent transcripts and logs for PII (emails, phones, SSNs, cards)
+  entry: agentsec piiguard
+  language: python
+  language_version: python3
+  files: \.(json|jsonl|log|txt)$
+  args: ["--fail-on", "high"]
+
+- id: agentsec-toolpin
+  name: agentsec toolpin
+  description: "Check an MCP tools/list snapshot against a committed toolpin lockfile (set args: --fail-on high -l toolpin.lock.json)"
+  entry: agentsec toolpin check
+  language: python
+  language_version: python3
+  files: \.(json)$
+  args: ["--fail-on", "high"]
+  pass_filenames: true
+
+- id: agentsec-pathfence
+  name: agentsec pathfence
+  description: Audit file paths an agent touched for sensitive targets
+  entry: agentsec pathfence
+  language: python
+  language_version: python3
+  files: \.(json|jsonl)$
+  args: ["--fail-on", "high"]
+
+- id: agentsec-shellfence
+  name: agentsec shellfence
+  description: Audit shell commands an agent ran for dangerous patterns
+  entry: agentsec shellfence
+  language: python
+  language_version: python3
+  files: \.(json|jsonl)$
+  args: ["--fail-on", "high"]
+
+- id: agentsec-resultguard
+  name: agentsec resultguard
+  description: Scan tool results for indirect prompt injection
+  entry: agentsec resultguard
+  language: python
+  language_version: python3
+  files: \.(json|jsonl|txt|md|html)$
+  args: ["--fail-on", "high"]
+
+- id: agentsec-fetchfence
+  name: agentsec fetchfence
+  description: Audit URLs an agent fetched for SSRF and destination risk
+  entry: agentsec fetchfence
+  language: python
+  language_version: python3
+  files: \.(json|jsonl)$
+  args: ["--fail-on", "high"]
+
+- id: agentsec-tracesweep
+  name: agentsec tracesweep
+  description: Find secrets leaked into agent transcripts and logs
+  entry: agentsec tracesweep
+  language: python
+  language_version: python3
+  files: \.(json|jsonl|log|txt)$
+
+- id: agentsec-mcpposture
+  name: agentsec mcpposture
+  description: Grade MCP client configs (Cursor, Claude Desktop, VS Code) for least-privilege issues
+  entry: agentsec mcpposture
+  language: python
+  language_version: python3
+  files: '(^|/)(mcp\.json|\.mcp\.json|claude_desktop_config\.json|mcp_config\.json|mcp_settings\.json|cline_mcp_settings\.json)$'
+  args: ["--min-severity", "high"]
+
+- id: agentsec-rulesguard
+  name: agentsec rulesguard
+  description: Find backdoors in AGENTS.md, CLAUDE.md, and other agent rule files
+  entry: agentsec rulesguard
+  language: python
+  language_version: python3
+  files: '(^|/)(AGENTS\.md|AGENT\.md|CLAUDE\.md|GEMINI\.md|\.cursorrules|copilot-instructions\.md)$'
+  args: ["--fail-on", "high"]
+
+- id: agentsec-promptleak
+  name: agentsec promptleak
+  description: Detect system-prompt leakage in transcripts and outputs
+  entry: agentsec promptleak
+  language: python
+  language_version: python3
+  files: \.(json|jsonl|txt|md)$
+  args: ["--fail-on", "high"]
+
+- id: agentsec-hitlguard
+  name: agentsec hitlguard
+  description: Find consequential tool calls that fired without confirmation
+  entry: agentsec hitlguard
+  language: python
+  language_version: python3
+  files: \.(json|jsonl)$
+  args: ["--fail-on", "high"]
+
+- id: agentsec-memfence
+  name: agentsec memfence
+  description: Scan persistent agent memory stores for cross-session poisoning
+  entry: agentsec memfence
+  language: python
+  language_version: python3
+  files: \.(json|jsonl|txt|md)$
+  args: ["--fail-on", "high"]
+
+- id: agentsec-tmplfence
+  name: agentsec tmplfence
+  description: Scan prompt templates for user-controlled system-prompt variables
+  entry: agentsec tmplfence
+  language: python
+  language_version: python3
+  files: \.(j2|jinja|jinja2|mustache|hbs|tpl)$
+  args: ["--fail-on", "high"]
+
+- id: agentsec-schemafence
+  name: agentsec schemafence
+  description: Audit tool and MCP input schemas for unconstrained privileged parameters
+  entry: agentsec schemafence
+  language: python
+  language_version: python3
+  files: \.(json)$
+  args: ["--fail-on", "high"]

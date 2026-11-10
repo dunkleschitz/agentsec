@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>scopefit: detect over-privileged GitHub tokens used by agents in AI agents — agentsec</title>
+  <meta name="description" content="Offline least-privilege checker for GitHub tokens used by AI agents.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/scopefit/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="scopefit: detect over-privileged GitHub tokens used by agents in AI agents — agentsec">
+  <meta property="og:description" content="Offline least-privilege checker for GitHub tokens used by AI agents.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/scopefit/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="scopefit: detect over-privileged GitHub tokens used by agents in AI agents — agentsec">
+  <meta name="twitter:description" content="Offline least-privilege checker for GitHub tokens used by AI agents.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "scopefit: detect over-privileged GitHub tokens used by agents in AI agents",
+  "description": "Offline least-privilege checker for GitHub tokens used by AI agents.",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/scopefit/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a> · scopefit</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>scopefit: detect over-privileged GitHub tokens used by agents in AI agents</h1>
+    <hr class="rule">
+    <p class="lede">Offline least-privilege checker for GitHub tokens used by AI agents.</p>
+
+    <article>
+<h2 id="what-it-detects">What it detects</h2>
+<p><strong>Offline least-privilege checker for GitHub tokens used by AI agents.</strong></p>
+<p>You give scopefit two things:</p>
+<ol><li><strong>What the token was granted.</strong> You type or paste this yourself. Two formats work: a fine-grained PAT / GitHub App permission map, or a classic OAuth scope list.</li><li><strong>What the agent actually called.</strong> Either an agent transcript (JSON/JSONL) or a plain list of endpoints.</li></ol>
+<p>scopefit works out which permissions the observed GitHub REST calls need, using a bundled endpoint→permission mapping. It then reports:</p>
+<ul><li><strong>OVER-GRANTED</strong>: a permission was granted but never needed, or <code>write</code> was granted where <code>read</code> is enough. For classic tokens it also flags a scope as &quot;broader than needed&quot;, e.g. <code>repo</code> when <code>repo:status</code> would do.</li><li><strong>MISSING</strong>: a call needed a permission the token doesn&#x27;t have.</li><li><strong>UNMAPPED</strong> endpoints: calls scopefit doesn&#x27;t know about. These are listed as unknown. scopefit never guesses their permissions.</li><li><strong>HIGH-RISK grants</strong>: <code>administration</code>, <code>secrets</code>, <code>workflows</code>/<code>actions</code> write, webhooks, <code>delete_repo</code>, <code>admin:org</code>, <code>workflow</code>, <code>repo</code>, and similar. Each one says whether the observed calls actually used it.</li><li><strong>A suggested minimal grant</strong>. For classic input, it also shows the fine-grained alternative, which is the better choice.</li></ul>
+<p>It is a single file of stdlib-only Python with no dependencies, and it makes <strong>no network calls</strong>.</p>
+<h2 id="rules">Rules</h2>
+<table>
+<thead><tr><th>Option</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>-g/--grants FILE</code></td><td>Granted permissions (see formats below)</td></tr>
+<tr><td><code>-c/--calls FILE</code></td><td>Transcript (JSON/JSONL) or endpoints text; repeatable</td></tr>
+<tr><td>`--grant-type auto\</td><td>fine\</td></tr>
+<tr><td>`--calls-format auto\</td><td>transcript\</td></tr>
+<tr><td><code>--public-repos</code></td><td>Use the classic scopes for public repos</td></tr>
+<tr><td><code>--mapping FILE</code></td><td>Use an alternate mapping JSON</td></tr>
+<tr><td><code>--json</code></td><td>Machine-readable output</td></tr>
+<tr><td>`--fail-on over\</td><td>missing\</td></tr>
+</tbody>
+</table>
+<h2 id="usage">Usage</h2>
+<pre><code># classic token vs. an agent transcript
+python3 scopefit.py --grants examples/classic_overprivileged_scopes.json --calls examples/agent_transcript.jsonl
+
+# fine-grained grant vs. an endpoint list, JSON output, fail only on missing permissions
+python3 scopefit.py -g examples/fine_grained_tight.json -c examples/endpoints.txt --json --fail-on missing</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec scopefit …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
+<h2 id="example">Example output</h2>
+<p>The over-privileged classic token in <code>examples/</code> checked against a fake triage-agent transcript (exit code 1):</p>
+<p>The same transcript checked against <code>examples/fine_grained_tight.json</code>: 0 over-granted, 0 missing, exit 0.</p>
+<p>Captured against the bundled fixtures (fake data only):</p>
+<pre><code>$ python3 scopefit.py examples/endpoints.txt --fail-on none
+usage: scopefit [-h] --grants GRANTS --calls CALLS
+                [--grant-type {auto,fine,classic}]
+                [--calls-format {auto,transcript,endpoints}]
+                [--mapping MAPPING] [--public-repos] [--json]
+                [--fail-on {over,missing,any,none}] [--version]
+scopefit: error: the following arguments are required: --grants/-g, --calls/-c</code></pre>
+<h2 id="sarif-ci">SARIF and CI</h2>
+<pre><code>agentsec scopefit path/to/input --json &gt; scopefit.json
+# scopefit does not yet emit SARIF; use --json and keep --fail-on for CI.
+
+# GitHub Actions (composite action ships with the repo)
+- uses: dunkleschitz/agentsec@v0
+  with:
+    tools: scopefit
+    paths: path/to/input
+    fail-on: high
+</code></pre><p><code>--sarif</code> is not available on this tool yet (resultguard and toolpoison are reserved as good first issues). Use <code>--json</code> and a <code>--fail-on</code> exit gate instead.</p>
+<h2 id="owasp">OWASP mapping</h2>
+<p>Heuristic mapping of what this tool helps a reviewer look for. Not an official OWASP endorsement, and not complete coverage of any item. Sources: <a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a> and <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a>.</p><ul><li><strong>LLM06 Excessive Agency</strong> — OWASP LLM Top 10 (2025)</li><li><strong>ASI03 Identity and Privilege Abuse</strong> — OWASP Agentic Top 10 (2026)</li></ul>
+<h2 id="limits">Known limits</h2>
+<ul><li><strong>scopefit cannot see your real token&#x27;s scopes.</strong> It never calls GitHub. The grant is whatever *you* supply. If that file is wrong, the results are wrong. (A classic token&#x27;s scopes show up in the <code>X-OAuth-Scopes</code> response header. Fine-grained permissions appear in the token settings page.)</li><li><strong>Observed usage covers only the runs you give it.</strong> Future runs, other prompts, or error paths may need more permissions. Treat the suggestion as a starting point and re-check after changes.</li><li><strong>GraphQL is not covered.</strong> GraphQL calls (<code>gh api graphql</code>, <code>POST /graphql</code>) are counted and reported but not analyzed.</li><li><strong>The mapping is a subset.</strong> <code>scopefit_mapping.json</code> covers 77 common endpoints: contents, issues, pulls, comments, labels, Actions runs/workflows/dispatches, releases, branches/protection, commits, statuses/checks, repo metadata, user, orgs/members, gists, hooks, secrets, deployments, search, and rate_limit. It is a <strong>best-effort</strong> reading of the GitHub REST docs and <strong>may be out of date or wrong</strong>. Anything else is reported as UNMAPPED. Some endpoints depend on context (for example, writing to <code>.github/workflows/</code> also needs <code>workflows</code>; commenting on a PR may need <code>pull_requests</code>). Those cases are noted in the mapping rather than modeled.</li><li>Classic tokens: by default scopefit assumes <strong>private</strong> repos (<code>repo</code>). Pass <code>--public-repos</code> if the agent only touches public repos; then <code>public_repo</code> is used, or no scope at all for reads.</li><li>Extraction is heuristic. It reads tool-call <strong>arguments</strong> only, never tool results: <code>method</code>+<code>url</code>/<code>path</code>/<code>endpoint</code> fields, plus <code>curl</code> and <code>gh api</code> commands inside shell strings. Named MCP tools such as <code>create_issue</code> are not mapped to endpoints.</li></ul>
+<p>Full source, tests, and fixtures: <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/scopefit">tools/scopefit/</a> in the repository. Install the kit with <code>pip install git+https://github.com/dunkleschitz/agentsec.git</code>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

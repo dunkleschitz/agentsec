@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>yolocheck: detect over-permissive coding-agent settings in AI agents — agentsec</title>
+  <meta name="description" content="Offline, stdlib-only Python 3 CLI that audits coding-agent permission / autonomy settings files for risky over-permissioning: wildcard shell allows…">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/yolocheck/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="yolocheck: detect over-permissive coding-agent settings in AI agents — agentsec">
+  <meta property="og:description" content="Offline, stdlib-only Python 3 CLI that audits coding-agent permission / autonomy settings files for risky over-permissioning: wildcard shell allows…">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/yolocheck/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="yolocheck: detect over-permissive coding-agent settings in AI agents — agentsec">
+  <meta name="twitter:description" content="Offline, stdlib-only Python 3 CLI that audits coding-agent permission / autonomy settings files for risky over-permissioning: wildcard shell allows…">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "yolocheck: detect over-permissive coding-agent settings in AI agents",
+  "description": "Offline, stdlib-only Python 3 CLI that audits coding-agent permission / autonomy settings files for risky over-permissioning: wildcard shell allows…",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/yolocheck/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a> · yolocheck</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>yolocheck: detect over-permissive coding-agent settings in AI agents</h1>
+    <hr class="rule">
+    <p class="lede">Offline, stdlib-only Python 3 CLI that audits coding-agent permission / autonomy settings files for risky over-permissioning: wildcard shell allows, interpreters and network tools on auto-approve, bypass / YOLO modes, disabled sandboxes, hooks that run curl | sh or ship your env to a server, filesystem scopes that include / or your home directory, and more. Each file gets a grade A–F.</p>
+
+    <article>
+<h2 id="what-it-detects">What it detects</h2>
+<p>Offline, stdlib-only Python 3 CLI that audits <strong>coding-agent permission / autonomy settings files</strong> for risky over-permissioning: wildcard shell allows, interpreters and network tools on auto-approve, bypass / YOLO modes, disabled sandboxes, hooks that run <code>curl | sh</code> or ship your env to a server, filesystem scopes that include <code>/</code> or your home directory, and more. Each file gets a grade A–F.</p>
+<p>Supported (best-effort) inputs:</p>
+<table>
+<thead><tr><th>Harness</th><th>Files auto-discovered in directories</th><th>What is evaluated</th></tr></thead>
+<tbody>
+<tr><td>Claude Code</td><td><code>.claude/settings.json</code>, <code>.claude/settings.local.json</code> (pass <code>~/.claude/settings.json</code> explicitly)</td><td><code>permissions.allow/deny/defaultMode/additionalDirectories</code>, <code>hooks</code>, <code>statusLine</code>, <code>apiKeyHelper</code> &amp; other helpers, <code>enableAllProjectMcpServers</code></td></tr>
+<tr><td>OpenAI Codex CLI</td><td><code>.codex/config.toml</code>, <code>config.toml</code></td><td><code>sandbox_mode</code>, <code>approval_policy</code>, <code>[sandbox_workspace_write] network_access / writable_roots</code>, <code>[profiles.*]</code>, <code>[projects.*] trust_level</code>, <code>notify</code></td></tr>
+<tr><td>Gemini CLI</td><td><code>.gemini/settings.json</code></td><td>yolo / approval mode keys, <code>autoAccept</code>, <code>tools.allowed</code>, <code>mcpServers.*.trust</code>, hooks</td></tr>
+<tr><td>VS Code (Copilot agent)</td><td><code>.vscode/settings.json</code></td><td><code>chat.tools.autoApprove</code>, <code>chat.tools.global.autoApprove</code>, <code>chat.tools.terminal.autoApprove</code> (and older terminal allow-list keys), <code>chat.tools.urls.autoApprove</code>, <code>chat.tools.edits.autoApprove</code></td></tr>
+<tr><td>Cursor (CLI-style permissions)</td><td><code>.cursor/cli.json</code>, <code>.cursor/cli-config.json</code></td><td><code>permissions.allow/deny</code> with <code>Shell(...)</code>/<code>Read(...)</code>/<code>Write(...)</code>, plus recognizable allowlist / yolo / auto-run keys</td></tr>
+</tbody>
+</table>
+<p>Files passed explicitly are recognized by content shape even with other names. JSONC (<code>//</code> and <code>/* */</code> comments, trailing commas) is accepted.</p>
+<h2 id="rules">Rules</h2>
+<table>
+<thead><tr><th>ID</th><th>Default severity</th><th>Title</th></tr></thead>
+<tbody>
+<tr><td>YC01</td><td>high</td><td>Unrestricted shell auto-approved</td></tr>
+<tr><td>YC02</td><td>high</td><td>Arbitrary-code interpreter auto-approved</td></tr>
+<tr><td>YC03</td><td>medium</td><td>Network tool auto-approved</td></tr>
+<tr><td>YC04</td><td>high</td><td>Privilege escalation auto-approved</td></tr>
+<tr><td>YC05</td><td>medium</td><td>Destructive or publishing command auto-approved</td></tr>
+<tr><td>YC06</td><td>medium</td><td>Unrestricted web fetch auto-approved</td></tr>
+<tr><td>YC07</td><td>medium</td><td>Secrets not protected while reads are broad</td></tr>
+<tr><td>YC08</td><td>high</td><td>Permission prompts bypassed</td></tr>
+<tr><td>YC09</td><td>high</td><td>Codex sandbox disabled (danger-full-access)</td></tr>
+<tr><td>YC10</td><td>high</td><td>Approvals disabled (approval_policy = never)</td></tr>
+<tr><td>YC11</td><td>medium</td><td>Sandbox network access enabled</td></tr>
+<tr><td>YC12</td><td>high</td><td>Global auto-approve / YOLO mode</td></tr>
+<tr><td>YC13</td><td>high</td><td>Hook/helper downloads-and-executes or exfiltrates</td></tr>
+<tr><td>YC14</td><td>medium</td><td>Hook/helper uses world-writable path</td></tr>
+<tr><td>YC15</td><td>high</td><td>Filesystem scope includes root or home</td></tr>
+<tr><td>YC16</td><td>medium</td><td>All project MCP servers auto-enabled</td></tr>
+<tr><td>YC17</td><td>info</td><td>Unrecognized key or shape</td></tr>
+</tbody>
+</table>
+<h2 id="usage">Usage</h2>
+<pre><code>yolocheck .                                   # discover settings files under the current repo
+yolocheck ~/.claude/settings.json ~/.codex/config.toml
+yolocheck . --min-severity medium             # hide low/info
+yolocheck . --json &gt; yolocheck.json
+yolocheck . --sarif &gt; yolocheck.sarif         # SARIF 2.1.0 for code-scanning UIs
+yolocheck . --fail-on medium                  # CI gate
+yolocheck . --disable YC17,YC05
+yolocheck --list-rules</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec yolocheck …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
+<h2 id="example">Example output</h2>
+<p><code>examples/risky/</code> is a <strong>FAKE</strong>, deliberately over-permissioned set (all 17 rules fire, exit 1); <code>examples/clean/</code> is a tight set (0 findings, grade A, exit 0).</p>
+<p>Captured against the bundled fixtures (fake data only):</p>
+<pre><code>$ python3 yolocheck.py examples/risky/.gemini/settings.json --fail-on none
+yolocheck 0.1.0 - 1 file(s) scanned
+
+examples/risky/.gemini/settings.json  [gemini]  grade F (score 17; 2 high, 2 medium, 1 low, 0 info)
+  SEV     RULE  LINE  LOCATION                                 MESSAGE
+  high    YC01  6     tools.allowed[0]                         Unrestricted shell auto-approved: run_shell_command
+                      fix: Remove the wildcard; allow only specific, read-mostly commands (e.g. Bash(npm run test:*), Bash(git status)) and keep everything else on &#x27;ask&#x27;.
+  high    YC12  3     general.defaultApprovalMode              general.defaultApprovalMode = yolo (all tool calls auto-approved)
+                      fix: Turn global auto-approve off; approve individual low-risk tools instead.
+  medium  YC03  6     tools.allowed[1]                         Network tool auto-approved: run_shell_command(curl)
+                      fix: Move network tools to &#x27;ask&#x27; or deny; use a domain-restricted fetch tool (e.g. WebFetch(domain:docs.example.com)) instead.
+  medium  YC12  9     mcpServers.random-server.trust           MCP server &#x27;random-server&#x27; is trusted (its tool calls skip confirmation)
+                      fix: Turn global auto-approve off; approve individual low-risk tools instead.
+  low     YC12  5     tools.autoAccept                         tools.autoAccept is true (auto-accepts tool calls Gemini deems safe)
+                      fix: Turn global auto-approve off; approve individual low-risk tools instead.
+
+Total: 2 high, 2 medium, 1 low, 0 info</code></pre>
+<h2 id="sarif-ci">SARIF and CI</h2>
+<pre><code>agentsec yolocheck path/to/input --sarif &gt; yolocheck.sarif
+
+# GitHub Actions (composite action ships with the repo)
+- uses: dunkleschitz/agentsec@v0
+  with:
+    tools: yolocheck
+    paths: path/to/input
+    fail-on: high
+</code></pre><p>SARIF 2.1.0 can be uploaded to GitHub code scanning. The composite action writes per-tool reports under <code>agentsec-sarif/</code> by default.</p>
+<h2 id="owasp">OWASP mapping</h2>
+<p>Heuristic mapping of what this tool helps a reviewer look for. Not an official OWASP endorsement, and not complete coverage of any item. Sources: <a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a> and <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a>.</p><ul><li><strong>LLM06 Excessive Agency</strong> — OWASP LLM Top 10 (2025)</li><li><strong>ASI02 Tool Misuse and Exploitation</strong> — OWASP Agentic Top 10 (2026)</li></ul>
+<h2 id="limits">Known limits</h2>
+<p class="note">Heuristic scanner, not a security boundary. A clean result does not mean something is safe. All example secrets in this repository are fake.</p>
+<p>Full source, tests, and fixtures: <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/yolocheck">tools/yolocheck/</a> in the repository. Install the kit with <code>pip install git+https://github.com/dunkleschitz/agentsec.git</code>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

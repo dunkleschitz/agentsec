@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tools — agentsec</title>
+  <meta name="description" content="Reference pages for all 35 agentsec tools: what each one detects, how to run it, example output, SARIF/CI snippets, and OWASP mappings.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="Tools — agentsec">
+  <meta property="og:description" content="Reference pages for all 35 agentsec tools: what each one detects, how to run it, example output, SARIF/CI snippets, and OWASP mappings.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Tools — agentsec">
+  <meta name="twitter:description" content="Reference pages for all 35 agentsec tools: what each one detects, how to run it, example output, SARIF/CI snippets, and OWASP mappings.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Tools",
+  "description": "Reference pages for all 35 agentsec tools: what each one detects, how to run it, example output, SARIF/CI snippets, and OWASP mappings.",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  }
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>Tools</h1>
+    <hr class="rule">
+
+    <p class="lede">One page per tool, generated from the tool README. What it detects, how to run it, example output, a SARIF/CI snippet, and the OWASP mapping.</p>
+    <div class="tools">
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/agentcard/">agentcard</a></strong><p>Auth and injection issues in A2A Agent Cards</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/agentci/">agentci</a></strong><p>Prompt injection in AI-agent GitHub Actions</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/aibom/">aibom</a></strong><p>Shadow-AI inventory drift in a repository</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/canarytrap/">canarytrap</a></strong><p>Prompt-injection resistance with canary payloads</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/ctxbudget/">ctxbudget</a></strong><p>Oversized tool results and context blowups</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/fetchfence/">fetchfence</a></strong><p>SSRF and destination risk in fetched URLs</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/hitlguard/">hitlguard</a></strong><p>Missing human approval on consequential tool calls</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/loopguard/">loopguard</a></strong><p>Runaway loops and retry storms</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/mcpposture/">mcpposture</a></strong><p>Least-privilege issues in MCP client configs</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/mcpsink/">mcpsink</a></strong><p>Taint from MCP arguments into dangerous sinks</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/memfence/">memfence</a></strong><p>Poisoning in persistent agent memory</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/modelpin/">modelpin</a></strong><p>Floating model aliases and mid-run switches</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/outfence/">outfence</a></strong><p>Dangerous LLM output before it is rendered</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/pathfence/">pathfence</a></strong><p>Sensitive file paths an agent touched</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/pickleprobe/">pickleprobe</a></strong><p>Code-execution risk in pickle model files</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/piiguard/">piiguard</a></strong><p>PII in agent transcripts</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/promptleak/">promptleak</a></strong><p>System-prompt leakage in transcripts</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/ragsieve/">ragsieve</a></strong><p>Indirect prompt injection in RAG documents</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/resultguard/">resultguard</a></strong><p>Indirect prompt injection in tool results</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/rulesguard/">rulesguard</a></strong><p>Backdoors in AGENTS.md and rule files</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/rundiff/">rundiff</a></strong><p>Behavioral drift between agent runs</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/runledger/">runledger</a></strong><p>Token and cost overruns in agent runs</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/schemafence/">schemafence</a></strong><p>Unconstrained high-privilege tool parameters</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/scopefit/">scopefit</a></strong><p>Over-privileged GitHub tokens used by agents</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/secretflow/">secretflow</a></strong><p>Secrets flowing into later tool arguments</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/shellfence/">shellfence</a></strong><p>Dangerous shell commands an agent ran</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/slopcheck/">slopcheck</a></strong><p>Hallucinated and typo-squatted package names</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/tmplfence/">tmplfence</a></strong><p>Prompt-template injection in system prompts</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/toolgate/">toolgate</a></strong><p>Policy violations in agent tool calls</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/toolpin/">toolpin</a></strong><p>MCP tool drift and rug-pulls</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/toolpoison/">toolpoison</a></strong><p>Hidden instructions and rug-pulls in MCP manifests</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/tracesweep/">tracesweep</a></strong><p>Secrets leaked into agent transcripts</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/trifecta/">trifecta</a></strong><p>The lethal trifecta across an agent&#x27;s tools</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/vibeaudit/">vibeaudit</a></strong><p>Security smells in AI-written code</p></div>
+      <div class="tool"><strong><a href="https://dunkleschitz.github.io/agentsec/tools/yolocheck/">yolocheck</a></strong><p>Over-permissive coding-agent settings</p></div>
+    </div>
+    <p class="note">These pages are generated by <code>scripts/generate_tool_pages.py</code> so they stay in sync with <code>tools/*/README.md</code>. Heuristic scanners, not a security boundary. All example secrets are fake.</p>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

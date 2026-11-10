@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>slopcheck: detect hallucinated and typo-squatted package names in AI agents — agentsec</title>
+  <meta name="description" content="Offline, stdlib-only Python 3 CLI that flags hallucinated-package / slopsquatting risk in the dependency lists and imports that AI coding assistants produce.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/slopcheck/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="slopcheck: detect hallucinated and typo-squatted package names in AI agents — agentsec">
+  <meta property="og:description" content="Offline, stdlib-only Python 3 CLI that flags hallucinated-package / slopsquatting risk in the dependency lists and imports that AI coding assistants produce.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/slopcheck/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="slopcheck: detect hallucinated and typo-squatted package names in AI agents — agentsec">
+  <meta name="twitter:description" content="Offline, stdlib-only Python 3 CLI that flags hallucinated-package / slopsquatting risk in the dependency lists and imports that AI coding assistants produce.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "slopcheck: detect hallucinated and typo-squatted package names in AI agents",
+  "description": "Offline, stdlib-only Python 3 CLI that flags hallucinated-package / slopsquatting risk in the dependency lists and imports that AI coding assistants produce.",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/slopcheck/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a> · slopcheck</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>slopcheck: detect hallucinated and typo-squatted package names in AI agents</h1>
+    <hr class="rule">
+    <p class="lede">Offline, stdlib-only Python 3 CLI that flags hallucinated-package / slopsquatting risk in the dependency lists and imports that AI coding assistants produce.</p>
+
+    <article>
+<h2 id="what-it-detects">What it detects</h2>
+<p>Offline, stdlib-only Python 3 CLI that flags <strong>hallucinated-package / slopsquatting risk</strong> in the dependency lists and imports that AI coding assistants produce.</p>
+<p>AI assistants sometimes invent plausible package names (<code>langchain-utils-pro</code>, <code>python-openai-helper</code>) or make typos (<code>reqeusts</code>). Attackers can register those names (&quot;slopsquatting&quot;) and wait for someone to install them. slopcheck gives you a quick, offline first pass so you know <strong>which names to go verify by hand</strong>.</p>
+<h2 id="rules">Rules</h2>
+<table>
+<thead><tr><th>ID</th><th>Severity</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>SC01</td><td>info</td><td>Not in snapshot or allowlist: unverified, check the registry yourself</td></tr>
+<tr><td>SC02</td><td>high</td><td>Near-miss of a well-known name: Damerau-Levenshtein ≤1 (names ≤6 chars) or ≤2, separator confusion (<code>pythondateutil</code>), npm case confusion (<code>React</code>)</td></tr>
+<tr><td>SC03</td><td>medium</td><td>Hallucination shape: popular base + generic affixes (<code>-utils</code>, <code>-helper</code>, <code>-sdk</code>, <code>-api</code>, <code>-py</code>, <code>python-</code>, <code>-js</code>, <code>-pro</code>, ...) where the combination is unknown</td></tr>
+<tr><td>SC04</td><td>medium</td><td>Ecosystem confusion: npm-only name in Python deps (<code>axios</code> in requirements.txt) or vice versa</td></tr>
+<tr><td>SC05</td><td>low</td><td>Unpinned / loose version (<code>pandas</code>, <code>&gt;=1.0</code>, <code>*</code>, <code>latest</code>)</td></tr>
+<tr><td>SC06</td><td>medium</td><td>Direct URL / VCS / git dependency bypasses the registry</td></tr>
+<tr><td>SC07</td><td>low</td><td>Imported but not declared (only when manifests <strong>and</strong> sources of that ecosystem are scanned)</td></tr>
+<tr><td>SC08</td><td>low</td><td>Declared but never imported (dev deps and common tools like pytest/black are skipped)</td></tr>
+</tbody>
+</table>
+<h2 id="usage">Usage</h2>
+<pre><code>python3 slopcheck.py [PATHS ...]            # files or directories, default &quot;.&quot;
+  --allow FILE          allowlist, one name per line (# comments ok; repeatable)
+  --known FILE          use another snapshot JSON ({&quot;pypi&quot;: [...], &quot;npm&quot;: [...]})
+  --json | --sarif      JSON or SARIF 2.1.0 output (default: text table)
+  --min-severity LEVEL  info|low|medium|high (default info)
+  --fail-on LEVEL       high|medium|low|any|none (default high) -&gt; exit 1
+  --no-usage            skip SC07/SC08
+  --list-rules</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec slopcheck …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
+<h2 id="example">Example output</h2>
+<p>The full <code>examples/risky/</code> directory (requirements.txt + package.json + app.py + index.js, all <strong>fake</strong> names, do not install) produces 41 findings (7 high) and exits 1; <code>examples/clean/</code> produces no findings and exits 0.</p>
+<p>CI example:</p>
+<p>Captured against the bundled fixtures (fake data only):</p>
+<pre><code>$ python3 slopcheck.py examples/clean/package.json --fail-on none
+slopcheck: no findings in 1 file(s) (3 declared, 0 imports).
+note: snapshot-based offline heuristics; cannot confirm a package exists or is safe. Verify flagged names on pypi.org / npmjs.com yourself.</code></pre>
+<h2 id="sarif-ci">SARIF and CI</h2>
+<pre><code>agentsec slopcheck path/to/input --sarif &gt; slopcheck.sarif
+
+# GitHub Actions (composite action ships with the repo)
+- uses: dunkleschitz/agentsec@v0
+  with:
+    tools: slopcheck
+    paths: path/to/input
+    fail-on: high
+</code></pre><p>SARIF 2.1.0 can be uploaded to GitHub code scanning. The composite action writes per-tool reports under <code>agentsec-sarif/</code> by default.</p>
+<h2 id="owasp">OWASP mapping</h2>
+<p>Heuristic mapping of what this tool helps a reviewer look for. Not an official OWASP endorsement, and not complete coverage of any item. Sources: <a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a> and <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a>.</p><ul><li><strong>LLM03 Supply Chain</strong> — OWASP LLM Top 10 (2025)</li><li><strong>LLM09 Misinformation</strong> — OWASP LLM Top 10 (2025)</li><li><strong>ASI04 Agentic Supply Chain Vulnerabilities</strong> — OWASP Agentic Top 10 (2026)</li></ul>
+<h2 id="limits">Known limits</h2>
+<p class="note">Heuristic scanner, not a security boundary. A clean result does not mean something is safe. All example secrets in this repository are fake.</p>
+<p>Full source, tests, and fixtures: <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/slopcheck">tools/slopcheck/</a> in the repository. Install the kit with <code>pip install git+https://github.com/dunkleschitz/agentsec.git</code>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

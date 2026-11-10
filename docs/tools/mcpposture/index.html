@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>mcpposture: detect least-privilege issues in MCP client configs in AI agents — agentsec</title>
+  <meta name="description" content="An offline, standard-library-only Python 3 CLI that audits MCP (Model Context Protocol) client configuration files for least-privilege and supply-chain…">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/mcpposture/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="mcpposture: detect least-privilege issues in MCP client configs in AI agents — agentsec">
+  <meta property="og:description" content="An offline, standard-library-only Python 3 CLI that audits MCP (Model Context Protocol) client configuration files for least-privilege and supply-chain…">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/mcpposture/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="mcpposture: detect least-privilege issues in MCP client configs in AI agents — agentsec">
+  <meta name="twitter:description" content="An offline, standard-library-only Python 3 CLI that audits MCP (Model Context Protocol) client configuration files for least-privilege and supply-chain…">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "mcpposture: detect least-privilege issues in MCP client configs in AI agents",
+  "description": "An offline, standard-library-only Python 3 CLI that audits MCP (Model Context Protocol) client configuration files for least-privilege and supply-chain…",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/mcpposture/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a> · mcpposture</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>mcpposture: detect least-privilege issues in MCP client configs in AI agents</h1>
+    <hr class="rule">
+    <p class="lede">An offline, standard-library-only Python 3 CLI that audits MCP (Model Context Protocol) client configuration files for least-privilege and supply-chain risk: plaintext secrets, unpinned npx/uvx packages, privileged Docker launches, over-broad filesystem roots, shell-capable servers, plaintext or credential-bearing remote URLs, and more. It prints masked findings, a per-server risk summary and an overall A–F grade.</p>
+
+    <article>
+<h2 id="what-it-detects">What it detects</h2>
+<p>An offline, standard-library-only Python 3 CLI that audits <strong>MCP (Model Context Protocol) client configuration files</strong> for least-privilege and supply-chain risk: plaintext secrets, unpinned <code>npx</code>/<code>uvx</code> packages, privileged Docker launches, over-broad filesystem roots, shell-capable servers, plaintext or credential-bearing remote URLs, and more. It prints masked findings, a per-server risk summary and an overall A–F grade.</p>
+<blockquote><p><strong>Honesty note.</strong> mcpposture is a <strong>static config review only</strong>. It never launches servers, resolves packages or touches the network. It <strong>cannot see what a server actually does at runtime</strong> (a perfectly pinned package can still be malicious), it <strong>cannot verify token scopes or whether a key is live</strong>, and every rule is a heuristic with false positives and false negatives (e.g. MP07 &quot;shell-capable&quot; is name-based). A grade of <strong>A means &quot;no smells found by these rules&quot;</strong>, not &quot;safe&quot;.</p></blockquote>
+<h2 id="rules">Rules</h2>
+<table>
+<thead><tr><th>ID</th><th>Severity</th><th>Name</th><th>What it flags</th><th>Fix hint</th></tr></thead>
+<tbody>
+<tr><td>MP01</td><td>high</td><td>inline-secret</td><td>Secret value is stored in plaintext in the config file (env, header, or arg); config files get synced, shared, committed and read by other tools.</td><td>Reference it instead: ${VAR}/${env:VAR}, VS Code ${input:id} with password:true, or an OS keychain/secret manager.</td></tr>
+<tr><td>MP02</td><td>high</td><td>inline-bearer-token</td><td>Authorization header carries a literal Bearer/Basic credential.</td><td>Use ${input:...}/${env:...} substitution or the client&#x27;s OAuth flow instead of a pasted token.</td></tr>
+<tr><td>MP03</td><td>medium</td><td>unpinned-package</td><td>Package/image is fetched at launch without an exact version (or @latest); a compromised or hijacked release runs with your privileges on next start.</td><td>Pin an exact version (pkg@1.2.3, pkg==1.2.3, image@sha256:...) and review upgrades deliberately.</td></tr>
+<tr><td>MP04</td><td>low</td><td>auto-install-no-prompt</td><td><code>npx -y</code>/<code>--yes</code> installs whatever resolves without confirmation.</td><td>Pin the version; preferably install once to a vetted location and run the local binary.</td></tr>
+<tr><td>MP05</td><td>high</td><td>docker-privileged</td><td>Container launched with privileges that weaken isolation (privileged, host network/pid/ipc, added caps, host root or docker.sock mounts, unconfined seccomp/apparmor).</td><td>Drop the flag; mount only the specific directories needed, read-only where possible; never mount docker.sock.</td></tr>
+<tr><td>MP06</td><td>high</td><td>broad-filesystem-root</td><td>Filesystem-type server is granted an over-broad root (/, ~, $HOME, a whole user profile, drive root, /etc ...), exposing SSH keys, browser profiles, cloud creds.</td><td>Grant only the project directories the agent needs.</td></tr>
+<tr><td>MP07</td><td>medium</td><td>shell-capable-server</td><td>Server is launched through a shell or looks like a shell/terminal/exec MCP server (heuristic, by name). Such servers give the model arbitrary command execution.</td><td>Prefer narrowly-scoped servers; require per-call confirmation; run in a sandbox/container with no secrets.</td></tr>
+<tr><td>MP08</td><td>high</td><td>plaintext-remote</td><td>Remote MCP server reached over plain http:// / ws:// to a non-localhost host; traffic and tokens can be read or modified in transit.</td><td>Use https:// (wss://).</td></tr>
+<tr><td>MP09</td><td>high</td><td>credential-in-url</td><td>Remote URL embeds credentials in userinfo or a secret-looking query parameter; URLs leak into logs, history and proxies.</td><td>Move the credential to a header populated from ${input:...}/${env:...} or use OAuth.</td></tr>
+<tr><td>MP10</td><td>high</td><td>untrusted-exec-path</td><td>Command or script runs from a world-writable/temp/download location that other users or processes can replace.</td><td>Install the binary/script to a user-owned, non-writable-by-others location.</td></tr>
+<tr><td>MP11</td><td>critical</td><td>pipe-to-shell</td><td>Launch arguments download and execute remote code (curl\</td><td>sh, wget\</td></tr>
+<tr><td>MP12</td><td>medium</td><td>broad-scope-credential</td><td>Credential type cannot be narrowly scoped or is long-lived (GitHub classic PAT ghp_, AWS long-term AKIA key, live payment key). Actual scopes cannot be verified offline.</td><td>Use fine-grained/short-lived credentials (github_pat_ fine-grained, AWS SSO/STS role, restricted keys).</td></tr>
+<tr><td>MP13</td><td>low</td><td>secret-concentration</td><td>Many secret-bearing variables are handed to a single server, enlarging blast radius if it is compromised.</td><td>Split responsibilities; give each server only the credential it needs.</td></tr>
+<tr><td>MP14</td><td>high</td><td>tls-verification-disabled</td><td>Environment disables TLS certificate verification (NODE_TLS_REJECT_UNAUTHORIZED=0, PYTHONHTTPSVERIFY=0, ...).</td><td>Remove the override; add a proper CA bundle if needed (NODE_EXTRA_CA_CERTS / SSL_CERT_FILE).</td></tr>
+<tr><td>MP15</td><td>medium</td><td>code-injection-env</td><td>Environment sets loader/interpreter injection variables (LD_PRELOAD, DYLD_INSERT_LIBRARIES, NODE_OPTIONS --require, PYTHONSTARTUP...).</td><td>Remove unless strictly required and the referenced code is trusted.</td></tr>
+<tr><td>MP16</td><td>low</td><td>unmasked-secret-input</td><td>VS Code <code>inputs</code> entry looks like a secret but is not declared with &quot;password&quot;: true, so it is echoed when typed.</td><td>Add &quot;password&quot;: true to the input definition.</td></tr>
+<tr><td>MP17</td><td>info</td><td>duplicate-server-name</td><td>Same server name defined in multiple files; which one wins depends on the client and precedence can surprise you.</td><td>Rename or remove one definition.</td></tr>
+<tr><td>MP18</td><td>info</td><td>duplicate-package</td><td>Same package/image launched by more than one server entry (possibly with different versions/credentials).</td><td>Consolidate into a single entry.</td></tr>
+</tbody>
+</table>
+<h2 id="usage">Usage</h2>
+<pre><code>python3 mcpposture.py ~/Library/Application\ Support/Claude/claude_desktop_config.json
+python3 mcpposture.py .                      # discover configs under the project
+python3 mcpposture.py .cursor/mcp.json --json
+python3 mcpposture.py . --sarif &gt; mcpposture.sarif
+python3 mcpposture.py . --min-severity high  # only high/critical (and exit on them)
+python3 mcpposture.py . --select MP01,MP02,MP09   # only secret rules
+python3 mcpposture.py . --ignore MP07 --exit-zero
+python3 mcpposture.py --list-rules</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec mcpposture …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
+<h2 id="example">Example output</h2>
+<p><code>examples/vscode-project</code> (exit code 1):</p>
+<p><code>examples/risky_claude_desktop_config.json</code> triggers MP01–MP15 (34 findings, grade F; all secrets in it are fake). Excerpt with <code>--select MP01,MP05,MP06,MP08</code>:</p>
+<p><code>examples/clean_mcp.json</code> (pinned versions, digest-pinned image, <code>${VAR}</code> references, narrow filesystem root, https remote) → no findings, grade A, exit 0. Scanning the whole <code>examples/</code> dir at <code>--min-severity info</code> also shows MP17/MP18 duplicate notices.</p>
+<p>Captured against the bundled fixtures (fake data only):</p>
+<pre><code>$ python3 mcpposture.py examples/risky_claude_desktop_config.json
+mcpposture 0.1.0 - static MCP config posture review (offline; heuristics, not runtime analysis)
+
+== examples/risky_claude_desktop_config.json
+   CRITICAL MP05 L27   [docker-tools] container runs --privileged (full host device &amp; capability access)
+            evidence: --privileged
+            fix: Drop the flag; mount only the specific directories needed, read-only where possible; never mount docker.sock.
+   CRITICAL MP05 L27   [docker-tools] container adds Linux capability SYS_ADMIN
+            evidence: --cap-add SYS_ADMIN
+            fix: Drop the flag; mount only the specific directories needed, read-only where possible; never mount docker.sock.
+   CRITICAL MP05 L27   [docker-tools] Docker socket mounted into container (equivalent to root on host)
+            evidence: -v /var/run/docker.sock:/var/run/docker.sock
+            fix: Drop the flag; mount only the specific directories needed, read-only where possible; never mount docker.sock.
+   CRITICAL MP05 L27   [docker-tools] host root filesystem mounted into container: /:/host
+            evidence: -v /:/host
+            fix: Drop the flag; mount only the specific directories needed, read-only where possible; never mount docker.sock.
+   CRITICAL MP11 L36   [shell] arguments download and execute remote code
+            evidence: bash -c curl -fsSL https://installer.example.invalid/mcp.sh | sh
+            fix: Download, verify (checksum/signature), and pin a local copy.
+   HIGH     MP01 L4    [github] inline secret in env GITHUB_PERSONAL_ACCESS_TOKEN (GitHub classic PAT)
+            evidence: GITHUB_PERSONAL_ACCESS_TOKEN=ghp_****(40 chars)
+            fix: Reference it instead: ${VAR}/${env:VAR}, VS Code ${input:id} with password:true, or an OS keychain/secret manager.
+   HIGH     MP06 L11   [filesystem] filesystem server granted filesystem root: /
+            evidence: /
+            fix: Grant only the project directories the agent needs.
+   HIGH     MP06 L11   [filesystem] filesystem server granted entire home directory: ~
+            evidence: ~
+            fix: Grant only the project directories the agent needs.
+   HIGH     MP01 L15   [aws-everything] inline secret in env AWS_ACCESS_KEY_ID (AWS access key id)
+            evidence: AWS_ACCESS_KEY_ID=AKIA****(20 chars)
+            fix: Reference it instead: ${VAR}/${env:VAR}, VS Code ${input:id} with password:true, or an OS keychain/secret manager.
+   HIGH     MP01 L15   [aws-everything] inline secret in env AWS_SECRET_ACCESS_KEY (secret-named key &#x27;AWS_SECRET_ACCESS_KEY&#x27;)
+            evidence: AWS_SECRET_ACCESS_KEY=fake****(40 chars)
+            fix: Reference it instead: ${VAR}/${env:VAR}, VS Code ${input:id} with password:true, or an OS keychain/secret manager.
+   HIGH     MP01 L15   [aws-everything] inline secret in env STRIPE_API_KEY (secret-named key &#x27;STRIPE_API_KEY&#x27;)
+            evidence: STRIPE_API_KEY=FAKE****(34 chars)
+            fix: Reference it instead: ${VAR}/${env:VAR}, VS Code ${input:id} with password:true, or an OS keychain/secret manager.
+   HIGH     MP01 L15   [aws-everything] inline secret in env SLACK_BOT_TOKEN (Slack token)
+            evidence: SLACK_BOT_TOKEN=xoxb****(28 chars)
+            fix: Reference it instead: ${VAR}/${env:VAR}, VS Code ${input:id} with password:true, or an OS keychain/secret manager.
+   HIGH     MP14 L15   [aws-everything] env NODE_TLS_REJECT_UNAUTHORIZED=0 disables TLS certificate verification
+… (truncated)</code></pre>
+<h2 id="sarif-ci">SARIF and CI</h2>
+<pre><code>agentsec mcpposture path/to/input --sarif &gt; mcpposture.sarif
+
+# GitHub Actions (composite action ships with the repo)
+- uses: dunkleschitz/agentsec@v0
+  with:
+    tools: mcpposture
+    paths: path/to/input
+    fail-on: high
+</code></pre><p>SARIF 2.1.0 can be uploaded to GitHub code scanning. The composite action writes per-tool reports under <code>agentsec-sarif/</code> by default.</p>
+<h2 id="owasp">OWASP mapping</h2>
+<p>Heuristic mapping of what this tool helps a reviewer look for. Not an official OWASP endorsement, and not complete coverage of any item. Sources: <a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a> and <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a>.</p><ul><li><strong>LLM03 Supply Chain</strong> — OWASP LLM Top 10 (2025)</li><li><strong>LLM06 Excessive Agency</strong> — OWASP LLM Top 10 (2025)</li><li><strong>ASI03 Identity and Privilege Abuse</strong> — OWASP Agentic Top 10 (2026)</li><li><strong>ASI04 Agentic Supply Chain Vulnerabilities</strong> — OWASP Agentic Top 10 (2026)</li></ul>
+<h2 id="limits">Known limits</h2>
+<ul><li><strong>Static config review only.</strong> No server is started and no package is</li></ul>
+<p>downloaded; what a server *does* (tools it exposes, files it reads, network calls it makes) is invisible. Pair with runtime controls, sandboxing and tool-description review (see <code>toolpoison</code> in this kit).</p>
+<ul><li><strong>Token scopes cannot be verified offline.</strong> MP12 only reasons about token</li></ul>
+<p>*type* by prefix (classic <code>ghp_</code> PATs can&#x27;t be repo-scoped; <code>AKIA</code> keys are long-lived and might be root/IAM-user keys). A fine-grained token may still be over-privileged; a flagged one may be tightly scoped.</p>
+<ul><li><strong>Heuristics have false positives and negatives.</strong> Secret detection relies on</li></ul>
+<p>key names and known token shapes; custom secret formats or oddly named keys are missed, and long non-secret values under secret-like names may be flagged. MP07 matches names like <code>shell</code>, <code>terminal</code>, <code>exec</code>, <code>ssh</code>, <code>desktop-commander</code>. MP06 only inspects positional args of filesystem-looking servers.</p>
+<ul><li>Pinning to an exact version reduces surprise upgrades but does not prove the</li></ul>
+<p>pinned release is benign; lockfiles/digests and provenance checks are out of scope.</p>
+<ul><li>Client-specific precedence (global vs. project configs, env inheritance,</li></ul>
+<p><code>envFile</code>, keychain integrations) is not modelled.</p>
+<ul><li>Line numbers point at the server&#x27;s name key, not the exact offending value.</li></ul>
+<p>Full source, tests, and fixtures: <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/mcpposture">tools/mcpposture/</a> in the repository. Install the kit with <code>pip install git+https://github.com/dunkleschitz/agentsec.git</code>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

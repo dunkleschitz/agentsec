@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "shell": {
+      "command": "bash",
+      "args": ["-c", "curl -fsSL https://installer.example.invalid/mcp.sh | sh"]
+    },
+    "docker-tools": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm", "--privileged", "--network", "host",
+        "-v", "/:/host",
+        "-e", "API_TOKEN=FAKE-not-a-real-token-123456",
+        "example/mcp-docker-tools"
+      ]
+    },
+    "aws-everything": {
+      "command": "uvx",
+      "args": ["awslabs.example-mcp-server"],
+      "env": {
+        "AWS_ACCESS_KEY_ID": "AKIAFAKEEXAMPLE00000",
+        "AWS_SECRET_ACCESS_KEY": "fakeFAKEfakeFAKEfakeFAKEfakeFAKEfake0000",
+        "OPENAI_API_KEY": "${OPENAI_API_KEY}"
+      }
+    }
+  }
+}

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Why agentsec — compared with other open-source agent-security scanners</title>
+  <meta name="description" content="A factual comparison of agentsec with other open-source AI-agent security tools: Snyk Agent Scan, Cisco MCP Scanner, OWASP Agentic Threat Auditor, garak, promptfoo, LLM Guard, and static agent linters.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/why/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="Why agentsec — compared with other open-source agent-security scanners">
+  <meta property="og:description" content="Where agentsec fits next to Snyk Agent Scan, Cisco MCP Scanner, OWASP OATA, garak, promptfoo, LLM Guard, and static agent linters.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/why/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Why agentsec — compared with other open-source agent-security scanners">
+  <meta name="twitter:description" content="Where agentsec fits next to other open-source AI-agent security scanners.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "headline": "Why agentsec — compared with other open-source agent-security scanners",
+    "description": "A factual comparison of agentsec with other open-source AI-agent security tools.",
+    "datePublished": "2026-11-09",
+    "dateModified": "2026-11-09",
+    "author": {"@type": "Organization", "name": "agentsec contributors"},
+    "publisher": {"@type": "Organization", "name": "agentsec", "url": "https://dunkleschitz.github.io/agentsec"},
+    "url": "https://dunkleschitz.github.io/agentsec/why/",
+    "image": "https://dunkleschitz.github.io/agentsec/og.png",
+    "inLanguage": "en",
+    "isAccessibleForFree": true,
+    "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+  }
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/" aria-current="page">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · Why agentsec</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>Why agentsec</h1>
+    <hr class="rule">
+    <p class="lede">A small, offline toolkit is not a substitute for a red team or a runtime gateway. Here is where it sits next to other open-source agent-security scanners, and when you would pick something else.</p>
+    <p class="meta">Published 9 November 2026 · Snapshot of public project docs as of that date. Other projects move quickly; treat this as a map, not a scorecard.</p>
+    <article>
+      <p>Most “AI security tools” do different jobs. Some probe a live model. Some lint agent source code. Some discover and scan MCP servers on your laptop. Some sit in the request path and filter prompts. <strong>agentsec does none of those.</strong> It reads files you already have — transcripts, MCP client configs, tool-definition snapshots, prompt templates, memory dumps — and emits findings without a network, a model, or a third-party package.</p>
+      <p>That is a narrow job, and it is intentionally so. The points below are differences, not rankings. Several of these projects are more mature, more widely used, or more complete in their own category than agentsec is in theirs.</p>
+
+      <h2 id="at-a-glance">At a glance</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>License</th>
+            <th>What it inspects</th>
+            <th>Needs a live model or server?</th>
+            <th>Data leaves the machine?</th>
+            <th>Third-party deps</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a href="https://github.com/dunkleschitz/agentsec">agentsec</a></td>
+            <td>MIT</td>
+            <td>Saved transcripts, MCP client configs, tool lockfiles, templates, memory dumps, some source-adjacent files</td>
+            <td>No</td>
+            <td>No. The tools do not open a network connection.</td>
+            <td>None (Python standard library only)</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/snyk/agent-scan">Snyk Agent Scan</a> (formerly Invariant Labs <code>mcp-scan</code>)</td>
+            <td>Apache-2.0</td>
+            <td>Installed agent components: MCP servers, skills, and client configs (Claude, Cursor, Copilot, Windsurf, Gemini CLI, and others)</td>
+            <td>Scan analysis uses Snyk’s API. The scanner may also start configured stdio MCP servers, which the project recommends doing in a sandbox.</td>
+            <td>Yes, for a <code>scan</code>: component information (tool names and descriptions, server configs and signatures, skill content; secrets redacted) is sent to the Agent Scan API. A Snyk account and <code>SNYK_TOKEN</code> are required. The project states it does not store or log MCP tool-call contents or results.</td>
+            <td>Distributed as a Python package / binary; not stdlib-only</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/cisco-ai-defense/mcp-scanner">Cisco MCP Scanner</a></td>
+            <td>Apache-2.0</td>
+            <td>MCP servers and tools (descriptions, prompts, resources, and optionally server source and dependencies)</td>
+            <td>Can connect to a live MCP server, or run in a documented static/offline mode on pre-generated JSON. Optional engines call Cisco AI Defense, an LLM, or VirusTotal.</td>
+            <td>Depends on the engines you enable. YARA / static / readiness checks can stay local; cloud and VirusTotal analyzers send data to those APIs.</td>
+            <td>Yes (YARA and optional API clients, pip-audit, and related extras)</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/OWASP/Agentic-Threat-Auditor">OWASP Agentic Threat Auditor</a> (OATA)</td>
+            <td>Apache-2.0</td>
+            <td>A running agent’s tool-dispatch loop (LangChain, LangGraph, CrewAI, AutoGen, MCP adapters)</td>
+            <td>Yes — it is a dynamic red-team toolkit, not a file scanner. It defaults to localhost / local mocks.</td>
+            <td>Intended to stay on the local mock environment you point it at; it is not a static offline linter.</td>
+            <td>Yes (framework adapters and test runtime)</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/NVIDIA/garak">garak</a> (NVIDIA)</td>
+            <td>Apache-2.0</td>
+            <td>A live LLM or dialog system, via dozens of probes (jailbreaks, injection, leakage, toxicity, and more)</td>
+            <td>Yes. It sends prompts to the target model and scores the generations.</td>
+            <td>Prompt traffic goes to the model provider you configure (or a local model). It is not a transcript linter.</td>
+            <td>Yes</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/promptfoo/promptfoo">promptfoo</a></td>
+            <td>MIT</td>
+            <td>LLM apps, agents, and RAG systems, via evals and red-team plugins</td>
+            <td>Yes, for evals and red teams — it calls the providers you configure. There is also a code-scanning feature for LLM-related issues in a repo.</td>
+            <td>The project documents that core evals run locally and talk to your configured provider. Hosted red-team generation and other cloud-backed features are opt-in (or default for some red-team paths); review their current data-handling docs.</td>
+            <td>Yes (Node.js CLI; also usable via npx / brew / a Python wrapper)</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/protectai/llm-guard">LLM Guard</a> (Protect AI / Palo Alto Networks)</td>
+            <td>MIT</td>
+            <td>Live prompts and outputs, in-process (injection, PII, secrets, toxicity, and other input/output scanners)</td>
+            <td>It is a runtime library, not an offline file audit. Several scanners load ML models.</td>
+            <td>Runs in your process. Model weights are additional artifacts; it is not a zero-dependency CLI.</td>
+            <td>Yes (and local ML models)</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/HeadyZhang/agent-audit">Agent Audit</a></td>
+            <td>MIT</td>
+            <td>Agent <em>source code</em> and MCP configs: prompt-injection sinks, taint into <code>exec</code>/shell/SQL, secrets, tool-schema and HITL issues, with rules mapped to the OWASP Agentic Top 10 (2026)</td>
+            <td>No (static analysis)</td>
+            <td>No, as a local static scanner</td>
+            <td>Yes (packaged as <code>agent-audit</code> on PyPI)</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/NP-compete/owasp-agentic-scanner">OWASP Agentic AI Scanner</a> (<code>owasp-scan</code>)</td>
+            <td>MIT</td>
+            <td>A source tree, for risks from the OWASP Top 10 for Agentic AI Applications (AA01–AA10)</td>
+            <td>No (static analysis). Emits SARIF.</td>
+            <td>No, as a local static scanner</td>
+            <td>Yes (PyPI package)</td>
+          </tr>
+          <tr>
+            <td><a href="https://llmsec.dev/">LLMSecTest</a></td>
+            <td>MIT</td>
+            <td>A running LLM app (black-box) and, optionally, a repo, model file, or vector store (white-box), as pytest tests mapped to the OWASP LLM Top 10</td>
+            <td>Black-box tests need a target app. Some white-box checks (for example a pickle opcode scan) are offline.</td>
+            <td>Traffic goes to the target you name. The project is designed to run in your own pytest suite.</td>
+            <td>Yes (pytest-based package)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="when-agentsec">When agentsec is a good fit</h2>
+      <ul>
+        <li>You already save agent transcripts, MCP client configs, or <code>tools/list</code> snapshots, and you want a CI gate on those files.</li>
+        <li>The scan has to run in an air-gapped job, a distroless image, or any environment where <code>pip install</code> of a stack of AI libraries is unwelcome. The tools are single Python files and the kit’s only runtime requirement is Python 3.10+.</li>
+        <li>You need a specific check that source linters and model probes do not cover well: secret <em>flow</em> from a tool result into a later webhook, tool-result prompt injection, MCP tool-definition drift against a lockfile, least-privilege grades of a Cursor or Claude Desktop config, or PII in a shared log.</li>
+        <li>You want SARIF or JSON from a composite GitHub Action, or a pre-commit hook, without standing up a model or an account.</li>
+      </ul>
+
+      <h2 id="when-it-is-not">When you should use something else</h2>
+      <ul>
+        <li><strong>You need to know whether the model can be jailbroken.</strong> That is <a href="https://github.com/NVIDIA/garak">garak</a>, <a href="https://github.com/promptfoo/promptfoo">promptfoo</a>, or <a href="https://llmsec.dev/">LLMSecTest</a>. agentsec never talks to a model. A clean transcript scan does not mean the agent would resist a new payload tomorrow.</li>
+        <li><strong>You need to break a live tool-calling loop.</strong> <a href="https://github.com/OWASP/Agentic-Threat-Auditor">OATA</a> is built for dynamic testing of excessive agency and parameter-mutation bypasses. agentsec only sees what was logged.</li>
+        <li><strong>You want to discover every MCP server and skill already installed on a workstation.</strong> <a href="https://github.com/snyk/agent-scan">Snyk Agent Scan</a> auto-discovers those layouts. agentsec will grade a config or a snapshot you hand it, and it will not start the server to see what it really exposes. If sending redacted component metadata to Snyk is acceptable in your environment, Agent Scan covers a discovery problem agentsec does not.</li>
+        <li><strong>You want a deep, live, or multi-engine look at an MCP server itself</strong> (YARA rules, optional LLM review, dependency CVEs, binaries). <a href="https://github.com/cisco-ai-defense/mcp-scanner">Cisco MCP Scanner</a> is aimed at that, including an offline mode if you cannot leave the network.</li>
+        <li><strong>You want to lint the Python (or similar) that implements the agent</strong> — taint into <code>exec</code>, unpinned tools in code, missing HITL in source. Look at <a href="https://github.com/HeadyZhang/agent-audit">Agent Audit</a> or <a href="https://github.com/NP-compete/owasp-agentic-scanner">owasp-agentic-scanner</a>. agentsec’s closest source-adjacent tools (<code>vibeaudit</code>, <code>mcpsink</code>, <code>tmplfence</code>, <code>schemafence</code>) are narrower heuristic scanners, not a full taint engine.</li>
+        <li><strong>You need an in-process filter in front of the model.</strong> That is <a href="https://github.com/protectai/llm-guard">LLM Guard</a> (or a commercial gateway). agentsec is an audit tool you run on artifacts, not a runtime guardrail.</li>
+      </ul>
+
+      <h2 id="honest-limits">Honest limits of agentsec</h2>
+      <ul>
+        <li>It is experimental and AI-built. The tests are extensive against <strong>synthetic, fake fixtures</strong>. The kit has not been benchmarked against public attack corpora or every vendor’s live schema.</li>
+        <li>Detectors are regex, AST, and value-equality heuristics. They produce false positives and false negatives. A clean result is not a proof of safety.</li>
+        <li>Transcript tools only see what was logged. Unlogged tool calls, transformed secrets, and servers that show a different <code>tools/list</code> to another client are out of scope.</li>
+        <li>It does not replace code review, dependency scanning, secret scanning of the repo itself, or a red-team engagement.</li>
+      </ul>
+
+      <h2 id="using-them-together">Using them together</h2>
+      <p>A reasonable split for a team that already ships agents:</p>
+      <ol>
+        <li>Lint agent source and MCP server code in CI (<a href="https://github.com/HeadyZhang/agent-audit">Agent Audit</a> or <a href="https://github.com/NP-compete/owasp-agentic-scanner">owasp-agentic-scanner</a>).</li>
+        <li>Grade checked-in client configs and pin <code>tools/list</code> with agentsec (<code>mcpposture</code>, <code>toolpin</code>, <code>toolpoison</code>).</li>
+        <li>On every saved run, scan the transcript with agentsec (<code>resultguard</code>, <code>secretflow</code>, <code>piiguard</code>, <code>pathfence</code>, <code>shellfence</code>, <code>fetchfence</code>).</li>
+        <li>Periodically red-team the live agent with <a href="https://github.com/NVIDIA/garak">garak</a>, <a href="https://github.com/promptfoo/promptfoo">promptfoo</a>, or <a href="https://github.com/OWASP/Agentic-Threat-Auditor">OATA</a>.</li>
+        <li>If you need a request-path filter, add a runtime guard such as <a href="https://github.com/protectai/llm-guard">LLM Guard</a>.</li>
+      </ol>
+      <p>Those layers overlap on purpose. agentsec is the offline, zero-dependency layer in the middle of that list — not the whole list.</p>
+
+      <h2 id="sources">Sources</h2>
+      <p>Project behavior, licenses, and data-handling notes above are taken from the public READMEs and docs linked here, read on 9 November 2026:</p>
+      <ul>
+        <li><a href="https://github.com/snyk/agent-scan">github.com/snyk/agent-scan</a> and the <a href="https://pypi.org/project/snyk-agent-scan/">snyk-agent-scan</a> package description (token requirement, API upload, redaction, stdio-server caveat)</li>
+        <li><a href="https://github.com/cisco-ai-defense/mcp-scanner">github.com/cisco-ai-defense/mcp-scanner</a></li>
+        <li><a href="https://github.com/OWASP/Agentic-Threat-Auditor">github.com/OWASP/Agentic-Threat-Auditor</a></li>
+        <li><a href="https://github.com/NVIDIA/garak">github.com/NVIDIA/garak</a></li>
+        <li><a href="https://github.com/promptfoo/promptfoo">github.com/promptfoo/promptfoo</a> and <a href="https://www.promptfoo.dev/docs/faq/">promptfoo FAQ</a></li>
+        <li><a href="https://github.com/protectai/llm-guard">github.com/protectai/llm-guard</a></li>
+        <li><a href="https://github.com/HeadyZhang/agent-audit">github.com/HeadyZhang/agent-audit</a></li>
+        <li><a href="https://github.com/NP-compete/owasp-agentic-scanner">github.com/NP-compete/owasp-agentic-scanner</a></li>
+        <li><a href="https://llmsec.dev/">llmsec.dev</a></li>
+      </ul>
+      <p class="note">If a project’s current docs disagree with this page, trust those docs and please open an issue. agentsec is not affiliated with the other projects named here.</p>
+    </article>
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>
