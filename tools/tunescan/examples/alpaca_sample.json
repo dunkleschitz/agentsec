@@ -1,0 +1,12 @@
+[
+ {
+  "instruction": "Summarize the text.",
+  "input": "Acme ships parcels.",
+  "output": "Acme is a shipper."
+ },
+ {
+  "instruction": "Translate to French.",
+  "input": "hello",
+  "output": "bonjour"
+ }
+]

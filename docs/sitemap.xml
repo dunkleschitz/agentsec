@@ -181,6 +181,10 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
+    <loc>https://dunkleschitz.github.io/agentsec/tools/tunescan/</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
     <loc>https://dunkleschitz.github.io/agentsec/tools/vibeaudit/</loc>
     <changefreq>monthly</changefreq>
   </url>

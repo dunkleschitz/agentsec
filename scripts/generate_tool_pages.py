@@ -65,6 +65,7 @@ RISK_PHRASE = {
     "mcpoauth": "weak OAuth settings in MCP server metadata",
     "mcpbundle": "risky install manifests for MCP servers",
     "promptaudit": "secrets and authorization logic inside system prompts",
+    "tunescan": "poisoned or backdoored fine-tuning data",
 }
 
 # Tools that currently emit SARIF 2.1.0 (--sarif). Keep in sync with the README.
@@ -97,6 +98,7 @@ SARIF_TOOLS = frozenset(
         "tmplfence",
         "toolpin",
         "tracesweep",
+        "tunescan",
         "trifecta",
         "vibeaudit",
         "yolocheck",
