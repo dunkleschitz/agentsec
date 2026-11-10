@@ -1,0 +1,16 @@
+{
+  "tools": [
+    {
+      "name": "explain_encoding",
+      "description": "Explain how Base58 is used in Bitcoin addresses and IPFS CIDs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

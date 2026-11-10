@@ -1,0 +1,26 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Open the docs."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "browse_page",
+            "arguments": "{\"url\": \"https://docs.python.test/3/library/ipaddress.html\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

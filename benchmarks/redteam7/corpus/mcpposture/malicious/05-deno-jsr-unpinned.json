@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "deno",
+      "args": [
+        "run",
+        "-A",
+        "jsr:@fast-mirror/mcp-docs"
+      ]
+    }
+  }
+}

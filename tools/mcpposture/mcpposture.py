@@ -765,21 +765,30 @@ def audit_server(srv: Server) -> None:
     # ---- bind / listen flags in env or args ------------------------------
     def _bind_all(val: str) -> bool:
         v = (val or "").strip().lower()
-        return bool(re.search(r"(?:^|[=\s,])(?:0\.0\.0\.0|\[::\]|::)(?::\d+)?(?:$|[\s,/])", v)) or v in {
-            "0.0.0.0", "::", "[::]", "*:*", ":::8080",
-        }
+        if v in {"*", "*:*", "0.0.0.0", "::", "[::]", ":::8080"}:
+            return True
+        if re.fullmatch(r"(?:\*|0\.0\.0\.0|\[::\]|::)(?::\d+)?", v):
+            return True
+        return bool(re.search(r"(?:^|[=\s,])(?:0\.0\.0\.0|\[::\]|::|\*)(?::\d+)?(?:$|[\s,/])", v))
 
+    _BIND_FLAG_RE = re.compile(r"(?i)^--(?:host|bind|listen|listen-addr|bind-addr|http-host)$")
     for k, v in env.items():
         vs = v if isinstance(v, str) else str(v)
         if k.upper() in ("HOST", "BIND", "LISTEN", "LISTEN_ADDR", "LISTEN_HOST", "BIND_ADDR",
                          "MCP_HOST", "SERVER_HOST", "HTTP_HOST") and _bind_all(vs):
             add("MP24", f"env {k} binds all interfaces ({vs})", f"{k}={vs}")
-    for a in args:
+    for i, a in enumerate(args):
         al = str(a)
+        nxt = str(args[i + 1]) if i + 1 < len(args) else ""
+        prev = str(args[i - 1]) if i else ""
         if re.search(r"(?i)--(?:host|bind|listen|listen-addr|bind-addr|http-host)(?:=|\s)", al) and _bind_all(al):
             add("MP24", f"argument binds all interfaces: {al}", al[:120])
+        elif _BIND_FLAG_RE.match(al) and nxt and not nxt.startswith("-") and _bind_all(nxt):
+            add("MP24", f"argument binds all interfaces: {al} {nxt}", (al + " " + nxt)[:120])
         elif re.fullmatch(r"0\.0\.0\.0(?::\d+)?", al) or al in ("::", "[::]"):
             add("MP24", f"argument binds all interfaces: {al}", al)
+        elif al == "*" and _BIND_FLAG_RE.match(prev):
+            add("MP24", f"argument binds all interfaces: {prev} {al}", (prev + " " + al)[:120])
 
     # ---- stdio command ----------------------------------------------------
     if cmd:
@@ -850,6 +859,35 @@ def audit_server(srv: Server) -> None:
                     if not re.search(r"@(?:v?\d+\.\d+\.\d+[\w.+-]*|[0-9a-f]{7,40})$", a):
                         add("MP03", f"go module '{a}' is not pinned to a version or commit", a)
                         break
+
+        # Unpinned remote code execution as a class: nix flake refs, cargo
+        # install, and remote deno imports without a version/commit pin.
+        # (go / npx / uvx / pipx / docker :latest are handled above.)
+        if base(cmd) in ("nix", "nix.exe") and any(a in ("run", "shell", "develop", "build", "profile") for a in args):
+            for a in args:
+                if re.match(r"(?i)^(?:github|gitlab|sourcehut|git\+https?):", a) or (
+                    a.startswith("https://") and re.search(r"(?i)github|gitlab|sourcehut", a)
+                ):
+                    if not re.search(r"(?:/|\?rev=|&rev=|@)(?:v?\d+\.\d+\.\d+|[0-9a-f]{7,40})(?:$|#|\?)", a):
+                        add("MP03", "nix flake '%s' is not pinned to a revision" % a, a)
+                        break
+        if base(cmd) in ("cargo", "cargo.exe") and "install" in args:
+            joined_c = " ".join(args)
+            pinned_cargo = bool(re.search(r"(?i)--version(?:=|\s+)", joined_c) or re.search(r"@v?\d+\.\d+", joined_c))
+            if not pinned_cargo:
+                if "--git" in args and not any(x in ("--rev", "--tag") for x in args):
+                    add("MP03", "cargo install from git is not pinned to a revision", joined_c[:120])
+                else:
+                    crates = [a for a in args if not a.startswith("-") and a != "install"]
+                    if crates:
+                        add("MP03", "cargo package '%s' is not pinned to a version" % crates[0], crates[0])
+        if base(cmd) in ("deno", "deno.exe") and any(a in ("run", "install") for a in args):
+            for a in args:
+                if a.startswith(("http://", "https://", "npm:", "jsr:")):
+                    if not re.search(r"@v?\d+\.\d+|@[0-9a-f]{7,40}|@sha256:", a):
+                        add("MP03", "deno remote import '%s' is not pinned" % a, a[:120])
+                        break
+
         if launcher in ("npx", "bunx", "pnpx", "npm exec") and any(f in ("-y", "--yes") for f in lflags):
             # -y is mainly a risk when the resolved package is unpinned.
             if srv.pinned is not True:

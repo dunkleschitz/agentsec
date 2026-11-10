@@ -1,0 +1,26 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Open the directory entry."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "browse_page",
+            "arguments": "{\"url\": \"ldap://127.0.0.1:389/dc=internal,dc=test\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

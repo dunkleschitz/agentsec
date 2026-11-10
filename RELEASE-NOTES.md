@@ -1,21 +1,22 @@
-# agentsec v0.46.0
+# agentsec v0.47.0
 
-Offline, stdlib-only kit. 38 tools (foundry #38 promptaudit shipped on main earlier the same day). This release changes approach: class-level detectors instead of enumerating missed instances, then scores a fresh round-6 set once. 2010 tests.
+Offline, stdlib-only kit. 38 tools. This release continues the class-level approach that reversed the unseen-F1 decline in v0.46.0, then scores a fresh round-7 set once. 2043 unit tests.
 
 ### Generalization (class-level, not fixture-specific instances)
 
-Round 5 is the development set. Rules were rewritten around classes, then checked on a private labeled dev set of new variants, then frozen before any round-6 sample was written:
+Round 6 is the development set. Rules were extended around classes, then checked on a private labeled dev set of new variants, then frozen before any round-7 sample was written:
 
-- **toolpoison / resultguard** — a generic obfuscation layer: text that is not natural language (encoded or transformed text, low dictionary-word ratio, unusual scripts, leftover control characters, overstrike) is treated as suspicious, plus a best-effort decode-and-rescan for common transforms (including hex dumps). All MCP catalog surfaces are walked generically (prompts, prompt arguments, prompt messages, resources, templates, and server instructions). Well-formed ANSI color codes are typography, not concealment.
-- **piiguard** — a data-driven national-ID table (30+ country formats) with checksum validators and context keywords. Unlabeled ambiguous digit strings require keywords so order numbers and build metrics stay clean; distinctive formats (letters, separators, reserved prefixes) may still fire on checksum alone.
-- **pathfence** — a generic sensitive-path classifier: credential/key/token/vault/state/keyring/wallet/session/profile-db name patterns, known credential-bearing app dirs, XDG/Application Support roots, and cluster config basenames — not a list of the missed paths.
-- **shellfence** — a generic rule for execution or exfil via exec-hook options (`-exec`, `xargs`, `$(shell`, interpreter `system(`) or a transfer tool targeting home or secrets, plus a broader LOLBin/GTFOBins-style table.
-- **mcpoauth / mcpposture** — the whole OAuth/OIDC metadata document is checked against spec-level requirements (`token_endpoint_auth_methods_supported=none`, wildcard or non-https redirects, http endpoints on any `*_uri` field). Generic launch hygiene: floating `@latest` / `:latest` / `==latest` in any ecosystem, `cwd` of `/`, binding to all interfaces.
-- **secretflow** — local comparison tools (`equals`, `assert_eq`, and compare-shaped `left`/`right` arguments) are not treated as reuse or exfil.
+- **toolpoison / resultguard** — an encoding-concealment layer covering MIME/RFC 2047 encoded-words and base-N transforms (Base45/58/85 and similar) with decode-and-rescan, plus Unicode confusable / mixed-script detection using a UTS #39-style skeleton (NFKD + lookalike fold). Documentation that merely mentions an encoding, and ordinary foreign-script place names, stay clean.
+- **shellfence** — interpreter one-liners (`-c`/`-e`/`-r`) and generic network-relay / upload tools (socat, ncat, wget --post-file, curl --upload-file / --data-binary @file) as a class, only when a network or home/secret sink is present. A bare `python -c 'print(sys.version)'`, wget of public docs, or a local LISTEN+FILE server is not in this class.
+- **memfence** — memories that schedule a future data transfer, add a recipient or channel (BCC/CC, status text, webhook), or silently rewrite user input / destinations / queries. Negation must modify the action (so "do not recognize" and "ask before cc'ing" stay clean).
+- **pathfence** — config-path patterns for CLI tools that store tokens in a hidden user dir (`~/.<tool>/` or `~/.config/<app>/` plus token- or config-ish basenames), excluding known dev-tool apps.
+- **mcpposture** — unpinned remote code execution as a class across ecosystems (nix flake refs, cargo install, go, npx, uvx, pipx, deno, docker/podman `:latest`). Wildcard binds (`--bind *`, `--listen *`, bare `*`) are treated as bind-all.
+- **fetchfence** — documentation/preview paths on loopback (`/docs`, `/playground`, and similar) are not SSRF; loopback metadata, Consul, Docker API, gopher, and `/admin` still flag.
+- **tracesweep** — incoming webhook URLs as a secret class (Slack, Discord, Teams, and generic `/api/webhooks/<token>`), not only `xox*` bot tokens.
 
 ### Benchmark
 
-Unseen F1 on successive independent rounds had been falling (78.3 → 74.4 → 61.5). This release is scored against a new blind round 6. The series is now:
+Unseen F1 on successive independent rounds had been 78.3 → 74.4 → 61.5, then recovered to 81.3 on round 6 after the first class-level rewrite. This release is scored against a new blind round 7. The series is now:
 
 | Set | P / R / F1 | Notes |
 |---|---|---|
@@ -30,11 +31,13 @@ Unseen F1 on successive independent rounds had been falling (78.3 → 74.4 → 6
 | Red-team round 4 (v0.44.0, unseen) | 97.0% / 60.4% / 74.4% | 32/1/21/26, frozen |
 | Same round-4 set after later generalization | 100% / 100% / 100% | 53/0/0/27, labeled **seen** |
 | Red-team round 5 (v0.45.0, unseen) | 96.0% / 45.3% / 61.5% | 24/1/29/26, frozen |
-| Same round-5 set after v0.46.0 generalization | 100% / 94.3% / 97.1% | 50/0/3/27, labeled **seen** |
-| Red-team round 6 (v0.46.0, unseen) | 97.4% / 69.8% / 81.3% | 37/1/16/26, scored **once** |
+| Same round-5 set after later generalization | 100% / 100% / 100% | 53/0/0/27, labeled **seen** |
+| Red-team round 6 (v0.46.0, unseen) | 97.4% / 69.8% / 81.3% | 37/1/16/26, frozen |
+| Same round-6 set after v0.47.0 generalization | 100% / 100% / 100% | 53/0/0/27, labeled **seen** |
+| Red-team round 7 (v0.47.0, unseen) | 100.0% / 92.5% / 96.1% | 49/0/4/27, scored **once** |
 
-Round 6 (`benchmarks/redteam6/`, 80 samples) was written after the rules were frozen, from published techniques rounds 1–5 did not use (iCalendar `DESCRIPTION`, vCard `NOTE`, WebVTT, OpenAPI `info.description`, YAML front matter, RFC 2047 encoded-words, JSON-LD, Base45, JSON Schema `examples`/`title`, mixed-script confusables, `python -c` / `socat` / `bitsadmin` / `node -e` / `php -r` / `wget --post-file`, farewell-dump and planted-proxy memory, typo-correction and SAR/BCC memory, Slack status, Finnish hetu / Swiss AHV / Taiwan NID / HKID / Argentine CUIL, `smb://` / IPv4-mapped IPv6 / tftp / Consul / AWS IMDS IPv6, rclone.conf / containers `auth.json` / flyctl / Windows Credential Manager / Pulumi credentials, `nix run` / `pnpm dlx` / `cargo install` / bind `*` / cwd `C:\`, Discord / SMTP / Jira sinks, `glpat-` / `sk_live_` / `npm_` tokens, implicit grant, and HTTP `revocation_endpoint` / `registration_endpoint`; see `SOURCES.md`). Numbers are reported honestly. No detector was changed after this set existed.
+Round 7 (`benchmarks/redteam7/`, 80 samples) was written after the rules were frozen, from published techniques rounds 1–6 did not use (Jupyter markdown cells, GraphQL SDL descriptions, SRT captions, Open Graph `og:description`, systemd `Description=`, svn log, Apple plist strings, RDF Turtle comments, JSON Schema `default`, Base58, quoted-printable, MCP `_meta`, fullwidth confusables, `lua -e` / `curl --data-binary` / `ncat` / `osascript` / `tar|curl` / `openssl s_client`, forget-archive and clipboard-rewrite memory, Spanish DNI / Irish PPSN / Chinese resident ID / Croatian OIB / Belgian NISS, `ldap://` / Docker Engine API / `ftp://` / `[::1]/server-status` / `/cgi-bin/`, glab/heroku/sfdx/linode/netlify paths, `pipx run` / `podman :latest` / `--listen *` / `nix profile install` / `deno jsr:`, Notion / PagerDuty / Loki sinks, `shpat_` / `github_pat_` / `vercel_` tokens, and HTTP introspection / userinfo / PAR endpoints; see `SOURCES.md`). Numbers are reported honestly. No detector was changed after this set existed.
 
-Remaining round-6 misses: RFC 2047 and Base45 concealment, Cyrillic/Latin confusables, `python -c` / `socat` / `wget --post-file` transfer/exec shapes, four new memory classes (farewell dump, typo-correction rewrite, SAR/BCC, Slack status), rclone.conf and flyctl paths, and unpinned `nix run` / `cargo install` plus `--bind *`. One false positive: a documented loopback docs preview flagged by fetchfence. Remaining round-5 seen misses (not in this release's scope): memfence query-rewrite and emergency-CC, and a tracesweep Slack incoming webhook.
+Remaining round-7 misses (honest, not retuned): shellfence `tar | curl --data-binary` and `openssl s_client` relays, a memfence logout/PagerDuty-note transfer, and a pathfence Linode CLI `config.ini`. The v0.46.0 loopback-docs fetchfence false positive is gone, and the round-5 seen leftovers (memfence query-rewrite and emergency-CC, tracesweep Slack incoming webhook) now flag.
 
-The floating Action / image tag `v0` points at this release (`uses: dunkleschitz/agentsec@v0` or `@v0.46.0`).
+The floating Action / image tag `v0` points at this release (`uses: dunkleschitz/agentsec@v0` or `@v0.47.0`).

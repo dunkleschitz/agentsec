@@ -306,5 +306,26 @@ class TestV044Generalization(unittest.TestCase):
         self.assertNotIn("FF08", self.rules("https://1.1.1.1/dns-query"))
 
 
+
+class TestV047Generalization(unittest.TestCase):
+    def rules(self, url):
+        return {f.rule for f in ff.classify_url(url, "t")}
+
+    def test_loopback_docs_preview_is_clean(self):
+        self.assertFalse({"FF02", "FF07", "FF08"} & self.rules("http://127.0.0.1:8787/docs/"))
+        self.assertFalse({"FF02", "FF07", "FF08"} & self.rules("http://localhost/playground/"))
+
+    def test_loopback_consul_kv_still_flagged(self):
+        rules = self.rules("http://127.0.0.1:8500/v1/kv/prod/flags")
+        self.assertTrue({"FF02", "FF07", "FF08"} & rules)
+
+    def test_loopback_admin_still_flagged(self):
+        self.assertTrue({"FF02", "FF08"} & self.rules("http://127.0.0.1/admin"))
+
+    def test_gopher_loopback_still_flagged(self):
+        self.assertIn("FF04", self.rules("gopher://127.0.0.1/_secret"))
+
+
+
 if __name__ == "__main__":
     unittest.main()

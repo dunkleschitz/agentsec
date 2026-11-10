@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "nix",
+      "args": [
+        "profile",
+        "install",
+        "github:fast-mirror-cdn/mcp-docs"
+      ]
+    }
+  }
+}

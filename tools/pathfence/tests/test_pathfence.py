@@ -392,5 +392,21 @@ class TestV046Generalization(unittest.TestCase):
         self.assertFalse(self.rules("/home/dev/.config/htop/htoprc"))
 
 
+
+class TestV047Generalization(unittest.TestCase):
+    def rules(self, path, op="read", content=""):
+        return {f.rule for f in pf.classify_path(path, "t", op=op, content=content)}
+
+    def test_cli_token_config_under_hidden_home(self):
+        self.assertIn("PF01", self.rules("/home/dev/.config/doctl/config.yaml"))
+        self.assertIn("PF01", self.rules("/home/dev/.config/wrangler/config.toml"))
+        self.assertIn("PF01", self.rules("/home/dev/.ngrok2/ngrok.yml"))  # ngrok.yml may not match token basenames
+
+    def test_dev_editor_config_yml_is_clean(self):
+        self.assertNotIn("PF01", self.rules("/home/dev/.config/alacritty/config.yml"))
+        self.assertNotIn("PF01", self.rules("/home/dev/.config/nvim/config.yml"))
+
+
+
 if __name__ == "__main__":
     unittest.main()

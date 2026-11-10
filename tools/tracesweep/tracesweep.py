@@ -185,6 +185,17 @@ RULES = [
     Rule("TS-SLACK", "Slack token", "high",
          r"(?<![A-Za-z0-9])(?P<secret>xox[baprs]-[A-Za-z0-9-]{10,})",
          priority=90),
+    Rule("TS-WEBHOOK", "Incoming webhook URL", "high",
+         r"(?i)(?P<secret>https?://(?:"
+         r"hooks\.slack\.com/services/[A-Za-z0-9/_+-]+|"
+         r"(?:(?:ptb|canary)\.)?discord(?:app)?\.com/api/webhooks/\d+/[A-Za-z0-9_-]+|"
+         r"(?:outlook\.office(?:365)?\.com|[^/\s]+\.webhook\.office\.com)"
+         r"/webhookb2/[A-Za-z0-9@\-/_]+|"
+         r"chat\.googleapis\.com/v1/spaces/[^/\s]+/messages\?[^\s]+|"
+         r"hooks\.zapier\.com/hooks/catch/[^\s]+|"
+         r"[^\s]+/api/webhooks/[A-Za-z0-9_\-./]{16,}"
+         r"))",
+         priority=92),
     Rule("TS-STRIPE", "Stripe live secret/restricted key", "critical",
          r"(?<![A-Za-z0-9])(?P<secret>(?:sk|rk)_live_[A-Za-z0-9]{16,})",
          priority=90),

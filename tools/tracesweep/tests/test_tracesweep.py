@@ -428,5 +428,28 @@ class TestV045Generalization(unittest.TestCase):
         self.assertIn("TS-AGE-SECRET", self.rules(key))
 
 
+
+class TestV047Generalization(unittest.TestCase):
+    def rules(self, text):
+        return {h["rule"].id if hasattr(h["rule"], "id") else h["rule"] for h in ts.scan_text(text)}
+
+    def test_discord_incoming_webhook_url(self):
+        url = "https://discord.com/api/webhooks/123456789012345678/fakeWebhookTokenForTestsXX"
+        self.assertIn("TS-WEBHOOK", self.rules("notify: " + url))
+
+    def test_teams_incoming_webhook_url(self):
+        url = (
+            "https://contoso.webhook.office.com/webhookb2/"
+            "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee@ffff/"
+            "IncomingWebhook/0123456789abcdef0123456789abcdef/gggg"
+        )
+        self.assertIn("TS-WEBHOOK", self.rules("TEAMS_HOOK=" + url))
+
+    def test_webhook_docs_page_is_clean(self):
+        text = "See the guide at https://docs.slack.com/messaging/webhooks for how incoming webhooks work."
+        self.assertNotIn("TS-WEBHOOK", self.rules(text))
+
+
+
 if __name__ == "__main__":
     unittest.main()

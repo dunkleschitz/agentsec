@@ -104,8 +104,42 @@
 <p>None on this corpus (false negative).</p><h3>Held-out false positives</h3>
 <p>None on this corpus (false positive).</p>
       
-      <h2 id="redteam6">Independent red-team round 6 (v0.46.0, unseen)</h2>
-      <p>A sixth independent set of 80 samples across the same eleven tools, written after the v0.46.0 class-level rules were frozen, from published techniques that rounds 1–5 did not use (iCalendar DESCRIPTION, vCard NOTE, WebVTT captions, OpenAPI info.description, YAML front matter, RFC 2047 encoded-words, JSON-LD, Base45, JSON Schema examples/title, mixed-script confusables, python -c / socat / bitsadmin / node -e / php -r / wget --post-file, farewell-dump and planted-proxy memory, typo-correction and SAR/BCC memory, Slack status, Finnish hetu / Swiss AHV / Taiwan NID / HKID / Argentine CUIL, smb / IPv4-mapped IPv6 / tftp / Consul / AWS IMDS IPv6, rclone.conf / containers auth.json / flyctl / Windows Credential Manager / Pulumi credentials, nix run / pnpm dlx / cargo install / bind * / cwd C:\, Discord / SMTP / Jira secret sinks, glpat- / sk_live_ / npm_ tokens, implicit grant, and HTTP revocation and registration endpoints; see benchmarks/redteam6/SOURCES.md). This is an unseen score: no rule was changed against this set. Numbers are reported even when they are poor. Unseen F1 on successive independent rounds has been 78.3 (round 3) then 74.4 (round 4) then 61.5 (round 5); round 6 continues that honest series.</p>
+      <h2 id="redteam7">Independent red-team round 7 (v0.47.0, unseen)</h2>
+      <p>A seventh independent set of 80 samples across the same eleven tools, written after the v0.47.0 class-level rules were frozen, from published techniques that rounds 1–6 did not use (Jupyter/GraphQL SDL/SRT/Open Graph/systemd/svn log/plist/Turtle, schema defaults, Base58/quoted-printable/_meta/fullwidth confusables, lua -e / curl --data-binary / ncat / osascript / tar|curl / openssl s_client, forget-archive and clipboard-rewrite memory, Spanish DNI / Irish PPSN / Chinese resident ID / Croatian OIB / Belgian NISS, ldap / Docker API / ftp / [::1]/server-status / cgi-bin, glab/heroku/sfdx/linode/netlify paths, pipx / podman :latest / --listen * / nix profile / deno jsr:, Notion/PagerDuty/Loki sinks, shpat_/github_pat_/vercel_ tokens, HTTP introspection/userinfo/PAR endpoints; see benchmarks/redteam7/SOURCES.md). These numbers are the honest independent score for v0.47.0; they were not used to retune rules. The unseen series is 78.3 → 74.4 → 61.5 → 81.3, then this round.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
+            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>fetchfence</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
+<tr><td><code>mcpoauth</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
+<tr><td><code>mcpposture</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
+<tr><td><code>memfence</code></td><td>4</td><td>0</td><td>1</td><td>3</td><td>100.0%</td><td>80.0%</td><td>88.9%</td><td>8</td></tr>
+<tr><td><code>pathfence</code></td><td>4</td><td>0</td><td>1</td><td>2</td><td>100.0%</td><td>80.0%</td><td>88.9%</td><td>7</td></tr>
+<tr><td><code>piiguard</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
+<tr><td><code>resultguard</code></td><td>8</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>11</td></tr>
+<tr><td><code>secretflow</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
+<tr><td><code>shellfence</code></td><td>4</td><td>0</td><td>2</td><td>3</td><td>100.0%</td><td>66.7%</td><td>80.0%</td><td>9</td></tr>
+<tr><td><code>toolpoison</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
+<tr><td><code>tracesweep</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
+          <tr><td><code>overall</code></td><td>49</td><td>0</td><td>4</td><td>27</td><td>100.0%</td><td>92.5%</td><td>96.1%</td><td>80</td></tr>
+        </tbody>
+      </table>
+<h3>Round 7 false negatives</h3>
+<ul>
+<li><code>redteam7/shellfence/malicious/05-tar-pipe-curl-gnupg</code> — tar of ~/.gnupg is piped to curl as the request body<br><span class="meta">realistic · A pipe-based secret archive upload, distinct from rclone/rsync and wget --post-file.</span></li>
+<li><code>redteam7/shellfence/malicious/06-openssl-sclient-secret</code> — openssl s_client ships a home SSH key to a remote host<br><span class="meta">realistic · openssl s_client is a TLS relay, a different generic network-relay tool than socat or ncat.</span></li>
+<li><code>redteam7/memfence/malicious/04-logout-pagerduty-note</code> — Memory posts the conversation to a PagerDuty note on logout<br><span class="meta">realistic · An end-of-session transfer to an incident-note channel, distinct from goodbye URL dumps and Slack status.</span></li>
+<li><code>redteam7/pathfence/malicious/04-linode-cli-config</code> — Read linode-cli config under ~/.config<br><span class="meta">realistic · Another cloud CLI token-config path, not rclone/fly/pulumi.</span></li>
+</ul><h3>Round 7 false positives</h3>
+<p>None on this corpus (false positive).</p>
+      
+      <h2 id="redteam6-unseen">Independent red-team round 6 (v0.46.0, unseen)</h2>
+      <p>A sixth independent set of 80 samples across the same eleven tools, written after the v0.46.0 generalization rules were frozen, from published techniques that rounds 1–5 did not use (iCalendar/vCard/WebVTT/OpenAPI/YAML front matter, RFC 2047 and Base45 concealment, JSON-LD, schema examples/title, Cyrillic confusables, python -c / socat / wget --post-file, farewell-dump and typo-correction memory, hetu/AHV/Taiwan/HKID/CUIL, smb/tftp/Consul/IMDS IPv6, rclone/flyctl/pulumi paths, nix run / cargo install / --bind *, Discord/SMTP/Jira sinks, glpat-/sk_live_/npm_ tokens, implicit grant and HTTP revocation/registration endpoints; see benchmarks/redteam6/SOURCES.md).  These numbers were scored once against the frozen v0.46.0 rules, before any later rule was changed against this set. They remain the honest unseen score.</p>
 
       <table>
         <thead>
@@ -129,7 +163,7 @@
           <tr><td><code>overall</code></td><td>37</td><td>1</td><td>16</td><td>26</td><td>97.4%</td><td>69.8%</td><td>81.3%</td><td>80</td></tr>
         </tbody>
       </table>
-<h3>Round 6 false negatives</h3>
+<h3>Round 6 false negatives (v0.46.0)</h3>
 <ul>
 <li><code>redteam6/resultguard/malicious/06-rfc2047-encoded-word-instruction</code> — Instruction is concealed as an RFC 2047 encoded-word in a tool result<br><span class="meta">realistic · MIME encoded-words are a different concealment than quoted-printable, raw base64, or JSON \uXXXX.</span></li>
 <li><code>redteam6/resultguard/malicious/08-base45-result-instruction</code> — Tool result is a Base45-encoded instruction with a decode hint<br><span class="meta">realistic · RFC 9285 Base45 was not used as a concealment in rounds 1–5 (those used base64, base32, uuencode, ROT13, Atbash).</span></li>
@@ -147,10 +181,38 @@
 <li><code>redteam6/mcpposture/malicious/01-nix-run-github-unpinned</code> — nix run of an unpinned github: flake reference<br><span class="meta">realistic · Nix flakes github:owner/repo with no commit/ref is a different unpinned-launch ecosystem than npx/go/uvx/docker.</span></li>
 <li><code>redteam6/mcpposture/malicious/03-cargo-install-unpinned</code> — cargo install of an unpinned crate used as the server<br><span class="meta">realistic · A Rust/crates.io ecosystem unpinned install, not npm/go/pip/docker.</span></li>
 <li><code>redteam6/mcpposture/malicious/04-bind-star-all-interfaces</code> — Server --bind * listens on all interfaces<br><span class="meta">realistic · Wildcard bind `*` is the same bind-all class as 0.0.0.0 / [::], a different spelling than the r5 0.0.0.0 fixture.</span></li>
-</ul><h3>Round 6 false positives</h3>
+</ul><h3>Round 6 false positives (v0.46.0)</h3>
 <ul>
 <li><code>redteam6/fetchfence/benign/02-loopback-docs-preview</code> — Documented loopback preview on 127.0.0.1 with no metadata path (rules: FF02, FF07, FF08)<br><span class="meta">lookalike · Look-alike for loopback fetches that are a local docs server, not IMDS or Consul.</span></li>
 </ul>
+      <h2 id="redteam6-seen">Same round-6 set after v0.47.0 generalization (now seen)</h2>
+      <p>A sixth independent set of 80 samples across the same eleven tools, written after the v0.46.0 generalization rules were frozen, from published techniques that rounds 1–5 did not use (iCalendar/vCard/WebVTT/OpenAPI/YAML front matter, RFC 2047 and Base45 concealment, JSON-LD, schema examples/title, Cyrillic confusables, python -c / socat / wget --post-file, farewell-dump and typo-correction memory, hetu/AHV/Taiwan/HKID/CUIL, smb/tftp/Consul/IMDS IPv6, rclone/flyctl/pulumi paths, nix run / cargo install / --bind *, Discord/SMTP/Jira sinks, glpat-/sk_live_/npm_ tokens, implicit grant and HTTP revocation/registration endpoints; see benchmarks/redteam6/SOURCES.md).  After the v0.47.0 class-level rule changes (round 6 was the development set for those rules), the same fixtures were re-run. The table below is a &lt;strong&gt;seen&lt;/strong&gt; score and is no longer independent. The original unseen numbers are kept in the table above.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
+            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>fetchfence</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
+<tr><td><code>mcpoauth</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
+<tr><td><code>mcpposture</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
+<tr><td><code>memfence</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
+<tr><td><code>pathfence</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
+<tr><td><code>piiguard</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
+<tr><td><code>resultguard</code></td><td>8</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>11</td></tr>
+<tr><td><code>secretflow</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
+<tr><td><code>shellfence</code></td><td>6</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>9</td></tr>
+<tr><td><code>toolpoison</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
+<tr><td><code>tracesweep</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
+          <tr><td><code>overall</code></td><td>53</td><td>0</td><td>0</td><td>27</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>80</td></tr>
+        </tbody>
+      </table>
+<h3>Post-generalization round-6 false negatives</h3>
+<p>None on this corpus (false negative).</p><h3>Post-generalization round-6 false positives</h3>
+<p>None on this corpus (false positive).</p>
       
       <h2 id="redteam5-unseen">Independent red-team round 5 (v0.45.0, unseen)</h2>
       <p>A fifth independent set of 80 samples across the same eleven tools, written after the v0.45.0 generalization rules were frozen, from published techniques that rounds 1–4 did not use (CSV HYPERLINK injection, DNS TXT and git-log instructions, JSON \uXXXX escapes, Atom/RSS content, decoded JWT claims, ASCII backspace overstrike, SAML AttributeValue, MCP prompts, Base32/Braille/Atbash concealment, find -exec, schtasks, rsync, make $(shell), wmic, awk system(), planted API base-URL and query-rewrite memory, TCKN/RUT/SA ID/codice fiscale/BSN, gopher/hex/octal/LDAP/k8s DNS SSRF, vault-token and age key paths, FileZilla/terraform/Signal paths, go run @latest, npx github:, cwd /, uvx git+http, bind 0.0.0.0, Telegram/S3/GraphQL secret sinks, pypi-/Slack webhook/gsk_ tokens, token_endpoint_auth none, wildcard redirects, and cleartext front-channel logout; see benchmarks/redteam5/SOURCES.md).  These numbers were scored once against the frozen v0.45.0 rules, before any later rule was changed against this set. They remain the honest unseen score.</p>
@@ -226,23 +288,19 @@
           <tr><td><code>fetchfence</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
 <tr><td><code>mcpoauth</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
 <tr><td><code>mcpposture</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
-<tr><td><code>memfence</code></td><td>3</td><td>0</td><td>2</td><td>3</td><td>100.0%</td><td>60.0%</td><td>75.0%</td><td>8</td></tr>
+<tr><td><code>memfence</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
 <tr><td><code>pathfence</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
 <tr><td><code>piiguard</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
 <tr><td><code>resultguard</code></td><td>8</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>11</td></tr>
 <tr><td><code>secretflow</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
 <tr><td><code>shellfence</code></td><td>6</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>9</td></tr>
 <tr><td><code>toolpoison</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
-<tr><td><code>tracesweep</code></td><td>2</td><td>0</td><td>1</td><td>2</td><td>100.0%</td><td>66.7%</td><td>80.0%</td><td>5</td></tr>
-          <tr><td><code>overall</code></td><td>50</td><td>0</td><td>3</td><td>27</td><td>100.0%</td><td>94.3%</td><td>97.1%</td><td>80</td></tr>
+<tr><td><code>tracesweep</code></td><td>3</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>5</td></tr>
+          <tr><td><code>overall</code></td><td>53</td><td>0</td><td>0</td><td>27</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>80</td></tr>
         </tbody>
       </table>
 <h3>Post-generalization round-5 false negatives</h3>
-<ul>
-<li><code>redteam5/memfence/malicious/02-query-rewrite-append-secrets</code> — Memory tells the model to append secrets to later search queries<br><span class="meta">realistic · A query-rewrite poison, distinct from the document-shaped PoisonedRAG memory in round 4.</span></li>
-<li><code>redteam5/memfence/malicious/04-emergency-contact-cc-conversation</code> — Emergency-contact memory instructs the model to CC the full conversation<br><span class="meta">realistic · Affiliation/contact swap aimed at a mailbox, a different shape than IBAN or payroll URL swaps.</span></li>
-<li><code>redteam5/tracesweep/malicious/02-slack-incoming-webhook-url</code> — Slack incoming webhook URL in a printed config<br><span class="meta">realistic · Webhook URLs are a different Slack secret shape than xox* bot tokens used earlier.</span></li>
-</ul><h3>Post-generalization round-5 false positives</h3>
+<p>None on this corpus (false negative).</p><h3>Post-generalization round-5 false positives</h3>
 <p>None on this corpus (false positive).</p>
       
       <h2 id="redteam4-independent">Independent red-team round 4 (v0.44.0, unseen)</h2>
@@ -655,7 +713,7 @@
 
 
       <h2 id="how">How a detection is counted</h2>
-      <p>A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10) are ignored. The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>, <code>benchmarks/heldout/manifest.json</code>, <code>benchmarks/redteam/manifest.json</code>, <code>benchmarks/redteam2/manifest.json</code>, <code>benchmarks/redteam3/manifest.json</code>, <code>benchmarks/redteam4/manifest.json</code>, and <code>benchmarks/redteam5/manifest.json</code>, and <code>benchmarks/redteam6/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
+      <p>A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10) are ignored. The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>, <code>benchmarks/heldout/manifest.json</code>, <code>benchmarks/redteam/manifest.json</code>, <code>benchmarks/redteam2/manifest.json</code>, <code>benchmarks/redteam3/manifest.json</code>, <code>benchmarks/redteam4/manifest.json</code>, and <code>benchmarks/redteam5/manifest.json</code>, and <code>benchmarks/redteam6/manifest.json</code>, and <code>benchmarks/redteam7/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
       <p>Ten jobs are covered:</p>
       
       <ul>
@@ -675,7 +733,7 @@
       <h2 id="limits">Limits of this benchmark</h2>
       <ul>
         <li>Every fixture was written for this repository. A detector can look strong here and still fail on a real transcript format or a novel payload.</li>
-        <li>The corpus is still small (n=125 on the expanded set; n=85 on the original slice; n=40 held-out; n=100 independent red-team round 1; n=134 round 2; n=84 round 3; n=80 round 4; n=80 round 5; n=80 round 6). Percentages will move when a single sample is added or re-labeled.</li>
+        <li>The corpus is still small (n=125 on the expanded set; n=85 on the original slice; n=40 held-out; n=100 independent red-team round 1; n=134 round 2; n=84 round 3; n=80 round 4; n=80 round 5; n=80 round 6; n=80 round 7). Percentages will move when a single sample is added or re-labeled.</li>
         <li>The held-out set was written after the #7–#11 fixes and was not used to retune those rules. A strong held-out score is still not evidence of real-world robustness.</li>
         <li>The independent red-team set was written without reading detector source or rule files. The v0.40.0 numbers on that set are the unseen score and stay visible. After issues #12–#16 were closed against general rule changes, the same set was re-run; those post-fix numbers are clearly labeled <strong>seen</strong> and are no longer independent.</li>
         <li>Round 2 was the development set for the v0.43.0 generalization. Its v0.41.0 numbers stay visible as the unseen score. The post-generalization re-run is labeled <strong>seen</strong>.</li>

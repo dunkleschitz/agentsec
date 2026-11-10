@@ -47,6 +47,7 @@ RULES = {
     "SF17": ("critical", "LOLBAS remote download or execute (certutil -urlcache, mshta, bitsadmin /transfer)"),
     "SF18": ("critical", "Download-then-execute without a pipe (curl/wget -o, chmod +x, then run the file)"),
     "SF19": ("critical", "LOLBin / exec-trampoline or cloud-sync exfil (tar checkpoint-action, forfiles, MSBuild, rclone of $HOME)"),
+    "SF20": ("critical", "Interpreter one-liner or generic network-relay/upload of a secret or home path"),
 }
 
 SHELL_TOKENS = {
@@ -783,6 +784,56 @@ CLOUD_SYNC_EXFIL_RE = re.compile(
     r"/home/|/Users/|\.ssh(?:/|$)|\.gnupg(?:/|$)|\.aws(?:/|$)|secrets?(?:/|$))"
 )
 
+
+# Interpreter -c/-e/-r one-liners that reach the network or a secret path.
+# A bare `python -c 'print(sys.version)'` is not in this class.
+_INTERPRETER_ONELINER_RE = re.compile(
+    r"(?ix)\b(?:python(?:3)?|node(?:js)?|php|perl|ruby|lua|osascript|pwsh)\s+"
+    r"(?:-[ceEr]|--eval|--command)\s+"
+)
+_ONELINER_SINK_RE = re.compile(
+    r"(?ix)(?:"
+    r"urllib|requests|urlopen|http\.client|httpx|aiohttp|"
+    r"\bfetch\s*\(|https?://|socket\b|child_process|subprocess|"
+    r"os\.system|os\.popen|\.ssh\b|id_rsa|\.aws/credentials|"
+    r"Path\.home|pathlib|/etc/(?:shadow|passwd)|"
+    r"open\s*\(\s*['\"](?:\$HOME|~|/home/|/Users/)"
+    r")"
+)
+_SECRET_HOME_RE = (
+    r"(?:\$HOME|\$\{HOME\}|~(?:/|$)|%USERPROFILE%|/home/|/Users/|/root(?:/|$)|"
+    r"\.(?:ssh|aws|gnupg)(?:/|$)|id_rsa|credentials)"
+)
+# Generic relay/upload tools (socat, ncat, wget --post-file, curl -T) aiming
+# a home/secret path at a remote connect sink — not a local LISTEN+FILE server.
+RELAY_UPLOAD_RE = re.compile(
+    r"(?ix)"
+    r"(?:"
+    r"\bsocat\b(?![^\n]{0,48}LISTEN)[^\n|;]{0,300}"
+    r"(?:FILE:|OPEN:|GOPEN:)" + _SECRET_HOME_RE + r"[^\n|;]{0,200}(?:TCP|UDP|OPENSSL|SSL|SOCKS):"
+    r"|"
+    r"\bsocat\b(?![^\n]{0,48}LISTEN)[^\n|;]{0,300}"
+    + _SECRET_HOME_RE + r"[^\n|;]{0,200}(?:TCP|UDP|OPENSSL|SSL):"
+    r"|"
+    r"\bwget\b[^\n|;]{0,160}--post-file\s*=\s*" + _SECRET_HOME_RE +
+    r"|"
+    r"\bcurl\b[^\n|;]{0,220}(?:--data-binary\s+@|--upload-file\s+|-T\s+)" + _SECRET_HOME_RE +
+    r"|"
+    r"\b(?:nc|ncat|netcat)\b[^\n|;]{0,160}(?:<\s*" + _SECRET_HOME_RE + r"|" + _SECRET_HOME_RE + r")"
+    r")"
+)
+
+
+def _interpreter_exfil_oneliner(cmd: str) -> bool:
+    if not cmd:
+        return False
+    for m in _INTERPRETER_ONELINER_RE.finditer(cmd):
+        rest = cmd[m.end(): m.end() + 500]
+        if _ONELINER_SINK_RE.search(rest):
+            return True
+    return False
+
+
 _DOWNLOADER_RE = re.compile(r"(?i)\b(?:curl|wget|fetch|bitsadmin|certutil|invoke-webrequest|iwr)\b")
 _CHMOD_EXEC_RE = re.compile(r"(?i)\bchmod\b\s+(?:-[a-zA-Z]+\s+)*(?:\+x|[0-7]*[1357]|a\+x|u\+x|ug\+x)\b")
 _EXEC_INTERP_RE = re.compile(r"(?i)^(?:(?:\./)?(?:sh|bash|zsh|dash|ksh|fish|python(?:3)?|perl|ruby|node|powershell|pwsh|cmd|start|cmd\.exe)\b)")
@@ -997,6 +1048,15 @@ def classify_command(command: str, source: str, tool: str = "", turn=None, disab
             add("SF18", "Embedded trampoline download-then-execute: %s" % _snippet(inner, 90))
         if LOLBIN_TRAMPOLINE_RE.search(inner) or CLOUD_SYNC_EXFIL_RE.search(inner):
             add("SF19", "Nested LOLBin/cloud-sync abuse: %s" % _snippet(inner, 90))
+        if _interpreter_exfil_oneliner(inner) or RELAY_UPLOAD_RE.search(inner):
+            add("SF20", "Embedded trampoline interpreter/relay exfil: %s" % _snippet(inner, 90))
+
+    if _interpreter_exfil_oneliner(n) or RELAY_UPLOAD_RE.search(n):
+        add("SF20", "Interpreter one-liner or network-relay/upload of a secret/home path: %s" % _snippet(n, 90))
+    if ps_decoded:
+        inner = _normalize_cmd(ps_decoded)
+        if _interpreter_exfil_oneliner(inner) or RELAY_UPLOAD_RE.search(inner):
+            add("SF20", "Decoded PowerShell interpreter/relay exfil: %s" % _snippet(inner, 90))
 
     return findings
 

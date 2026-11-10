@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "podman",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "ghcr.io/fast-mirror/mcp-docs:latest"
+      ]
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "tools": [
+    {
+      "name": "format_text",
+      "description": "Format text.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "default": "hello world"
+          }
+        }
+      }
+    }
+  ]
+}

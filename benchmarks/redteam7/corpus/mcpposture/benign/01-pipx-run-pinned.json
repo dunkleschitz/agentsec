@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "pipx",
+      "args": [
+        "run",
+        "mcp-docs-server==1.4.2"
+      ]
+    }
+  }
+}

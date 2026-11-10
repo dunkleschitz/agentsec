@@ -444,6 +444,31 @@ def _host_allowed(host: str, allow_globs: list[str]) -> bool:
     return False
 
 
+
+_LOOPBACK_HOSTS = {
+    "localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback", "0.0.0.0",
+}
+_DOCS_PREVIEW_PATH_RE = re.compile(
+    r"(?i)^/(?:docs?|documentation|playground|preview|readme|help|changelog|"
+    r"api-docs|openapi(?:\.json)?|swagger(?:-ui)?)(?:/|$|\.html?)"
+)
+_INTERNAL_API_PATH_RE = re.compile(
+    r"(?i)/(?:latest/meta-data|computemetadata|v1/kv|admin(?:/|$)|debug/pprof|"
+    r"etc/|proc/|sys/|secrets?(?:/|$)|internal(?:/|$)|cgi-bin)"
+)
+
+
+def _is_loopback_docs_preview(host, ip, path):
+    """Documentation/preview paths on loopback are not SSRF to metadata or admin APIs."""
+    is_loop = (ip is not None and getattr(ip, "is_loopback", False)) or (host or "") in _LOOPBACK_HOSTS
+    if not is_loop:
+        return False
+    path_l = path or "/"
+    if _INTERNAL_API_PATH_RE.search(path_l):
+        return False
+    return bool(_DOCS_PREVIEW_PATH_RE.search(path_l))
+
+
 def classify_url(url: str, source: str, tool: str = "", turn=None, allow_hosts=None, disabled=None):
     """Return findings for one URL."""
     allow_hosts = allow_hosts or []
@@ -594,6 +619,10 @@ def classify_url(url: str, source: str, tool: str = "", turn=None, allow_hosts=N
             if SECRET_VALUE_RE.match(v):
                 add("FF11", "Secret-looking query value on parameter %r" % k, host_dec)
                 break
+
+
+    if _is_loopback_docs_preview(host_dec, ip, getattr(p, "path", "") or "/"):
+        findings[:] = [f for f in findings if f.rule not in {"FF02", "FF07", "FF08"}]
 
     return findings
 

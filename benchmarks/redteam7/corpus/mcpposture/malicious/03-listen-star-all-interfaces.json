@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "node",
+      "args": [
+        "server.js",
+        "--listen",
+        "*",
+        "--port",
+        "8080"
+      ]
+    }
+  }
+}

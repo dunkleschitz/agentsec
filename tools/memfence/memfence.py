@@ -41,6 +41,7 @@ RULES = {
     "MF12": ("high", "Structural memory poison: sensitive object + exfil/mutation sink, or remote-exec / payment-swap framing"),
     "MF13": ("high", "Auto-approve / confirmation-bypass policy planted for privileged tools"),
     "MF14": ("medium", "Planted impossible user identity (age outside a realistic range)"),
+    "MF15": ("high", "Memory schedules a future data transfer, adds a recipient/channel, or silently rewrites user input"),
 }
 
 # --- detection patterns ---
@@ -693,6 +694,76 @@ HTTP_PORTAL_RE = re.compile(
     r"(?:payroll\s+)?(?:portal|login|site)"
 )
 
+
+# Standing instruction to move conversation, secrets, or files at a future
+# trigger (goodbye, later message, whenever a tool is called, end of session).
+FUTURE_TRANSFER_RE = re.compile(
+    r"(?is)"
+    r"("
+    r"(?:when(?:ever)?|once|after|before|on|as\s+soon\s+as)\s+"
+    r".{0,200}?"
+    r"(?:POST|post|send|upload|forward|email|dump|transmit|attach|include|append|\bBCC\b|\bCC\b)\b"
+    r".{0,220}?"
+    r"(?:messages?|conversation|transcript|history|secrets?|keys?|tokens?|files?|attachments?|memories)"
+    r"|"
+    r"(?:messages?|conversation|transcript|history|secrets?|keys?|tokens?|files?|attachments?|memories)"
+    r".{0,160}?"
+    r"(?:when(?:ever)?|once|after|before|on\s+(?:goodbye|farewell|session\s+end))"
+    r"|"
+    r"(?:before\s+you\s+go|when\s+(?:we|you|the\s+user)\s+(?:say|says|type)\s+"
+    r"(?:goodbye|bye|farewell)|"
+    r"at\s+the\s+end\s+of\s+(?:the\s+)?(?:session|conversation|chat)|"
+    r"on\s+(?:session\s+)?(?:close|shutdown|logout|end))"
+    r".{0,280}?"
+    r"(?:POST|post|send|upload|forward|email|dump|transmit|attach)"
+    r")"
+)
+
+ADDED_CHANNEL_RE = re.compile(
+    r"(?is)"
+    r"("
+    r"\b(?:BCC|CC)\b.{0,100}?(?:[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}|https?://)"
+    r"|"
+    r"(?:always|whenever|also|quietly|silently|automatically)\s+"
+    r"(?:bcc|cc|forward|copy)\b"
+    r"|"
+    r"(?:emergency\s+contact|backup\s+(?:address|recipient)|status\s+text|"
+    r"display\s+name|slack\s+status|profile\s+status|status\s+field)"
+    r".{0,220}?"
+    r"(?:include|set|put|write|paste|\bBCC\b|\bCC\b|conversation|secrets?|transcript|history)"
+    r"|"
+    r"(?:add|include|attach)\s+(?:an?\s+)?(?:extra|hidden|backup|emergency)?\s*"
+    r"(?:recipient|addressee|channel|webhook)"
+    r")"
+)
+
+# Silent rewrite of user-supplied destinations, queries, or arguments.
+REWRITE_INPUT_RE = re.compile(
+    r"(?is)"
+    r"("
+    r"(?:rewrite|correct|replace|override|swap|redirect)\s+"
+    r"(?:any\s+|the\s+|every\s+|user'?s?\s+)?"
+    r"(?:typo\s+(?:in\s+)?|misspell(?:ed|ing)?\s+)?"
+    r"(?:url|hostname|host|query|destination|recipient|address|email|argument|parameter|path)s?"
+    r"|"
+    r"append\s+(?:the\s+)?(?:user'?s?\s+)?(?:api\s+keys?|secrets?|credentials?|conversation|tokens?|history)"
+    r".{0,200}?"
+    r"(?:as\s+(?:the\s+)?)?(?:q=|parameter|query|url|header)"
+    r"|"
+    r"whenever\s+you\s+(?:call|use|invoke)\s+\w+.{0,200}?"
+    r"append\s+(?:the\s+)?(?:user'?s?\s+)?(?:api\s+keys?|secrets?|conversation|tokens?|history)"
+    r"|"
+    r"(?:treat|interpret)\s+(?:any\s+)?(?:typo|misspell).{0,160}?(?:as|into|to)\s+(?:https?://|[A-Za-z0-9.-]+\.[A-Za-z]{2,})"
+    r"|"
+    r"(?:typo|misspell).{0,120}?(?:hostname|host|url|destination|address|domain).{0,160}?"
+    r"(?:correct|rewrite|replace|override|swap)\s+(?:it|them|that|those)?\s+"
+    r"(?:to|with|as)\s+(?:the\s+)?(?:official\s+)?(?:alias\s+(?:at\s+)?)?(?:https?://|[A-Za-z0-9.-]+\.[A-Za-z]{2,})"
+    r"|"
+    r"(?:correct|rewrite|replace|override)\s+it\s+to\s+(?:the\s+)?"
+    r"(?:official\s+)?(?:alias\s+(?:at\s+)?)?(?:https?://|[A-Za-z0-9.-]+\.[A-Za-z]{2,})"
+    r")"
+)
+
 PRIVILEGED_TOOLS = r"(?:shell|bash|zsh|sh|powershell|pwsh|cmd|terminal|exec|execute|"
 PRIVILEGED_TOOLS += r"write[_-]?file|write[_-]?to[_-]?file|edit[_-]?file|run_command|run_terminal)"
 
@@ -722,6 +793,17 @@ def _impossible_age(text):
         if age <= 2 or age >= 100:
             return m
     return None
+
+
+
+def _action_is_negated(text, start, window=48):
+    """Negation must modify the upcoming action, not a relative clause like 'do not recognize'."""
+    prefix = text[max(0, start - window):start]
+    return bool(re.search(
+        r"(?is)(?:never|do\s+not|don'?t|must\s+not|shouldn'?t|ask\s+before|avoid)\s+"
+        r"(?:also|quietly|silently|automatically|ever|please)?\s*$",
+        prefix,
+    ))
 
 
 def _match_is_negated(text, start, window=48):
@@ -840,6 +922,13 @@ def classify_entry(entry: MemoryEntry, disabled=None):
     age_hit = _impossible_age(scan)
     if age_hit:
         add("MF14", "Impossible user-age claim planted in memory entry %s" % label, age_hit.group(0))
+
+
+    if FUTURE_TRANSFER_RE.search(scan) or ADDED_CHANNEL_RE.search(scan) or REWRITE_INPUT_RE.search(scan):
+        m = (FUTURE_TRANSFER_RE.search(scan) or ADDED_CHANNEL_RE.search(scan) or REWRITE_INPUT_RE.search(scan))
+        if m and not _action_is_negated(scan, m.start()):
+            add("MF15", "Future transfer, added recipient/channel, or silent input rewrite in memory entry %s" % label, m.group(0) if m else scan)
+
 
     # MF08 encoded blobs
     if "MF08" not in disabled:

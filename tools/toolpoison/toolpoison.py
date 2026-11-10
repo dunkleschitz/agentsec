@@ -745,6 +745,219 @@ def _looks_obfuscated(s):
     return False
 
 
+
+# --- RFC 2047 / base-N / Unicode confusable (skeleton) concealment ----------
+_RFC2047_RE = re.compile(r"=\?[^?]+\?[BbQq]\?[^?]+\?=", re.I)
+_B45_ALPH = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"
+_B45_RE = re.compile(r"(?<![0-9A-Z $%*+\-./:])([0-9A-Z $%*+\-./:]{24,})(?![0-9A-Z $%*+\-./:])")
+_B58_ALPH = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+_B58_RE = re.compile(r"(?<![1-9A-HJ-NP-Za-km-z])([1-9A-HJ-NP-Za-km-z]{32,})(?![1-9A-HJ-NP-Za-km-z])")
+_B85_RE = re.compile(r"<~([!-u]{20,})~>")
+_B85_BARE_RE = re.compile(r"(?<![!-u])([!-u]{32,})(?![!-u])")
+
+# Compact UTS-39-style skeleton: common Latin lookalikes → ASCII.
+_CONFUSABLE_MAP = {
+    # Cyrillic
+    "\u0410": "A", "\u0412": "B", "\u0415": "E", "\u041a": "K", "\u041c": "M",
+    "\u041d": "H", "\u041e": "O", "\u0420": "P", "\u0421": "C", "\u0422": "T",
+    "\u0425": "X", "\u0406": "I", "\u04ae": "Y",
+    "\u0430": "a", "\u0435": "e", "\u043e": "o", "\u0440": "p", "\u0441": "c",
+    "\u0443": "y", "\u0445": "x", "\u0456": "i", "\u04cf": "l",
+    # Greek
+    "\u0391": "A", "\u0392": "B", "\u0395": "E", "\u0397": "H", "\u0399": "I",
+    "\u039a": "K", "\u039c": "M", "\u039d": "N", "\u039f": "O", "\u03a1": "P",
+    "\u03a4": "T", "\u03a7": "X", "\u03a5": "Y", "\u0396": "Z",
+    "\u03b1": "a", "\u03bf": "o", "\u03c1": "p", "\u03c4": "t", "\u03c5": "u",
+    "\u03bd": "v", "\u03c7": "x", "\u03b7": "n",
+}
+
+
+def _decode_rfc2047(s):
+    """Decode RFC 2047 encoded-words (B and Q) anywhere in a string."""
+    if not s or "=?" not in s:
+        return None
+    try:
+        from email.header import decode_header
+    except ImportError:
+        return None
+
+    def repl(m):
+        try:
+            parts = decode_header(m.group(0))
+            out = []
+            for data, charset in parts:
+                if isinstance(data, bytes):
+                    out.append(data.decode(charset or "utf-8", errors="replace"))
+                else:
+                    out.append(data)
+            return "".join(out)
+        except (ValueError, binascii.Error, LookupError, UnicodeDecodeError):
+            return m.group(0)
+
+    decoded = _RFC2047_RE.sub(repl, s)
+    return decoded if decoded != s else None
+
+
+
+def _try_b45_decode(blob):
+    """RFC 9285 Base45. Spaces are significant alphabet characters."""
+    if not blob:
+        return None
+    compact = blob.replace("\n", "").replace("\r", "").replace("\t", "")
+    if len(compact) < 16:
+        return None
+    inv = {c: i for i, c in enumerate(_B45_ALPH)}
+    if any(c not in inv for c in compact):
+        return None
+    out = bytearray()
+    i = 0
+    n = len(compact)
+    try:
+        while i < n:
+            remain = n - i
+            if remain >= 3:
+                c, d, e = inv[compact[i]], inv[compact[i + 1]], inv[compact[i + 2]]
+                x = c + d * 45 + e * 45 * 45
+                if x > 0xFFFF:
+                    return None
+                out.append(x // 256)
+                out.append(x % 256)
+                i += 3
+            elif remain == 2:
+                c, d = inv[compact[i]], inv[compact[i + 1]]
+                x = c + d * 45
+                if x > 0xFF:
+                    return None
+                out.append(x)
+                i += 2
+            else:
+                return None
+        text = bytes(out).decode("utf-8")
+    except (ValueError, UnicodeDecodeError, KeyError):
+        return None
+    printable = sum(ch.isprintable() or ch in "\n\r\t" for ch in text)
+    if text and printable >= 0.85 * len(text):
+        return text
+    return None
+
+
+def _try_b45_variants(blob):
+    """Try a payload and a few delimiter-stripped / shifted variants."""
+    if not blob:
+        return None
+    seen = set()
+    cands = [blob, blob.strip(), blob.strip(" :\"'`")]
+    for i in range(0, min(3, len(blob))):
+        cands.append(blob[i:])
+    for cand in cands:
+        if cand in seen or len(cand) < 16:
+            continue
+        seen.add(cand)
+        dec = _try_b45_decode(cand)
+        if dec:
+            return dec
+    return None
+
+
+def _hinted_alphabet_runs(text, alph, min_len=16):
+    """Longest per-line runs over a base-N alphabet when a nearby hint is likely."""
+    runs = []
+    for line in text.splitlines():
+        best = ""
+        cur = []
+        for ch in line:
+            if ch in alph:
+                cur.append(ch)
+            else:
+                if len(cur) > len(best):
+                    best = "".join(cur)
+                cur = []
+        if len(cur) > len(best):
+            best = "".join(cur)
+        if len(best) >= min_len:
+            runs.append(best)
+    return runs
+
+def _try_b58_decode(blob):
+    if not blob or len(blob) < 32:
+        return None
+    inv = {c: i for i, c in enumerate(_B58_ALPH)}
+    if any(c not in inv for c in blob):
+        return None
+    n = 0
+    for ch in blob:
+        n = n * 58 + inv[ch]
+    if n == 0:
+        return None
+    raw = n.to_bytes((n.bit_length() + 7) // 8, "big")
+    # preserve leading zeros (alphabet '1')
+    pad = 0
+    for ch in blob:
+        if ch == "1":
+            pad += 1
+        else:
+            break
+    raw = b"\x00" * pad + raw
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    printable = sum(ch.isprintable() or ch in "\n\r\t" for ch in text)
+    if text and printable >= 0.85 * len(text):
+        return text
+    return None
+
+
+def _try_b85_decode(blob):
+    if not blob or len(blob) < 16:
+        return None
+    for decoder in (getattr(base64, "a85decode", None), getattr(base64, "b85decode", None)):
+        if decoder is None:
+            continue
+        try:
+            raw = decoder(blob.encode("ascii"), adobe=False) if decoder is base64.a85decode else decoder(blob.encode("ascii"))
+        except (ValueError, binascii.Error, OverflowError, TypeError):
+            continue
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+        printable = sum(ch.isprintable() or ch in "\n\r\t" for ch in text)
+        if text and printable >= 0.85 * len(text):
+            return text
+    return None
+
+
+def _confusable_skeleton(s):
+    """UTS-39-inspired skeleton: NFKD + lookalike fold to ASCII."""
+    if not s:
+        return s
+    out = []
+    for ch in unicodedata.normalize("NFKD", s):
+        if unicodedata.category(ch) == "Mn":
+            continue
+        if 0xFF01 <= ord(ch) <= 0xFF5E:  # fullwidth
+            ch = chr(ord(ch) - 0xFEE0)
+        out.append(_CONFUSABLE_MAP.get(ch, ch))
+    return "".join(out)
+
+
+def _has_mixed_lookalike_script(s):
+    """True when Latin letters mix with confusable letters from another script."""
+    if not s:
+        return False
+    has_latin = False
+    has_lookalike = False
+    for ch in s:
+        if ch in _CONFUSABLE_MAP:
+            has_lookalike = True
+        elif "A" <= ch <= "Z" or "a" <= ch <= "z":
+            has_latin = True
+        if has_latin and has_lookalike:
+            return True
+    return False
+
+
 def _common_decode_views(text):
     """Best-effort views after common transforms (escapes, encodings, ciphers)."""
     if not isinstance(text, str) or not text:
@@ -808,6 +1021,42 @@ def _common_decode_views(text):
     br = _braille_decode(text)
     if br:
         add(br)
+    rfc = _decode_rfc2047(text)
+    if rfc:
+        add(rfc)
+    skel = _confusable_skeleton(text)
+    if skel != text and (INSTR_HINT_RE.search(skel) or _has_mixed_lookalike_script(text)):
+        add(skel)
+    hinted_b45 = bool(re.search(r"(?i)base\s*45|rfc\s*9285", text))
+    if hinted_b45:
+        for run in _hinted_alphabet_runs(text, _B45_ALPH):
+            dec = _try_b45_variants(run)
+            if dec and (INSTR_HINT_RE.search(dec) or _englishish_ratio(dec) >= 0.4):
+                add(dec)
+    else:
+        # Unhinted: punctuation-rich uppercase runs (spaces excluded so prose is skipped).
+        for m in re.finditer(r"(?<![0-9A-Z])([0-9A-Z$%*+\-./:]{24,})(?![0-9A-Z$%*+\-./:])", text):
+            blob = m.group(1)
+            if sum(ch in "$%*+-./:" for ch in blob) < 2:
+                continue
+            dec = _try_b45_variants(blob)
+            if dec and INSTR_HINT_RE.search(dec):
+                add(dec)
+    hinted_b58 = bool(re.search(r"(?i)base\s*58", text))
+    for m in _B58_RE.finditer(text):
+        dec = _try_b58_decode(m.group(1))
+        if dec and (INSTR_HINT_RE.search(dec) or (hinted_b58 and _englishish_ratio(dec) >= 0.4)):
+            add(dec)
+    hinted_b85 = bool(re.search(r"(?i)ascii85|base\s*85", text))
+    for m in _B85_RE.finditer(text):
+        dec = _try_b85_decode(m.group(1))
+        if dec and (INSTR_HINT_RE.search(dec) or hinted_b85):
+            add(dec)
+    if hinted_b85:
+        for m in _B85_BARE_RE.finditer(text):
+            dec = _try_b85_decode(m.group(1))
+            if dec and (INSTR_HINT_RE.search(dec) or _englishish_ratio(dec) >= 0.4):
+                add(dec)
     return views
 
 

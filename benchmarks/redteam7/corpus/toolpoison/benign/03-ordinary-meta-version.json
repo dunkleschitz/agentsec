@@ -1,0 +1,21 @@
+{
+  "tools": [
+    {
+      "name": "format_text",
+      "description": "Format text.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string"
+          }
+        }
+      },
+      "_meta": {
+        "ui": {
+          "version": "1.4.2"
+        }
+      }
+    }
+  ]
+}

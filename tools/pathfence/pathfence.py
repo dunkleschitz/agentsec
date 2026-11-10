@@ -233,7 +233,41 @@ def _generic_sensitive_reason(n: str, base: str):
                 ".local", "share",
             }:
                 return "user-app profile config %r" % n
+    # CLI tools that store tokens in a hidden user dir (~/.<tool>/config.yml,
+    # ~/.config/<tool>/rclone.conf). Classified by path shape, not by a
+    # two-name allowlist.
+    _cli_token_base = bool(re.fullmatch(
+        r"(?i)(?:rclone\.conf|(?:config|credentials|auth|token|tokens|hosts)\.(?:ya?ml|json|toml|conf|cfg)|"
+        r"credentials(?:\.[A-Za-z0-9]+)?)",
+        low_base,
+    ))
+    # Tool-specific hidden home dirs (~/.fly/, ~/.ngrok2/) plus XDG/.config
+    # token-ish or config-ish basenames. Not a two-name tool list.
+    hidden_home = bool(re.search(
+        r"(?i)(?:^|/)(?:(?:~|\$\{?HOME\}?|%USERPROFILE%)/\.[^/]+|"
+        r"(?:home|Users)/[^/]+/\.[^/]+|/root/\.[^/]+)",
+        slash,
+    ))
+    tool_dotdir = bool(re.search(
+        r"(?i)(?:^|/)(?:(?:~|\$\{?HOME\}?|%USERPROFILE%)|home/[^/]+|Users/[^/]+|/root)"
+        r"/\.(?!config(?:/|$)|local(?:/|$)|cache(?:/|$)|Trash(?:/|$))[^/]+/",
+        slash,
+    ))
+    configish = bool(re.search(r"(?i)\.(?:ya?ml|json|toml|conf|cfg|ini)$", low_base))
+    if _cli_token_base or (tool_dotdir and configish):
+        if in_user_root or hidden_home or tool_dotdir:
+            skip = {".config", "application support", "appdata", "roaming", "local",
+                    ".local", "share"}
+            app = ""
+            for part in reversed(low_parts[:-1]):
+                if part in skip:
+                    continue
+                app = part.lstrip(".")
+                break
+            if app not in _DEV_CONFIG_APPS:
+                return "CLI tool token/config store %r" % n
     return None
+
 
 
 PRIVESC_WRITE_RE = re.compile(

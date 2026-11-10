@@ -444,5 +444,51 @@ class TestV046Generalization(unittest.TestCase):
         self.assertNotIn("MP03", ids(rep))
 
 
+
+class TestV047Generalization(unittest.TestCase):
+    def test_nix_unpinned_github(self):
+        rep = audit_cfg({
+            "docs": {"command": "nix", "args": ["run", "github:example-labs/mcp-docs"]},
+        })
+        self.assertIn("MP03", ids(rep))
+
+    def test_nix_pinned_commit_is_clean(self):
+        rep = audit_cfg({
+            "docs": {"command": "nix", "args": ["run", "github:example-labs/mcp-docs/4f2c91a0b18e33d7a9c0e1f2a3b4c5d6e7f8091a"]},
+        })
+        self.assertNotIn("MP03", ids(rep))
+
+    def test_cargo_install_unpinned(self):
+        rep = audit_cfg({
+            "docs": {"command": "cargo", "args": ["install", "shady-mcp-helper", "--locked"]},
+        })
+        self.assertIn("MP03", ids(rep))
+
+    def test_cargo_install_version_is_clean(self):
+        rep = audit_cfg({
+            "docs": {"command": "cargo", "args": ["install", "mcp-docs-server", "--version", "1.4.2", "--locked"]},
+        })
+        self.assertNotIn("MP03", ids(rep))
+
+    def test_bind_star_token(self):
+        rep = audit_cfg({
+            "docs": {"command": "node", "args": ["server.js", "--bind", "*", "--port", "8080"]},
+        })
+        self.assertIn("MP24", ids(rep))
+
+    def test_bind_loopback_is_clean(self):
+        rep = audit_cfg({
+            "docs": {"command": "node", "args": ["server.js", "--bind", "127.0.0.1", "--port", "8080"]},
+        })
+        self.assertNotIn("MP24", ids(rep))
+
+    def test_deno_unpinned_remote(self):
+        rep = audit_cfg({
+            "docs": {"command": "deno", "args": ["run", "-A", "https://cdn.example-labs.test/mcp-docs/mod.ts"]},
+        })
+        self.assertIn("MP03", ids(rep))
+
+
+
 if __name__ == "__main__":
     unittest.main()
