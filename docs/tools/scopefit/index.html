@@ -93,7 +93,7 @@ python3 scopefit.py -g examples/fine_grained_tight.json -c examples/endpoints.tx
 <p>The over-privileged classic token in <code>examples/</code> checked against a fake triage-agent transcript (exit code 1):</p>
 <p>The same transcript checked against <code>examples/fine_grained_tight.json</code>: 0 over-granted, 0 missing, exit 0.</p>
 <p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 scopefit.py examples/endpoints.txt --fail-on none
+<pre><code>$ python3 scopefit.py examples/classic_overprivileged_scopes.json --fail-on none
 usage: scopefit [-h] --grants GRANTS --calls CALLS
                 [--grant-type {auto,fine,classic}]
                 [--calls-format {auto,transcript,endpoints}]

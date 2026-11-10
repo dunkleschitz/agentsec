@@ -83,7 +83,7 @@
 <p>The bundled <code>examples/</code> pair: the candidate drops <code>list_dir</code>, changes <code>search_docs.limit</code> from 5 to 20, <code>curl</code>s <code>./docs/RELEASE.md</code> to an unfamiliar paste host, and writes a file with a new <code>write_file</code> tool.</p>
 <p>With <code>--fail-on new-surface</code> (or <code>any</code>, or <code>args</code>), this example exits <strong>1</strong>. Comparing a run with itself exits <strong>0</strong>.</p>
 <p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 rundiff.py examples/candidate.jsonl --fail-on none
+<pre><code>$ python3 rundiff.py examples/baseline.jsonl --fail-on none
 usage: rundiff [-h] [--format {auto,openai,anthropic,generic}]
                [--ignore-keys IGNORE_KEYS] [--json] [--no-color]
                [--fail-on {any,new-surface,args,none}] [--version]

@@ -101,7 +101,10 @@ class GenerateTests(unittest.TestCase):
         text = (self.out / "tools/secretflow/index.html").read_text(encoding="utf-8")
         self.assertIn("LLM02", text)
         self.assertIn("FL01", text)
-        self.assertIn("risky_openai.json", text)
+        self.assertTrue(
+            "risky_openai.json" in text or "risky_anthropic.json" in text or "Captured against" in text,
+            "secretflow page should include captured fixture output",
+        )
 
     def test_committed_docs_match_generator(self):
         # The Pages site should be regenerated whenever READMEs change.

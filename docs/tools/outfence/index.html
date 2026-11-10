@@ -91,11 +91,25 @@ python3 outfence.py --list-rules</code></pre><p>After <code>pip install</code> o
 <h2 id="example">Example output</h2>
 <p>The examples folder has a poisoned markdown answer, a terminal answer with OSC 52/OSC 8/ conceal escapes, an OpenAI-style transcript, and a clean answer that produces no findings. All URLs use reserved <code>.example</code> domains or documentation IP ranges, and all secrets are fake.</p>
 <p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 outfence.py examples/transcript.json --fail-on none
-CRITICAL OF01 examples/transcript.json#msg3(assistant):1  Markdown image auto-loads an external URL (zero-click exfiltration channel)
-         markdown image → img.evil.example; long encoded-looking value (28 chars)
+<pre><code>$ python3 outfence.py examples/exfil_response.md --fail-on none
+CRITICAL OF01 examples/exfil_response.md:3  Markdown image auto-loads an external URL (zero-click exfiltration channel)
+         markdown image → collector.evil.example; long encoded-looking value (47 chars)
+MEDIUM   OF03 examples/exfil_response.md:5  Link to an external host carries data-like parameters
+         markdown link → docs.evil.example; free text in URL (51 chars)
+CRITICAL OF02 examples/exfil_response.md:7  HTML/CSS element auto-loads an external resource
+         &lt;img src&gt; → tracker.evil.example; template placeholder in URL
+CRITICAL OF04 examples/exfil_response.md:9  URL appears to carry a secret or credential
+         bare URL → 203.0.113.9 (secret-named parameter &#x27;token&#x27;)
+LOW      OF09 examples/exfil_response.md:9  URL host is an IP literal, punycode or link-shortener
+         IP-literal host: 203.0.113.9
+HIGH     OF05 examples/exfil_response.md:11  Dangerous URL scheme (javascript:, data:, vbscript:, file:)
+         javascript: URL
+MEDIUM   OF08 examples/exfil_response.md:13  Suggested command pipes remote content into a shell
+         remote content piped to an interpreter
+HIGH     OF07 examples/exfil_response.md:15  Invisible or bidirectional Unicode in model output
+         12 TAG char(s); decoded: &#x27;send history&#x27;
 
-1 finding(s): 1 critical</code></pre>
+8 finding(s): 3 critical, 2 high, 2 medium, 1 low</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec outfence path/to/input --sarif &gt; outfence.sarif
 

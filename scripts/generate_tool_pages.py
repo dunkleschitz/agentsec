@@ -12,7 +12,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import datetime
 import html
 import io
 import os
@@ -27,7 +26,6 @@ DOCS_DIR = ROOT / "docs"
 SITE = "https://dunkleschitz.github.io/agentsec"
 STYLES = SITE + "/styles.css"
 OG = SITE + "/og.png"
-TODAY = datetime.date.today().isoformat()
 
 # "<name>: detect <risk> in AI agents"
 RISK_PHRASE = {
@@ -607,6 +605,19 @@ def html_page(
 # Example output capture
 # ---------------------------------------------------------------------------
 
+def first_readme_example(tool_dir: Path) -> str | None:
+    """First examples/... path mentioned in the tool README, if it exists."""
+    readme = tool_dir / "README.md"
+    if not readme.is_file():
+        return None
+    text = readme.read_text(encoding="utf-8", errors="replace")
+    for m in re.finditer(r"examples/[\w./-]+", text):
+        rel = m.group(0).rstrip(").,'\"` ")
+        if (tool_dir / rel).exists():
+            return rel
+    return None
+
+
 def pick_example(tool_dir: Path, name: str) -> list[str] | None:
     preset = EXAMPLE_COMMANDS.get(name)
     if isinstance(preset, list):
@@ -618,6 +629,17 @@ def pick_example(tool_dir: Path, name: str) -> list[str] | None:
                 break
         if files_ok:
             return preset
+    preferred = first_readme_example(tool_dir)
+    if preferred and preferred != "examples" and (tool_dir / preferred).exists():
+        args = [f"{name}.py", preferred]
+        help_text = ""
+        try:
+            help_text = (tool_dir / f"{name}.py").read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            pass
+        if "--fail-on" in help_text:
+            args.extend(["--fail-on", "none"])
+        return args
     examples = tool_dir / "examples"
     if not examples.is_dir():
         return None
@@ -635,9 +657,11 @@ def pick_example(tool_dir: Path, name: str) -> list[str] | None:
             score += 10
         if "clean" in n or "baseline" in n or "lock" in n or n in {"tags.json"}:
             score -= 5
-        candidates.append((score, len(str(p)), p))
+        rel = p.relative_to(tool_dir).as_posix()
+        candidates.append((score, rel, p))
     if not candidates:
         return None
+    # Sort by score, then a path relative to the tool dir (stable across hosts).
     candidates.sort(key=lambda t: (-t[0], t[1]))
     chosen = candidates[0][2]
     rel = chosen.relative_to(tool_dir).as_posix()
@@ -896,7 +920,6 @@ def build_sitemap(names: list[str]) -> str:
             loc = SITE + "/"
         parts.append("  <url>")
         parts.append(f"    <loc>{esc(loc)}</loc>")
-        parts.append(f"    <lastmod>{TODAY}</lastmod>")
         parts.append(f"    <changefreq>{freq}</changefreq>")
         parts.append("  </url>")
     parts.append("</urlset>")

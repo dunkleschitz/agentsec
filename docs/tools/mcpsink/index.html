@@ -90,7 +90,49 @@ python3 mcpsink.py src/ --min-severity info       # include guarded sinks and th
 python3 mcpsink.py server.py --sarif &gt; mcpsink.sarif
 python3 mcpsink.py . --decorator &#x27;register_tool&#x27; --json</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec mcpsink …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
 <h2 id="example">Example output</h2>
-<p>See the examples under <code>tools/mcpsink/examples/</code> in the <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/mcpsink">repository</a>.</p>
+<p>Captured against the bundled fixtures (fake data only):</p>
+<pre><code>$ python3 mcpsink.py examples/risky --fail-on none
+CRITICAL MS01 examples/risky/files_server.py:33 handler=grep
+         tool argument in a shell command via subprocess.run (shell=True): shell metacharacters run arbitrary commands; pass an argv list, no shell
+CRITICAL MS05 examples/risky/files_server.py:66 handler=calc
+         tool argument reaches eval: arbitrary code execution on the MCP host
+CRITICAL MS01 examples/risky/files_server.py:87 handler=backup via _archive
+         tool argument in a shell command via subprocess.run (shell=True): shell metacharacters run arbitrary commands; pass an argv list, no shell
+HIGH     MS02 examples/risky/files_server.py:19 handler=read_file
+         tool argument used as a path for .read_text() (read): &#x27;../&#x27; or absolute paths reach files outside the intended root (~/.ssh, .env); resolve() it and require is_relative_to(&lt;allowed root&gt;), or reduce it to a basename
+HIGH     MS02 examples/risky/files_server.py:25 handler=delete_file
+         tool argument used as a path for os.remove (write/delete): &#x27;../&#x27; or absolute paths reach files outside the intended root (~/.ssh, .env); resolve() it and require is_relative_to(&lt;allowed root&gt;), or reduce it to a basename
+HIGH     MS03 examples/risky/files_server.py:46 handler=fetch_url
+         tool argument used as the URL/host for client.get: the model can be steered to internal services (169.254.169.254, localhost) or to exfiltrate data in the URL; enforce an allowlist of hosts
+HIGH     MS04 examples/risky/files_server.py:54 handler=query_orders
+         SQL built from a tool argument by string formatting in db.execute: use placeholders (?, %s) and pass values separately
+HIGH     MS04 examples/risky/files_server.py:60 handler=run_sql
+         tool argument passed as the SQL text to sqlite3.connect().execute: the model can run any query (DROP, ATTACH, exfiltrate other tables); expose fixed queries instead
+HIGH     MS06 examples/risky/files_server.py:72 handler=get_config
+         os.getenv() with a tool-chosen variable name: the caller can read any secret in the server&#x27;s environment; map allowed names explicitly
+HIGH     MS06 examples/risky/files_server.py:78 handler=debug_info
+         tool returns the whole os.environ (all API keys/tokens) to the model
+HIGH     MS02 examples/risky/files_server.py:83 handler=note
+         tool argument used as a path for open (read): &#x27;../&#x27; or absolute paths reach files outside the intended root (~/.ssh, .env); resolve() it and require is_relative_to(&lt;allowed root&gt;), or reduce it to a basename
+MEDIUM   MS07 examples/risky/files_server.py:10 handler=-
+         mcp.server.fastmcp.FastMCP(host=&#x27;0.0.0.0&#x27;): the server listens on every interface; MCP HTTP/SSE transports usually have no auth, so anyone on the network can call its tools (also enables DNS-rebinding); bind 127.0.0.1 or add auth
+MEDIUM   MS08 examples/risky/files_server.py:30 handler=grep
+         tool declares readOnlyHint=True but performs process execution (subprocess.run): clients may auto-approve it as read-only; verify the command really is read-only
+LOW      MS08 examples/risky/files_server.py:23 handler=delete_file
+         tool performs filesystem writes/deletes (os.remove) but does not declare destructiveHint=True (clients use annotations to decide when to ask the user)
+LOW      MS08 examples/risky/files_server.py:37 handler=git_log
+         tool performs process execution (subprocess.check_output) but does not declare destructiveHint=True (clients use annotations to decide when to ask the user)
+LOW      MS01 examples/risky/files_server.py:39 handler=git_log
+         tool argument in the argv of &#x27;git&#x27; (subprocess.check_output): option/argument injection (e.g. --upload-pack, -o); validate it and insert &#x27;--&#x27; before it
+LOW      MS08 examples/risky/files_server.py:91 handler=backup
+         tool performs process execution (subprocess.run) but does not declare destructiveHint=True (clients use annotations to decide when to ask the user)
+CRITICAL MS05 examples/risky/lowlevel_server.py:15 handler=handle_call
+         tool argument reaches pickle.loads: arbitrary code execution on the MCP host
+CRITICAL MS01 examples/risky/lowlevel_server.py:21 handler=handle_call
+         tool argument in a shell command via os.popen: shell metacharacters run arbitrary commands; pass an argv list, no shell
+HIGH     MS03 examples/risky/lowlevel_server.py:17 handler=handle_call
+         tool argument used as the URL/host for urllib.request.Request: the model can be steered to internal services (169.254.169.254, localhost) or to exfiltrate data in the URL; enforce an allowlist of hosts
+… (truncated)</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec mcpsink path/to/input --sarif &gt; mcpsink.sarif
 

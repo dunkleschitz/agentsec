@@ -81,43 +81,43 @@ python3 runledger.py logs/ --no-prices                  # tokens only</code></pr
 <p><code>*</code> marks totals that exclude unpriced turns. With <code>--budget 0.05 --top 3</code> the exit code is 1 and stderr says:</p>
 <p><code>--csv --csv-group model</code>:</p>
 <p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 runledger.py examples/openai_run.jsonl
+<pre><code>$ python3 runledger.py examples/anthropic_run.jsonl
 runledger 0.1.0 - token &amp; cost ESTIMATES from logs (not a bill)
 
-Turns: 4   Input: 3,262   Cache read: 6,528   Cache write: 0   Output: 1,375 (reasoning 896)
-Total tokens: 11,165   Cache hit ratio: 66.7%   Estimated cost: $0.0163
+Turns: 4   Input: 9,150   Cache read: 16,000   Cache write: 8,000   Output: 770 (reasoning 0)
+Total tokens: 33,920   Cache hit ratio: 48.3%   Estimated cost: $0.0590
 
 By run:
-run       turns  input  cache_rd  cache_wr  output  total  cache%     cost
---------  -----  -----  --------  --------  ------  -----  ------  -------
-run-oa-2      2  1,924     5,376         0   1,300  8,600    73.6  $0.0108
-run-oa-1      2  1,338     1,152         0      75  2,565    46.3  $0.0055
+run                  turns  input  cache_rd  cache_wr  output   total  cache%     cost
+-------------------  -----  -----  --------  --------  ------  ------  ------  -------
+anthropic_run.jsonl      4  9,150    16,000     8,000     770  33,920    48.3  $0.0590
 
 By model:
-model    turns  input  cache_rd  cache_wr  output  total  cache%     cost
--------  -----  -----  --------  --------  ------  -----  ------  -------
-o3-mini      2  1,924     5,376         0   1,300  8,600    73.6  $0.0108
-gpt-4o       2  1,338     1,152         0      75  2,565    46.3  $0.0055
+model                      turns  input  cache_rd  cache_wr  output   total  cache%     cost
+-------------------------  -----  -----  --------  --------  ------  ------  ------  -------
+claude-sonnet-4-20250514       3  3,950    16,000     8,000     460  28,410    57.2  $0.0536
+claude-3-5-haiku-20241022      1  5,200         0         0     310   5,510     0.0  $0.0054
 
 By tool:
-tool         turns  input  cache_rd  cache_wr  output  total  cache%     cost
------------  -----  -----  --------  --------  ------  -----  ------  -------
-search_docs      2  1,924     5,376         0   1,300  8,600    73.6  $0.0108
-get_weather      2  1,338     1,152         0      75  2,565    46.3  $0.0055
+tool       turns  input  cache_rd  cache_wr  output   total  cache%     cost
+---------  -----  -----  --------  --------  ------  ------  ------  -------
+bash           1  2,100         0     8,000     120  10,220     0.0  $0.0381
+read_file      2  1,850    16,000         0     340  18,190    89.6  $0.0155
+fetch_url      1  5,200         0         0     310   5,510     0.0  $0.0054
 
 By session:
-session     turns  input  cache_rd  cache_wr  output  total  cache%     cost
-----------  -----  -----  --------  --------  ------  -----  ------  -------
-sess-beta       2  1,924     5,376         0   1,300  8,600    73.6  $0.0108
-sess-alpha      2  1,338     1,152         0      75  2,565    46.3  $0.0055
+session     turns  input  cache_rd  cache_wr  output   total  cache%     cost
+----------  -----  -----  --------  --------  ------  ------  ------  -------
+sess-gamma      3  3,950    16,000     8,000     460  28,410    57.2  $0.0536
+sess-delta      1  5,200         0         0     310   5,510     0.0  $0.0054
 
 Top 4 most expensive turns:
-turn                  model         tool  tokens     cost
-------------------  -------  -----------  ------  -------
-openai_run.jsonl:3  o3-mini  search_docs   4,300  $0.0066
-openai_run.jsonl:4  o3-mini  search_docs   4,300  $0.0042
-openai_run.jsonl:1   gpt-4o  get_weather   1,245  $0.0034
-openai_run.jsonl:2   gpt-4o  get_weather   1,320  $0.0021</code></pre>
+turn                                       model       tool  tokens     cost
+---------------------  -------------------------  ---------  ------  -------
+anthropic_run.jsonl:1   claude-sonnet-4-20250514       bash  10,220  $0.0381
+anthropic_run.jsonl:3   claude-sonnet-4-20250514  read_file   9,760  $0.0108
+anthropic_run.jsonl:4  claude-3-5-haiku-20241022  fetch_url   5,510  $0.0054
+anthropic_run.jsonl:2   claude-sonnet-4-20250514  read_file   8,430  $0.0046</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec runledger path/to/input --json &gt; runledger.json
 # runledger does not yet emit SARIF; use --json and keep --fail-on for CI.
