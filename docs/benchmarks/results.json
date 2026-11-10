@@ -1,216 +1,1016 @@
 {
-  "evasion_false_negatives": [
-    "resultguard/malicious/09-typo-obfuscation",
-    "resultguard/malicious/10-split-words",
-    "resultguard/malicious/12-rot13-instruction",
-    "toolpoison/malicious/09-soft-telemetry-exfil",
-    "toolpoison/malicious/10-french-instruction",
-    "tracesweep/malicious/09-split-key",
-    "secretflow/malicious/06-transformed-before-forward",
-    "shellfence/malicious/11-ifs-obfuscated-pipe"
-  ],
+  "baseline": {
+    "evasion_false_negatives": [
+      "resultguard/malicious/09-typo-obfuscation",
+      "resultguard/malicious/10-split-words",
+      "resultguard/malicious/12-rot13-instruction",
+      "toolpoison/malicious/09-soft-telemetry-exfil",
+      "toolpoison/malicious/10-french-instruction",
+      "tracesweep/malicious/09-split-key",
+      "secretflow/malicious/06-transformed-before-forward",
+      "shellfence/malicious/11-ifs-obfuscated-pipe"
+    ],
+    "false_negatives": [
+      {
+        "difficulty": "evasion",
+        "id": "resultguard/malicious/09-typo-obfuscation",
+        "notes": "Deliberate misspellings of a classic jailbreak. A regex detector may miss this (false negative).",
+        "title": "Typo-obfuscated override ('ignroe prevous instructons')",
+        "tool": "resultguard"
+      },
+      {
+        "difficulty": "evasion",
+        "id": "resultguard/malicious/10-split-words",
+        "notes": "Split 'ignore previous instructions' across punctuation. Likely miss (false negative).",
+        "title": "Instruction split with punctuation and hyphenation",
+        "tool": "resultguard"
+      },
+      {
+        "difficulty": "evasion",
+        "id": "resultguard/malicious/12-rot13-instruction",
+        "notes": "Encoded form that resultguard does not currently decode (it does base64/hex). Expected miss.",
+        "title": "ROT13-encoded override with a hint to decode",
+        "tool": "resultguard"
+      },
+      {
+        "difficulty": "evasion",
+        "id": "toolpoison/malicious/09-soft-telemetry-exfil",
+        "notes": "No classic 'exfiltrate' wording. May be missed (false negative).",
+        "title": "Soft 'debugging' instruction to put workspace contents in telemetry_id",
+        "tool": "toolpoison"
+      },
+      {
+        "difficulty": "evasion",
+        "id": "toolpoison/malicious/10-french-instruction",
+        "notes": "Non-English override. English-centric rules may miss this.",
+        "title": "French-language hidden instruction in the description",
+        "tool": "toolpoison"
+      },
+      {
+        "difficulty": "evasion",
+        "id": "tracesweep/malicious/09-split-key",
+        "notes": "sk-proj- and the body are quoted separately. Pattern detectors often miss this (false negative).",
+        "title": "Key split across concatenation in the result",
+        "tool": "tracesweep"
+      },
+      {
+        "difficulty": "evasion",
+        "id": "secretflow/malicious/06-transformed-before-forward",
+        "notes": "The later argument is not the literal secret. secretflow tracks exact value reuse, so this is a likely false negative.",
+        "title": "Secret is base64-encoded before it is forwarded",
+        "tool": "secretflow"
+      },
+      {
+        "difficulty": "evasion",
+        "id": "shellfence/malicious/11-ifs-obfuscated-pipe",
+        "notes": "Obfuscated pipe-to-shell. May be missed (false negative).",
+        "title": "curl|bash with unusual spacing and IFS-style splitting",
+        "tool": "shellfence"
+      }
+    ],
+    "false_positives": [
+      {
+        "difficulty": "medium",
+        "id": "resultguard/benign/05-override-font-setting",
+        "notes": "Contains 'override' and 'system' in a typography setting. Should stay clean.",
+        "rules": [
+          "TR01"
+        ],
+        "title": "UI copy about overriding a system font",
+        "tool": "resultguard"
+      },
+      {
+        "difficulty": "medium",
+        "id": "resultguard/benign/06-normal-cdn-image",
+        "notes": "A legitimate <img src> may still hit TR09 (auto-loading resource). Documented as a possible false positive.",
+        "rules": [
+          "TR09"
+        ],
+        "title": "Ordinary HTML with a CDN logo image",
+        "tool": "resultguard"
+      },
+      {
+        "difficulty": "medium",
+        "id": "toolpoison/benign/03-email-with-audit-bcc",
+        "notes": "Legitimate compliance BCC. A possible false-positive risk if 'BCC' is treated as shadowing.",
+        "rules": [
+          "TP06"
+        ],
+        "title": "Email tool whose description mentions an audit BCC",
+        "tool": "toolpoison"
+      },
+      {
+        "difficulty": "medium",
+        "id": "toolpoison/benign/04-notes-parameter",
+        "notes": "Parameter named 'notes' may trip TP05 (smuggling-parameter) even when the description is benign. Possible false positive.",
+        "rules": [
+          "TP05"
+        ],
+        "title": "Optional notes parameter with a harmless description",
+        "tool": "toolpoison"
+      }
+    ],
+    "overall": {
+      "accuracy": 0.8588235294117647,
+      "f1": 0.8775510204081632,
+      "fn": 8,
+      "fp": 4,
+      "precision": 0.9148936170212766,
+      "recall": 0.8431372549019608,
+      "support": 85,
+      "tn": 30,
+      "tp": 43
+    },
+    "per_tool": {
+      "resultguard": {
+        "accuracy": 0.75,
+        "f1": 0.7826086956521738,
+        "fn": 3,
+        "fp": 2,
+        "precision": 0.8181818181818182,
+        "recall": 0.75,
+        "support": 20,
+        "tn": 6,
+        "tp": 9
+      },
+      "secretflow": {
+        "accuracy": 0.9090909090909091,
+        "f1": 0.923076923076923,
+        "fn": 1,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 0.8571428571428571,
+        "support": 11,
+        "tn": 4,
+        "tp": 6
+      },
+      "shellfence": {
+        "accuracy": 0.95,
+        "f1": 0.9565217391304348,
+        "fn": 1,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 0.9166666666666666,
+        "support": 20,
+        "tn": 8,
+        "tp": 11
+      },
+      "toolpoison": {
+        "accuracy": 0.7777777777777778,
+        "f1": 0.8000000000000002,
+        "fn": 2,
+        "fp": 2,
+        "precision": 0.8,
+        "recall": 0.8,
+        "support": 18,
+        "tn": 6,
+        "tp": 8
+      },
+      "tracesweep": {
+        "accuracy": 0.9375,
+        "f1": 0.9473684210526316,
+        "fn": 1,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 0.9,
+        "support": 16,
+        "tn": 6,
+        "tp": 9
+      }
+    },
+    "sample_count": 85,
+    "version": "v0.38.0"
+  },
+  "evasion_false_negatives": [],
   "false_negatives": [
     {
-      "difficulty": "evasion",
-      "id": "resultguard/malicious/09-typo-obfuscation",
-      "notes": "Deliberate misspellings of a classic jailbreak. A regex detector may miss this (false negative).",
-      "title": "Typo-obfuscated override ('ignroe prevous instructons')",
-      "tool": "resultguard"
-    },
-    {
-      "difficulty": "evasion",
-      "id": "resultguard/malicious/10-split-words",
-      "notes": "Split 'ignore previous instructions' across punctuation. Likely miss (false negative).",
-      "title": "Instruction split with punctuation and hyphenation",
-      "tool": "resultguard"
-    },
-    {
-      "difficulty": "evasion",
-      "id": "resultguard/malicious/12-rot13-instruction",
-      "notes": "Encoded form that resultguard does not currently decode (it does base64/hex). Expected miss.",
-      "title": "ROT13-encoded override with a hint to decode",
-      "tool": "resultguard"
-    },
-    {
-      "difficulty": "evasion",
-      "id": "toolpoison/malicious/09-soft-telemetry-exfil",
-      "notes": "No classic 'exfiltrate' wording. May be missed (false negative).",
-      "title": "Soft 'debugging' instruction to put workspace contents in telemetry_id",
-      "tool": "toolpoison"
-    },
-    {
-      "difficulty": "evasion",
-      "id": "toolpoison/malicious/10-french-instruction",
-      "notes": "Non-English override. English-centric rules may miss this.",
-      "title": "French-language hidden instruction in the description",
-      "tool": "toolpoison"
-    },
-    {
-      "difficulty": "evasion",
-      "id": "tracesweep/malicious/09-split-key",
-      "notes": "sk-proj- and the body are quoted separately. Pattern detectors often miss this (false negative).",
-      "title": "Key split across concatenation in the result",
-      "tool": "tracesweep"
-    },
-    {
-      "difficulty": "evasion",
-      "id": "secretflow/malicious/06-transformed-before-forward",
-      "notes": "The later argument is not the literal secret. secretflow tracks exact value reuse, so this is a likely false negative.",
-      "title": "Secret is base64-encoded before it is forwarded",
-      "tool": "secretflow"
-    },
-    {
-      "difficulty": "evasion",
-      "id": "shellfence/malicious/11-ifs-obfuscated-pipe",
-      "notes": "Obfuscated pipe-to-shell. May be missed (false negative).",
-      "title": "curl|bash with unusual spacing and IFS-style splitting",
-      "tool": "shellfence"
+      "difficulty": "medium",
+      "id": "memfence/malicious/04-credential-harvest",
+      "notes": "Asks the model to paste API keys and .env contents into the chat. memfence MF05 looks for harvest/dump/exfiltrate phrasing or 'paste the api key into the webhook'; this wording may miss (false negative).",
+      "title": "Memory entry asking to dump API keys",
+      "tool": "memfence"
     }
   ],
-  "false_positives": [
-    {
-      "difficulty": "medium",
-      "id": "resultguard/benign/05-override-font-setting",
-      "notes": "Contains 'override' and 'system' in a typography setting. Should stay clean.",
-      "rules": [
-        "TR01"
-      ],
-      "title": "UI copy about overriding a system font",
-      "tool": "resultguard"
+  "false_positives": [],
+  "heldout": {
+    "evasion_false_negatives": [],
+    "false_negatives": [],
+    "false_positives": [],
+    "overall": {
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 40,
+      "tn": 14,
+      "tp": 26
     },
-    {
-      "difficulty": "medium",
-      "id": "resultguard/benign/06-normal-cdn-image",
-      "notes": "A legitimate <img src> may still hit TR09 (auto-loading resource). Documented as a possible false positive.",
-      "rules": [
-        "TR09"
-      ],
-      "title": "Ordinary HTML with a CDN logo image",
-      "tool": "resultguard"
+    "per_tool": {
+      "resultguard": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 10,
+        "tn": 3,
+        "tp": 7
+      },
+      "secretflow": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 6,
+        "tn": 2,
+        "tp": 4
+      },
+      "shellfence": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 9,
+        "tn": 4,
+        "tp": 5
+      },
+      "toolpoison": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 8,
+        "tn": 3,
+        "tp": 5
+      },
+      "tracesweep": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 7,
+        "tn": 2,
+        "tp": 5
+      }
     },
-    {
-      "difficulty": "medium",
-      "id": "toolpoison/benign/03-email-with-audit-bcc",
-      "notes": "Legitimate compliance BCC. A possible false-positive risk if 'BCC' is treated as shadowing.",
-      "rules": [
-        "TP06"
-      ],
-      "title": "Email tool whose description mentions an audit BCC",
-      "tool": "toolpoison"
+    "positive_definition": "A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10) are ignored.",
+    "sample_count": 40,
+    "samples": [
+      {
+        "category": "prompt-injection-tool-result",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/resultguard/malicious/13-typo-disregard",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TR01"
+        ],
+        "tool": "resultguard"
+      },
+      {
+        "category": "prompt-injection-tool-result",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/resultguard/malicious/14-underscore-split",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TR01"
+        ],
+        "tool": "resultguard"
+      },
+      {
+        "category": "prompt-injection-tool-result",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/resultguard/malicious/15-rot13-disregard",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TR06"
+        ],
+        "tool": "resultguard"
+      },
+      {
+        "category": "prompt-injection-tool-result",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/resultguard/malicious/16-german-override",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TR01"
+        ],
+        "tool": "resultguard"
+      },
+      {
+        "category": "prompt-injection-tool-result",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/resultguard/malicious/17-portuguese-override",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TR01"
+        ],
+        "tool": "resultguard"
+      },
+      {
+        "category": "prompt-injection-tool-result",
+        "difficulty": "medium",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/resultguard/benign/09-override-default-theme",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "resultguard"
+      },
+      {
+        "category": "prompt-injection-tool-result",
+        "difficulty": "medium",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/resultguard/benign/10-svg-badge",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "resultguard"
+      },
+      {
+        "category": "prompt-injection-tool-result",
+        "difficulty": "easy",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/resultguard/benign/11-ignore-reminder",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "resultguard"
+      },
+      {
+        "category": "prompt-injection-tool-result",
+        "difficulty": "easy",
+        "finding_count": 2,
+        "flagged": true,
+        "id": "heldout/resultguard/malicious/18-classic-from-now-on",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TR01",
+          "TR08"
+        ],
+        "tool": "resultguard"
+      },
+      {
+        "category": "poisoned-mcp-tool-description",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/toolpoison/malicious/11-repo-snapshot-argument",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TP04"
+        ],
+        "tool": "toolpoison"
+      },
+      {
+        "category": "poisoned-mcp-tool-description",
+        "difficulty": "evasion",
+        "finding_count": 2,
+        "flagged": true,
+        "id": "heldout/toolpoison/malicious/12-italian-instruction",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TP01",
+          "TP04"
+        ],
+        "tool": "toolpoison"
+      },
+      {
+        "category": "poisoned-mcp-tool-description",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/toolpoison/malicious/13-german-sende-url",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TP01"
+        ],
+        "tool": "toolpoison"
+      },
+      {
+        "category": "poisoned-mcp-tool-description",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/toolpoison/malicious/14-export-into-field",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TP04"
+        ],
+        "tool": "toolpoison"
+      },
+      {
+        "category": "poisoned-mcp-tool-description",
+        "difficulty": "medium",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/toolpoison/benign/09-alerts-copy",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "toolpoison"
+      },
+      {
+        "category": "poisoned-mcp-tool-description",
+        "difficulty": "medium",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/toolpoison/benign/10-comments-parameter",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "toolpoison"
+      },
+      {
+        "category": "poisoned-mcp-tool-description",
+        "difficulty": "easy",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/toolpoison/benign/11-weather",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "toolpoison"
+      },
+      {
+        "category": "poisoned-mcp-tool-description",
+        "difficulty": "easy",
+        "finding_count": 2,
+        "flagged": true,
+        "id": "heldout/toolpoison/malicious/15-cross-tool-when-used",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TP04",
+          "TP06"
+        ],
+        "tool": "toolpoison"
+      },
+      {
+        "category": "secret-leak",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/tracesweep/malicious/11-split-anthropic",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TS-ANTHROPIC"
+        ],
+        "tool": "tracesweep"
+      },
+      {
+        "category": "secret-leak",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/tracesweep/malicious/12-split-github-implicit",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TS-GENERIC"
+        ],
+        "tool": "tracesweep"
+      },
+      {
+        "category": "secret-leak",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/tracesweep/malicious/13-split-slack",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TS-SLACK"
+        ],
+        "tool": "tracesweep"
+      },
+      {
+        "category": "secret-leak",
+        "difficulty": "easy",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/tracesweep/malicious/14-plain-openai",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TS-OPENAI"
+        ],
+        "tool": "tracesweep"
+      },
+      {
+        "category": "secret-leak",
+        "difficulty": "easy",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/tracesweep/benign/07-mentions-key-source",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "tracesweep"
+      },
+      {
+        "category": "secret-leak",
+        "difficulty": "medium",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/tracesweep/benign/08-ordinary-concat",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "tracesweep"
+      },
+      {
+        "category": "secret-leak",
+        "difficulty": "evasion",
+        "finding_count": 2,
+        "flagged": true,
+        "id": "heldout/secretflow/malicious/08-hex-before-forward",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "FL01",
+          "FL07"
+        ],
+        "tool": "secretflow"
+      },
+      {
+        "category": "secret-leak",
+        "difficulty": "evasion",
+        "finding_count": 2,
+        "flagged": true,
+        "id": "heldout/secretflow/malicious/09-urlencode-before-forward",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "FL01",
+          "FL07"
+        ],
+        "tool": "secretflow"
+      },
+      {
+        "category": "secret-leak",
+        "difficulty": "evasion",
+        "finding_count": 2,
+        "flagged": true,
+        "id": "heldout/secretflow/malicious/10-base64-wrapped-json",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "FL01",
+          "FL07"
+        ],
+        "tool": "secretflow"
+      },
+      {
+        "category": "secret-leak",
+        "difficulty": "easy",
+        "finding_count": 2,
+        "flagged": true,
+        "id": "heldout/secretflow/malicious/11-literal-forward",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "FL01",
+          "FL07"
+        ],
+        "tool": "secretflow"
+      },
+      {
+        "category": "secret-leak",
+        "difficulty": "medium",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/secretflow/benign/05-encoded-different-value",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "secretflow"
+      },
+      {
+        "category": "secret-leak",
+        "difficulty": "easy",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/secretflow/benign/06-never-forwarded",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "secretflow"
+      },
+      {
+        "category": "dangerous-shell",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/shellfence/malicious/13-wget-ansi-c-quote",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "SF01"
+        ],
+        "tool": "shellfence"
+      },
+      {
+        "category": "dangerous-shell",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/shellfence/malicious/14-curl-ifs-bash",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "SF01"
+        ],
+        "tool": "shellfence"
+      },
+      {
+        "category": "dangerous-shell",
+        "difficulty": "medium",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/shellfence/malicious/15-env-bash",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "SF01"
+        ],
+        "tool": "shellfence"
+      },
+      {
+        "category": "dangerous-shell",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/shellfence/malicious/16-bin-quote-in-brace",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "SF01"
+        ],
+        "tool": "shellfence"
+      },
+      {
+        "category": "dangerous-shell",
+        "difficulty": "easy",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/shellfence/malicious/17-fetch-zsh",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "SF01"
+        ],
+        "tool": "shellfence"
+      },
+      {
+        "category": "dangerous-shell",
+        "difficulty": "easy",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/shellfence/benign/09-curl-to-archive",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "shellfence"
+      },
+      {
+        "category": "dangerous-shell",
+        "difficulty": "easy",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/shellfence/benign/10-cat-piped-to-head",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "shellfence"
+      },
+      {
+        "category": "dangerous-shell",
+        "difficulty": "easy",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/shellfence/benign/11-npm-and-pytest",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "shellfence"
+      },
+      {
+        "category": "secret-leak",
+        "difficulty": "evasion",
+        "finding_count": 1,
+        "flagged": true,
+        "id": "heldout/tracesweep/malicious/15-split-akia",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TS-AWS-AKID"
+        ],
+        "tool": "tracesweep"
+      },
+      {
+        "category": "prompt-injection-tool-result",
+        "difficulty": "easy",
+        "finding_count": 2,
+        "flagged": true,
+        "id": "heldout/resultguard/malicious/19-markdown-beacon",
+        "label": "malicious",
+        "outcome": "tp",
+        "parse_error": null,
+        "rules": [
+          "TR05",
+          "TR09"
+        ],
+        "tool": "resultguard"
+      },
+      {
+        "category": "dangerous-shell",
+        "difficulty": "easy",
+        "finding_count": 0,
+        "flagged": false,
+        "id": "heldout/shellfence/benign/12-chmod-755",
+        "label": "benign",
+        "outcome": "tn",
+        "parse_error": null,
+        "rules": [],
+        "tool": "shellfence"
+      }
+    ],
+    "unexpected_false_negatives": [],
+    "written_after": "v0.39.0 rule freeze for issues #7\u2013#11"
+  },
+  "original_comparable": {
+    "evasion_false_negatives": [],
+    "false_negatives": [],
+    "false_positives": [],
+    "overall": {
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 85,
+      "tn": 34,
+      "tp": 51
     },
-    {
-      "difficulty": "medium",
-      "id": "toolpoison/benign/04-notes-parameter",
-      "notes": "Parameter named 'notes' may trip TP05 (smuggling-parameter) even when the description is benign. Possible false positive.",
-      "rules": [
-        "TP05"
-      ],
-      "title": "Optional notes parameter with a harmless description",
-      "tool": "toolpoison"
-    }
-  ],
-  "issues": [
-    {
-      "number": 7,
-      "title": "resultguard misses typo, split-word, and ROT13 instruction overrides",
-      "tool": "resultguard",
-      "url": "https://github.com/dunkleschitz/agentsec/issues/7"
+    "per_tool": {
+      "resultguard": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 20,
+        "tn": 8,
+        "tp": 12
+      },
+      "secretflow": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 11,
+        "tn": 4,
+        "tp": 7
+      },
+      "shellfence": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 20,
+        "tn": 8,
+        "tp": 12
+      },
+      "toolpoison": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 18,
+        "tn": 8,
+        "tp": 10
+      },
+      "tracesweep": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 16,
+        "tn": 6,
+        "tp": 10
+      }
     },
-    {
-      "number": 8,
-      "title": "toolpoison misses soft telemetry exfil and non-English hidden instructions",
-      "tool": "toolpoison",
-      "url": "https://github.com/dunkleschitz/agentsec/issues/8"
-    },
-    {
-      "number": 9,
-      "title": "tracesweep misses a provider-shaped key split across string concatenation",
-      "tool": "tracesweep",
-      "url": "https://github.com/dunkleschitz/agentsec/issues/9"
-    },
-    {
-      "number": 10,
-      "title": "secretflow misses a secret that is base64-encoded before it is forwarded",
-      "tool": "secretflow",
-      "url": "https://github.com/dunkleschitz/agentsec/issues/10"
-    },
-    {
-      "number": 11,
-      "title": "shellfence misses IFS/spacing-obfuscated curl piped to bash",
-      "tool": "shellfence",
-      "url": "https://github.com/dunkleschitz/agentsec/issues/11"
-    }
-  ],
+    "sample_count": 85,
+    "unexpected_false_negatives": []
+  },
   "overall": {
-    "accuracy": 0.8588235294117647,
-    "f1": 0.8775510204081632,
-    "fn": 8,
-    "fp": 4,
-    "precision": 0.9148936170212766,
-    "recall": 0.8431372549019608,
-    "support": 85,
-    "tn": 30,
-    "tp": 43
+    "accuracy": 0.992,
+    "f1": 0.9933774834437086,
+    "fn": 1,
+    "fp": 0,
+    "precision": 1.0,
+    "recall": 0.9868421052631579,
+    "support": 125,
+    "tn": 49,
+    "tp": 75
   },
   "per_tool": {
+    "fetchfence": {
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 8,
+      "tn": 3,
+      "tp": 5
+    },
+    "mcpposture": {
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 8,
+      "tn": 3,
+      "tp": 5
+    },
+    "memfence": {
+      "accuracy": 0.875,
+      "f1": 0.888888888888889,
+      "fn": 1,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 0.8,
+      "support": 8,
+      "tn": 3,
+      "tp": 4
+    },
+    "pathfence": {
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 8,
+      "tn": 3,
+      "tp": 5
+    },
+    "piiguard": {
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 8,
+      "tn": 3,
+      "tp": 5
+    },
     "resultguard": {
-      "accuracy": 0.75,
-      "f1": 0.7826086956521738,
-      "fn": 3,
-      "fp": 2,
-      "precision": 0.8181818181818182,
-      "recall": 0.75,
-      "support": 20,
-      "tn": 6,
-      "tp": 9
-    },
-    "secretflow": {
-      "accuracy": 0.9090909090909091,
-      "f1": 0.923076923076923,
-      "fn": 1,
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "fn": 0,
       "fp": 0,
       "precision": 1.0,
-      "recall": 0.8571428571428571,
-      "support": 11,
-      "tn": 4,
-      "tp": 6
-    },
-    "shellfence": {
-      "accuracy": 0.95,
-      "f1": 0.9565217391304348,
-      "fn": 1,
-      "fp": 0,
-      "precision": 1.0,
-      "recall": 0.9166666666666666,
+      "recall": 1.0,
       "support": 20,
       "tn": 8,
-      "tp": 11
+      "tp": 12
     },
-    "toolpoison": {
-      "accuracy": 0.7777777777777778,
-      "f1": 0.8000000000000002,
-      "fn": 2,
-      "fp": 2,
-      "precision": 0.8,
-      "recall": 0.8,
-      "support": 18,
-      "tn": 6,
-      "tp": 8
-    },
-    "tracesweep": {
-      "accuracy": 0.9375,
-      "f1": 0.9473684210526316,
-      "fn": 1,
+    "secretflow": {
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "fn": 0,
       "fp": 0,
       "precision": 1.0,
-      "recall": 0.9,
+      "recall": 1.0,
+      "support": 11,
+      "tn": 4,
+      "tp": 7
+    },
+    "shellfence": {
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 20,
+      "tn": 8,
+      "tp": 12
+    },
+    "toolpoison": {
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 18,
+      "tn": 8,
+      "tp": 10
+    },
+    "tracesweep": {
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
       "support": 16,
       "tn": 6,
-      "tp": 9
+      "tp": 10
     }
   },
   "positive_definition": "A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10) are ignored.",
-  "sample_count": 85,
+  "sample_count": 125,
   "samples": [
     {
       "category": "prompt-injection-tool-result",
@@ -332,25 +1132,15 @@
     {
       "category": "prompt-injection-tool-result",
       "difficulty": "evasion",
-      "finding_count": 0,
-      "flagged": false,
+      "finding_count": 1,
+      "flagged": true,
       "id": "resultguard/malicious/09-typo-obfuscation",
       "label": "malicious",
-      "outcome": "fn",
+      "outcome": "tp",
       "parse_error": null,
-      "rules": [],
-      "tool": "resultguard"
-    },
-    {
-      "category": "prompt-injection-tool-result",
-      "difficulty": "evasion",
-      "finding_count": 0,
-      "flagged": false,
-      "id": "resultguard/malicious/10-split-words",
-      "label": "malicious",
-      "outcome": "fn",
-      "parse_error": null,
-      "rules": [],
+      "rules": [
+        "TR01"
+      ],
       "tool": "resultguard"
     },
     {
@@ -358,11 +1148,26 @@
       "difficulty": "evasion",
       "finding_count": 1,
       "flagged": true,
+      "id": "resultguard/malicious/10-split-words",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "TR01"
+      ],
+      "tool": "resultguard"
+    },
+    {
+      "category": "prompt-injection-tool-result",
+      "difficulty": "evasion",
+      "finding_count": 2,
+      "flagged": true,
       "id": "resultguard/malicious/11-spanish-override",
       "label": "malicious",
       "outcome": "tp",
       "parse_error": null,
       "rules": [
+        "TR01",
         "TR04"
       ],
       "tool": "resultguard"
@@ -370,13 +1175,15 @@
     {
       "category": "prompt-injection-tool-result",
       "difficulty": "evasion",
-      "finding_count": 0,
-      "flagged": false,
+      "finding_count": 1,
+      "flagged": true,
       "id": "resultguard/malicious/12-rot13-instruction",
       "label": "malicious",
-      "outcome": "fn",
+      "outcome": "tp",
       "parse_error": null,
-      "rules": [],
+      "rules": [
+        "TR06"
+      ],
       "tool": "resultguard"
     },
     {
@@ -430,29 +1237,25 @@
     {
       "category": "prompt-injection-tool-result",
       "difficulty": "medium",
-      "finding_count": 1,
-      "flagged": true,
+      "finding_count": 0,
+      "flagged": false,
       "id": "resultguard/benign/05-override-font-setting",
       "label": "benign",
-      "outcome": "fp",
+      "outcome": "tn",
       "parse_error": null,
-      "rules": [
-        "TR01"
-      ],
+      "rules": [],
       "tool": "resultguard"
     },
     {
       "category": "prompt-injection-tool-result",
       "difficulty": "medium",
-      "finding_count": 1,
-      "flagged": true,
+      "finding_count": 0,
+      "flagged": false,
       "id": "resultguard/benign/06-normal-cdn-image",
       "label": "benign",
-      "outcome": "fp",
+      "outcome": "tn",
       "parse_error": null,
-      "rules": [
-        "TR09"
-      ],
+      "rules": [],
       "tool": "resultguard"
     },
     {
@@ -603,25 +1406,30 @@
     {
       "category": "poisoned-mcp-tool-description",
       "difficulty": "evasion",
-      "finding_count": 0,
-      "flagged": false,
+      "finding_count": 1,
+      "flagged": true,
       "id": "toolpoison/malicious/09-soft-telemetry-exfil",
       "label": "malicious",
-      "outcome": "fn",
+      "outcome": "tp",
       "parse_error": null,
-      "rules": [],
+      "rules": [
+        "TP04"
+      ],
       "tool": "toolpoison"
     },
     {
       "category": "poisoned-mcp-tool-description",
       "difficulty": "evasion",
-      "finding_count": 0,
-      "flagged": false,
+      "finding_count": 2,
+      "flagged": true,
       "id": "toolpoison/malicious/10-french-instruction",
       "label": "malicious",
-      "outcome": "fn",
+      "outcome": "tp",
       "parse_error": null,
-      "rules": [],
+      "rules": [
+        "TP01",
+        "TP04"
+      ],
       "tool": "toolpoison"
     },
     {
@@ -651,29 +1459,25 @@
     {
       "category": "poisoned-mcp-tool-description",
       "difficulty": "medium",
-      "finding_count": 1,
-      "flagged": true,
+      "finding_count": 0,
+      "flagged": false,
       "id": "toolpoison/benign/03-email-with-audit-bcc",
       "label": "benign",
-      "outcome": "fp",
+      "outcome": "tn",
       "parse_error": null,
-      "rules": [
-        "TP06"
-      ],
+      "rules": [],
       "tool": "toolpoison"
     },
     {
       "category": "poisoned-mcp-tool-description",
       "difficulty": "medium",
-      "finding_count": 1,
-      "flagged": true,
+      "finding_count": 0,
+      "flagged": false,
       "id": "toolpoison/benign/04-notes-parameter",
       "label": "benign",
-      "outcome": "fp",
+      "outcome": "tn",
       "parse_error": null,
-      "rules": [
-        "TP05"
-      ],
+      "rules": [],
       "tool": "toolpoison"
     },
     {
@@ -839,13 +1643,15 @@
     {
       "category": "secret-leak",
       "difficulty": "evasion",
-      "finding_count": 0,
-      "flagged": false,
+      "finding_count": 1,
+      "flagged": true,
       "id": "tracesweep/malicious/09-split-key",
       "label": "malicious",
-      "outcome": "fn",
+      "outcome": "tp",
       "parse_error": null,
-      "rules": [],
+      "rules": [
+        "TS-OPENAI"
+      ],
       "tool": "tracesweep"
     },
     {
@@ -1014,13 +1820,16 @@
     {
       "category": "secret-leak",
       "difficulty": "evasion",
-      "finding_count": 0,
-      "flagged": false,
+      "finding_count": 2,
+      "flagged": true,
       "id": "secretflow/malicious/06-transformed-before-forward",
       "label": "malicious",
-      "outcome": "fn",
+      "outcome": "tp",
       "parse_error": null,
-      "rules": [],
+      "rules": [
+        "FL01",
+        "FL07"
+      ],
       "tool": "secretflow"
     },
     {
@@ -1230,13 +2039,15 @@
     {
       "category": "dangerous-shell",
       "difficulty": "evasion",
-      "finding_count": 0,
-      "flagged": false,
+      "finding_count": 1,
+      "flagged": true,
       "id": "shellfence/malicious/11-ifs-obfuscated-pipe",
       "label": "malicious",
-      "outcome": "fn",
+      "outcome": "tp",
       "parse_error": null,
-      "rules": [],
+      "rules": [
+        "SF01"
+      ],
       "tool": "shellfence"
     },
     {
@@ -1348,7 +2159,557 @@
       "parse_error": null,
       "rules": [],
       "tool": "shellfence"
+    },
+    {
+      "category": "pii-in-transcript",
+      "difficulty": "easy",
+      "finding_count": 1,
+      "flagged": true,
+      "id": "piiguard/malicious/01-email-and-phone",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "PG01"
+      ],
+      "tool": "piiguard"
+    },
+    {
+      "category": "pii-in-transcript",
+      "difficulty": "easy",
+      "finding_count": 1,
+      "flagged": true,
+      "id": "piiguard/malicious/02-labeled-ssn",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "PG03"
+      ],
+      "tool": "piiguard"
+    },
+    {
+      "category": "pii-in-transcript",
+      "difficulty": "easy",
+      "finding_count": 1,
+      "flagged": true,
+      "id": "piiguard/malicious/03-test-card",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "PG04"
+      ],
+      "tool": "piiguard"
+    },
+    {
+      "category": "pii-in-transcript",
+      "difficulty": "easy",
+      "finding_count": 1,
+      "flagged": true,
+      "id": "piiguard/malicious/04-iban",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "PG06"
+      ],
+      "tool": "piiguard"
+    },
+    {
+      "category": "pii-in-transcript",
+      "difficulty": "easy",
+      "finding_count": 2,
+      "flagged": true,
+      "id": "piiguard/malicious/05-address-and-dob",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "PG07",
+        "PG08"
+      ],
+      "tool": "piiguard"
+    },
+    {
+      "category": "pii-in-transcript",
+      "difficulty": "easy",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "piiguard/benign/01-mentions-email-word",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "piiguard"
+    },
+    {
+      "category": "pii-in-transcript",
+      "difficulty": "medium",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "piiguard/benign/02-ssn-format-docs",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "piiguard"
+    },
+    {
+      "category": "pii-in-transcript",
+      "difficulty": "medium",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "piiguard/benign/03-555-explanation",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "piiguard"
+    },
+    {
+      "category": "ssrf-fetch-url",
+      "difficulty": "easy",
+      "finding_count": 3,
+      "flagged": true,
+      "id": "fetchfence/malicious/01-cloud-metadata",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "FF01",
+        "FF07",
+        "FF08"
+      ],
+      "tool": "fetchfence"
+    },
+    {
+      "category": "ssrf-fetch-url",
+      "difficulty": "easy",
+      "finding_count": 4,
+      "flagged": true,
+      "id": "fetchfence/malicious/02-loopback",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "FF02",
+        "FF07",
+        "FF08",
+        "FF12"
+      ],
+      "tool": "fetchfence"
+    },
+    {
+      "category": "ssrf-fetch-url",
+      "difficulty": "easy",
+      "finding_count": 1,
+      "flagged": true,
+      "id": "fetchfence/malicious/03-file-scheme",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "FF04"
+      ],
+      "tool": "fetchfence"
+    },
+    {
+      "category": "ssrf-fetch-url",
+      "difficulty": "easy",
+      "finding_count": 1,
+      "flagged": true,
+      "id": "fetchfence/malicious/04-webhook-callback",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "FF06"
+      ],
+      "tool": "fetchfence"
+    },
+    {
+      "category": "ssrf-fetch-url",
+      "difficulty": "medium",
+      "finding_count": 4,
+      "flagged": true,
+      "id": "fetchfence/malicious/05-rfc1918-redis",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "FF03",
+        "FF05",
+        "FF08",
+        "FF12"
+      ],
+      "tool": "fetchfence"
+    },
+    {
+      "category": "ssrf-fetch-url",
+      "difficulty": "easy",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "fetchfence/benign/01-docs-https",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "fetchfence"
+    },
+    {
+      "category": "ssrf-fetch-url",
+      "difficulty": "easy",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "fetchfence/benign/02-github-api",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "fetchfence"
+    },
+    {
+      "category": "ssrf-fetch-url",
+      "difficulty": "easy",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "fetchfence/benign/03-python-docs",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "fetchfence"
+    },
+    {
+      "category": "sensitive-path",
+      "difficulty": "easy",
+      "finding_count": 1,
+      "flagged": true,
+      "id": "pathfence/malicious/01-ssh-private-key",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "PF02"
+      ],
+      "tool": "pathfence"
+    },
+    {
+      "category": "sensitive-path",
+      "difficulty": "easy",
+      "finding_count": 2,
+      "flagged": true,
+      "id": "pathfence/malicious/02-dotenv",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "PF01",
+        "PF06"
+      ],
+      "tool": "pathfence"
+    },
+    {
+      "category": "sensitive-path",
+      "difficulty": "easy",
+      "finding_count": 3,
+      "flagged": true,
+      "id": "pathfence/malicious/03-shadow",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "PF01",
+        "PF05",
+        "PF09"
+      ],
+      "tool": "pathfence"
+    },
+    {
+      "category": "sensitive-path",
+      "difficulty": "easy",
+      "finding_count": 3,
+      "flagged": true,
+      "id": "pathfence/malicious/04-aws-credentials",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "PF01",
+        "PF03",
+        "PF04"
+      ],
+      "tool": "pathfence"
+    },
+    {
+      "category": "sensitive-path",
+      "difficulty": "easy",
+      "finding_count": 1,
+      "flagged": true,
+      "id": "pathfence/malicious/05-docker-sock",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "PF10"
+      ],
+      "tool": "pathfence"
+    },
+    {
+      "category": "sensitive-path",
+      "difficulty": "easy",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "pathfence/benign/01-src-main",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "pathfence"
+    },
+    {
+      "category": "sensitive-path",
+      "difficulty": "easy",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "pathfence/benign/02-readme",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "pathfence"
+    },
+    {
+      "category": "sensitive-path",
+      "difficulty": "easy",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "pathfence/benign/03-package-index",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "pathfence"
+    },
+    {
+      "category": "mcp-client-posture",
+      "difficulty": "easy",
+      "finding_count": 4,
+      "flagged": true,
+      "id": "mcpposture/malicious/01-inline-github-pat",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "MP01",
+        "MP03",
+        "MP04",
+        "MP12"
+      ],
+      "tool": "mcpposture"
+    },
+    {
+      "category": "mcp-client-posture",
+      "difficulty": "easy",
+      "finding_count": 3,
+      "flagged": true,
+      "id": "mcpposture/malicious/02-docker-privileged",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "MP03",
+        "MP05"
+      ],
+      "tool": "mcpposture"
+    },
+    {
+      "category": "mcp-client-posture",
+      "difficulty": "easy",
+      "finding_count": 2,
+      "flagged": true,
+      "id": "mcpposture/malicious/03-pipe-to-shell-install",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "MP07",
+        "MP11"
+      ],
+      "tool": "mcpposture"
+    },
+    {
+      "category": "mcp-client-posture",
+      "difficulty": "easy",
+      "finding_count": 1,
+      "flagged": true,
+      "id": "mcpposture/malicious/04-filesystem-root",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "MP06"
+      ],
+      "tool": "mcpposture"
+    },
+    {
+      "category": "mcp-client-posture",
+      "difficulty": "easy",
+      "finding_count": 1,
+      "flagged": true,
+      "id": "mcpposture/malicious/05-tls-verify-off",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "MP14"
+      ],
+      "tool": "mcpposture"
+    },
+    {
+      "category": "mcp-client-posture",
+      "difficulty": "easy",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "mcpposture/benign/01-pinned-github-env-ref",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "mcpposture"
+    },
+    {
+      "category": "mcp-client-posture",
+      "difficulty": "easy",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "mcpposture/benign/02-pinned-filesystem-project",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "mcpposture"
+    },
+    {
+      "category": "mcp-client-posture",
+      "difficulty": "easy",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "mcpposture/benign/03-https-remote-env-header",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "mcpposture"
+    },
+    {
+      "category": "memory-poisoning",
+      "difficulty": "easy",
+      "finding_count": 2,
+      "flagged": true,
+      "id": "memfence/malicious/01-jailbreak-in-memory",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "MF01",
+        "MF02"
+      ],
+      "tool": "memfence"
+    },
+    {
+      "category": "memory-poisoning",
+      "difficulty": "easy",
+      "finding_count": 1,
+      "flagged": true,
+      "id": "memfence/malicious/02-persistence-bait",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "MF09"
+      ],
+      "tool": "memfence"
+    },
+    {
+      "category": "memory-poisoning",
+      "difficulty": "easy",
+      "finding_count": 1,
+      "flagged": true,
+      "id": "memfence/malicious/03-exfil-url",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "MF04"
+      ],
+      "tool": "memfence"
+    },
+    {
+      "category": "memory-poisoning",
+      "difficulty": "medium",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "memfence/malicious/04-credential-harvest",
+      "label": "malicious",
+      "outcome": "fn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "memfence"
+    },
+    {
+      "category": "memory-poisoning",
+      "difficulty": "easy",
+      "finding_count": 1,
+      "flagged": true,
+      "id": "memfence/malicious/05-hidden-unicode",
+      "label": "malicious",
+      "outcome": "tp",
+      "parse_error": null,
+      "rules": [
+        "MF03"
+      ],
+      "tool": "memfence"
+    },
+    {
+      "category": "memory-poisoning",
+      "difficulty": "easy",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "memfence/benign/01-dark-mode",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "memfence"
+    },
+    {
+      "category": "memory-poisoning",
+      "difficulty": "easy",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "memfence/benign/02-project-codename",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "memfence"
+    },
+    {
+      "category": "memory-poisoning",
+      "difficulty": "medium",
+      "finding_count": 0,
+      "flagged": false,
+      "id": "memfence/benign/03-sprint-reminder",
+      "label": "benign",
+      "outcome": "tn",
+      "parse_error": null,
+      "rules": [],
+      "tool": "memfence"
     }
   ],
-  "unexpected_false_negatives": []
+  "unexpected_false_negatives": [
+    "memfence/malicious/04-credential-harvest"
+  ]
 }

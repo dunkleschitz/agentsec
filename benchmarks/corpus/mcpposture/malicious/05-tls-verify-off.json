@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "remote": {
+      "command": "npx",
+      "args": [
+        "mcp-server-fetch@2025.4.7"
+      ],
+      "env": {
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+      }
+    }
+  }
+}

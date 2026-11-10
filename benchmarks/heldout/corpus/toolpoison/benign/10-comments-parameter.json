@@ -1,0 +1,20 @@
+{
+  "tools": [
+    {
+      "name": "create_ticket",
+      "description": "Create a support ticket.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "comments": {
+            "type": "string",
+            "description": "Optional message shown on the ticket"
+          }
+        }
+      }
+    }
+  ]
+}

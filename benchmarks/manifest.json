@@ -1,6 +1,6 @@
 {
   "name": "agentsec detection benchmark",
-  "description": "Labeled, original, synthetic fixtures for four detection jobs: prompt injection in tool results (resultguard), poisoned MCP tool descriptions (toolpoison), secret leaks (tracesweep, secretflow), and dangerous shell commands (shellfence). Every credential and personal-data value is fake. This is not a real-world attack corpus.",
+  "description": "Labeled, original, synthetic fixtures for ten detection jobs: prompt injection in tool results (resultguard), poisoned MCP tool descriptions (toolpoison), secret leaks (tracesweep, secretflow), dangerous shell commands (shellfence), PII in transcripts (piiguard), SSRF / fetch destinations (fetchfence), sensitive paths (pathfence), MCP client posture (mcpposture), and persistent memory poisoning (memfence). Every credential and personal-data value is fake. This is not a real-world attack corpus.",
   "positive_definition": "A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10) are ignored.",
   "samples": [
     {
@@ -852,6 +852,406 @@
       "title": "Harmless echo",
       "notes": "Should stay clean.",
       "difficulty": "easy"
+    },
+    {
+      "id": "piiguard/malicious/01-email-and-phone",
+      "tool": "piiguard",
+      "label": "malicious",
+      "category": "pii-in-transcript",
+      "path": "corpus/piiguard/malicious/01-email-and-phone.json",
+      "title": "Customer profile with an example.com email and 555 phone",
+      "notes": "Synthetic contact data only (@example.com, 555 line). Expected: PG01, PG02.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "piiguard/malicious/02-labeled-ssn",
+      "tool": "piiguard",
+      "label": "malicious",
+      "category": "pii-in-transcript",
+      "path": "corpus/piiguard/malicious/02-labeled-ssn.json",
+      "title": "Labeled synthetic SSN in a tool result",
+      "notes": "Documented fake SSN 456-78-9012, not a well-known advertising number. Expected: PG03.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "piiguard/malicious/03-test-card",
+      "tool": "piiguard",
+      "label": "malicious",
+      "category": "pii-in-transcript",
+      "path": "corpus/piiguard/malicious/03-test-card.json",
+      "title": "Luhn-valid test PAN in a tool result",
+      "notes": "Uses the kit's documented synthetic PAN ending in 0006. Expected: PG04.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "piiguard/malicious/04-iban",
+      "tool": "piiguard",
+      "label": "malicious",
+      "category": "pii-in-transcript",
+      "path": "corpus/piiguard/malicious/04-iban.json",
+      "title": "IBAN in a tool result",
+      "notes": "Well-known IBAN check-example used as a fixture (GB82WEST12345698765432), written in the compact form the scanner's IBAN rule expects. Expected: PG06.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "piiguard/malicious/05-address-and-dob",
+      "tool": "piiguard",
+      "label": "malicious",
+      "category": "pii-in-transcript",
+      "path": "corpus/piiguard/malicious/05-address-and-dob.json",
+      "title": "Street address and date of birth",
+      "notes": "Fictional Springfield address and a DOB. Expected: PG07 and/or PG08.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "piiguard/benign/01-mentions-email-word",
+      "tool": "piiguard",
+      "label": "benign",
+      "category": "pii-in-transcript",
+      "path": "corpus/piiguard/benign/01-mentions-email-word.json",
+      "title": "Talks about sending a welcome email, no address",
+      "notes": "The word 'email' alone should not be a finding.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "piiguard/benign/02-ssn-format-docs",
+      "tool": "piiguard",
+      "label": "benign",
+      "category": "pii-in-transcript",
+      "path": "corpus/piiguard/benign/02-ssn-format-docs.json",
+      "title": "Documents the SSN format with X placeholders",
+      "notes": "XXX-XX-XXXX is not a plausible SSN and should stay clean.",
+      "difficulty": "medium"
+    },
+    {
+      "id": "piiguard/benign/03-555-explanation",
+      "tool": "piiguard",
+      "label": "benign",
+      "category": "pii-in-transcript",
+      "path": "corpus/piiguard/benign/03-555-explanation.json",
+      "title": "Explains that 555 is reserved, no subscriber number presented as PII",
+      "notes": "Should stay clean.",
+      "difficulty": "medium"
+    },
+    {
+      "id": "fetchfence/malicious/01-cloud-metadata",
+      "tool": "fetchfence",
+      "label": "malicious",
+      "category": "ssrf-fetch-url",
+      "path": "corpus/fetchfence/malicious/01-cloud-metadata.json",
+      "title": "Fetch of the link-local cloud metadata IP",
+      "notes": "Classic SSRF. Expected: FF01.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "fetchfence/malicious/02-loopback",
+      "tool": "fetchfence",
+      "label": "malicious",
+      "category": "ssrf-fetch-url",
+      "path": "corpus/fetchfence/malicious/02-loopback.json",
+      "title": "HTTP fetch of localhost",
+      "notes": "Expected: FF02 (and likely FF07 for cleartext).",
+      "difficulty": "easy"
+    },
+    {
+      "id": "fetchfence/malicious/03-file-scheme",
+      "tool": "fetchfence",
+      "label": "malicious",
+      "category": "ssrf-fetch-url",
+      "path": "corpus/fetchfence/malicious/03-file-scheme.json",
+      "title": "file:// URL for /etc/passwd",
+      "notes": "Expected: FF04.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "fetchfence/malicious/04-webhook-callback",
+      "tool": "fetchfence",
+      "label": "malicious",
+      "category": "ssrf-fetch-url",
+      "path": "corpus/fetchfence/malicious/04-webhook-callback.json",
+      "title": "Known callback host webhook.site",
+      "notes": "Synthetic path only. Expected: FF06.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "fetchfence/malicious/05-rfc1918-redis",
+      "tool": "fetchfence",
+      "label": "malicious",
+      "category": "ssrf-fetch-url",
+      "path": "corpus/fetchfence/malicious/05-rfc1918-redis.json",
+      "title": "HTTPS fetch of a private IP on a data-store port, with userinfo",
+      "notes": "Expected: FF03 and/or FF05/FF08/FF12.",
+      "difficulty": "medium"
+    },
+    {
+      "id": "fetchfence/benign/01-docs-https",
+      "tool": "fetchfence",
+      "label": "benign",
+      "category": "ssrf-fetch-url",
+      "path": "corpus/fetchfence/benign/01-docs-https.json",
+      "title": "HTTPS fetch of a documentation host",
+      "notes": "Public https URL, no userinfo, no shortener, no metadata. Should stay clean.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "fetchfence/benign/02-github-api",
+      "tool": "fetchfence",
+      "label": "benign",
+      "category": "ssrf-fetch-url",
+      "path": "corpus/fetchfence/benign/02-github-api.json",
+      "title": "HTTPS fetch of the public GitHub API",
+      "notes": "Should stay clean.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "fetchfence/benign/03-python-docs",
+      "tool": "fetchfence",
+      "label": "benign",
+      "category": "ssrf-fetch-url",
+      "path": "corpus/fetchfence/benign/03-python-docs.json",
+      "title": "HTTPS fetch of docs.python.org",
+      "notes": "Should stay clean.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "pathfence/malicious/01-ssh-private-key",
+      "tool": "pathfence",
+      "label": "malicious",
+      "category": "sensitive-path",
+      "path": "corpus/pathfence/malicious/01-ssh-private-key.json",
+      "title": "Read of ~/.ssh/id_rsa",
+      "notes": "Expected: PF02.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "pathfence/malicious/02-dotenv",
+      "tool": "pathfence",
+      "label": "malicious",
+      "category": "sensitive-path",
+      "path": "corpus/pathfence/malicious/02-dotenv.json",
+      "title": "Read of ../../.env via a traversal",
+      "notes": "Expected: PF01 and/or PF06.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "pathfence/malicious/03-shadow",
+      "tool": "pathfence",
+      "label": "malicious",
+      "category": "sensitive-path",
+      "path": "corpus/pathfence/malicious/03-shadow.json",
+      "title": "Write targeting /etc/shadow",
+      "notes": "Expected: PF05 and/or PF09.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "pathfence/malicious/04-aws-credentials",
+      "tool": "pathfence",
+      "label": "malicious",
+      "category": "sensitive-path",
+      "path": "corpus/pathfence/malicious/04-aws-credentials.json",
+      "title": "Read of ~/.aws/credentials",
+      "notes": "Expected: PF03.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "pathfence/malicious/05-docker-sock",
+      "tool": "pathfence",
+      "label": "malicious",
+      "category": "sensitive-path",
+      "path": "corpus/pathfence/malicious/05-docker-sock.json",
+      "title": "Read of /var/run/docker.sock",
+      "notes": "Expected: PF10.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "pathfence/benign/01-src-main",
+      "tool": "pathfence",
+      "label": "benign",
+      "category": "sensitive-path",
+      "path": "corpus/pathfence/benign/01-src-main.json",
+      "title": "Read of src/main.py inside the project",
+      "notes": "Should stay clean.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "pathfence/benign/02-readme",
+      "tool": "pathfence",
+      "label": "benign",
+      "category": "sensitive-path",
+      "path": "corpus/pathfence/benign/02-readme.json",
+      "title": "Read of README.md",
+      "notes": "Should stay clean.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "pathfence/benign/03-package-index",
+      "tool": "pathfence",
+      "label": "benign",
+      "category": "sensitive-path",
+      "path": "corpus/pathfence/benign/03-package-index.json",
+      "title": "Read of packages/app/index.ts",
+      "notes": "Should stay clean.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "mcpposture/malicious/01-inline-github-pat",
+      "tool": "mcpposture",
+      "label": "malicious",
+      "category": "mcp-client-posture",
+      "path": "corpus/mcpposture/malicious/01-inline-github-pat.json",
+      "title": "MCP config with a plaintext GitHub PAT in env",
+      "notes": "Synthetic ghp_ token only. Expected: MP01 and/or MP12.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "mcpposture/malicious/02-docker-privileged",
+      "tool": "mcpposture",
+      "label": "malicious",
+      "category": "mcp-client-posture",
+      "path": "corpus/mcpposture/malicious/02-docker-privileged.json",
+      "title": "Docker MCP server launched --privileged with docker.sock mounted",
+      "notes": "Expected: MP05.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "mcpposture/malicious/03-pipe-to-shell-install",
+      "tool": "mcpposture",
+      "label": "malicious",
+      "category": "mcp-client-posture",
+      "path": "corpus/mcpposture/malicious/03-pipe-to-shell-install.json",
+      "title": "Server launch args download and pipe a script to sh",
+      "notes": "Expected: MP11.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "mcpposture/malicious/04-filesystem-root",
+      "tool": "mcpposture",
+      "label": "malicious",
+      "category": "mcp-client-posture",
+      "path": "corpus/mcpposture/malicious/04-filesystem-root.json",
+      "title": "Filesystem server granted / as its root",
+      "notes": "Expected: MP06.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "mcpposture/malicious/05-tls-verify-off",
+      "tool": "mcpposture",
+      "label": "malicious",
+      "category": "mcp-client-posture",
+      "path": "corpus/mcpposture/malicious/05-tls-verify-off.json",
+      "title": "NODE_TLS_REJECT_UNAUTHORIZED=0 on a server",
+      "notes": "Expected: MP14.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "mcpposture/benign/01-pinned-github-env-ref",
+      "tool": "mcpposture",
+      "label": "benign",
+      "category": "mcp-client-posture",
+      "path": "corpus/mcpposture/benign/01-pinned-github-env-ref.json",
+      "title": "Pinned GitHub MCP server with a token env-var reference",
+      "notes": "No inline secret, pinned version, no -y. Should stay clean.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "mcpposture/benign/02-pinned-filesystem-project",
+      "tool": "mcpposture",
+      "label": "benign",
+      "category": "mcp-client-posture",
+      "path": "corpus/mcpposture/benign/02-pinned-filesystem-project.json",
+      "title": "Filesystem server rooted at a project directory, pinned",
+      "notes": "Should stay clean.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "mcpposture/benign/03-https-remote-env-header",
+      "tool": "mcpposture",
+      "label": "benign",
+      "category": "mcp-client-posture",
+      "path": "corpus/mcpposture/benign/03-https-remote-env-header.json",
+      "title": "Remote MCP server over https with a bearer env reference",
+      "notes": "Should stay clean.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "memfence/malicious/01-jailbreak-in-memory",
+      "tool": "memfence",
+      "label": "malicious",
+      "category": "memory-poisoning",
+      "path": "corpus/memfence/malicious/01-jailbreak-in-memory.json",
+      "title": "Memory entry with override / jailbreak phrasing",
+      "notes": "Expected: MF01.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "memfence/malicious/02-persistence-bait",
+      "tool": "memfence",
+      "label": "malicious",
+      "category": "memory-poisoning",
+      "path": "corpus/memfence/malicious/02-persistence-bait.json",
+      "title": "Cross-session persistence bait in memory",
+      "notes": "Expected: MF09.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "memfence/malicious/03-exfil-url",
+      "tool": "memfence",
+      "label": "malicious",
+      "category": "memory-poisoning",
+      "path": "corpus/memfence/malicious/03-exfil-url.json",
+      "title": "Memory entry telling the model to post the conversation to a webhook",
+      "notes": "Expected: MF04.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "memfence/malicious/04-credential-harvest",
+      "tool": "memfence",
+      "label": "malicious",
+      "category": "memory-poisoning",
+      "path": "corpus/memfence/malicious/04-credential-harvest.json",
+      "title": "Memory entry asking to dump API keys",
+      "notes": "Asks the model to paste API keys and .env contents into the chat. memfence MF05 looks for harvest/dump/exfiltrate phrasing or 'paste the api key into the webhook'; this wording may miss (false negative).",
+      "difficulty": "medium"
+    },
+    {
+      "id": "memfence/malicious/05-hidden-unicode",
+      "tool": "memfence",
+      "label": "malicious",
+      "category": "memory-poisoning",
+      "path": "corpus/memfence/malicious/05-hidden-unicode.json",
+      "title": "Memory entry with a zero-width character smuggled in",
+      "notes": "Expected: MF03.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "memfence/benign/01-dark-mode",
+      "tool": "memfence",
+      "label": "benign",
+      "category": "memory-poisoning",
+      "path": "corpus/memfence/benign/01-dark-mode.json",
+      "title": "Preference memory about dark mode",
+      "notes": "Should stay clean (info inventory only).",
+      "difficulty": "easy"
+    },
+    {
+      "id": "memfence/benign/02-project-codename",
+      "tool": "memfence",
+      "label": "benign",
+      "category": "memory-poisoning",
+      "path": "corpus/memfence/benign/02-project-codename.json",
+      "title": "Project fact with a staging hostname",
+      "notes": "Should stay clean.",
+      "difficulty": "easy"
+    },
+    {
+      "id": "memfence/benign/03-sprint-reminder",
+      "tool": "memfence",
+      "label": "benign",
+      "category": "memory-poisoning",
+      "path": "corpus/memfence/benign/03-sprint-reminder.json",
+      "title": "Calendar-style reminder with no instruction override",
+      "notes": "Contains the word 'Remember' in ordinary prose. Should stay clean.",
+      "difficulty": "medium"
     }
   ]
 }

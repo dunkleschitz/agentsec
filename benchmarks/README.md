@@ -1,6 +1,6 @@
 # agentsec detection benchmark
 
-A small, author-written, **synthetic** corpus for four detection jobs:
+A small, author-written, **synthetic** corpus for ten detection jobs:
 
 | Job | Tool | What a “malicious” label means |
 |---|---|---|
@@ -8,14 +8,19 @@ A small, author-written, **synthetic** corpus for four detection jobs:
 | Poisoned MCP tool descriptions | `toolpoison` | A tool manifest hides instructions or smuggling paths |
 | Secret leaks | `tracesweep`, `secretflow` | A credential-shaped value appears, or later flows into another tool’s arguments |
 | Dangerous shell | `shellfence` | The agent ran a dangerous shell command |
+| PII in transcripts | `piiguard` | A transcript contains email, phone, SSN, PAN, IBAN, or similar personal data |
+| SSRF / fetch destinations | `fetchfence` | The agent fetched a risky URL (metadata IP, loopback, file:, callback host, …) |
+| Sensitive paths | `pathfence` | The agent read or wrote a sensitive filesystem path |
+| MCP client posture | `mcpposture` | An MCP client config grants dangerous privileges or embeds a secret |
+| Persistent memory poisoning | `memfence` | A saved memory entry plants override, exfil, or harvest instructions |
 
-Every credential and personal-data value in this folder is **fake**. They were minted for this corpus and are not live keys. tracesweep also suppresses documentation placeholders (the word `example`, `your_api_key`, and similar), so the tracesweep fixtures use synthetic key material that still matches provider-shaped patterns without those words.
+Every credential and personal-data value in this folder is **fake**. They were minted for this corpus and are not live keys. tracesweep also suppresses documentation placeholders (the word `example`, `your_api_key`, and similar), so the tracesweep fixtures use synthetic key material that still matches provider-shaped patterns without those words. piiguard samples use `@example.com` addresses, reserved `555` telephone numbers, a Luhn-valid test PAN ending in `0006`, and a synthetic SSN that is not one of the SSA’s well-known advertising numbers.
 
 This is not a real-world attack dataset and not a substitute for a red team.
 
 ## How a detection is counted
 
-A sample is **flagged** when the assigned tool reports at least one finding with severity `low`, `medium`, `high`, or `critical`. Info-level inventory rules (`SF12`, `FL10`, and any other `severity=info` finding) are ignored so a “commands observed” line cannot turn a benign shell transcript into a false positive.
+A sample is **flagged** when the assigned tool reports at least one finding with severity `low`, `medium`, `high`, or `critical`. Info-level inventory rules (`SF12`, `FL10`, `PG10`, `PF12`, `MF10`, and any other `severity=info` finding) are ignored so a “commands observed” line cannot turn a benign transcript into a false positive.
 
 ```sh
 python3 benchmarks/run_benchmark.py
@@ -23,26 +28,31 @@ python3 benchmarks/run_benchmark.py --write-pages   # refresh results.json and d
 python3 benchmarks/run_benchmark.py --check         # CI freshness check
 ```
 
-The committed table lives at [dunkleschitz.github.io/agentsec/benchmarks/](https://dunkleschitz.github.io/agentsec/benchmarks/). Numbers will move when a single sample is added or re-labeled; treat percentages as a snapshot, not a product claim.
+The committed table lives at [dunkleschitz.github.io/agentsec/benchmarks/](https://dunkleschitz.github.io/agentsec/benchmarks/). It has three views:
+
+- **Before / after** on the original 85-sample, 5-tool corpus (v0.38.0 vs. the issue #7–#11 rule changes).
+- **Held-out** (`benchmarks/heldout/`): 40 fresh samples written *after* those rule changes were locked, and not used to tune them.
+- **Expanded corpus**: the original five tools plus piiguard, fetchfence, pathfence, mcpposture, and memfence.
+
+Numbers will move when a single sample is added or re-labeled; treat percentages as a snapshot, not a product claim.
 
 ## Layout
 
 ```
 benchmarks/
 ├── README.md
-├── manifest.json          labels, titles, notes, difficulty
-├── results.json           last committed precision/recall snapshot
-├── run_benchmark.py       stdlib runner and Pages generator
-└── corpus/
-    ├── resultguard/{malicious,benign}/
-    ├── toolpoison/{malicious,benign}/
-    ├── tracesweep/{malicious,benign}/
-    ├── secretflow/{malicious,benign}/
-    └── shellfence/{malicious,benign}/
+├── manifest.json              labels for the main (expanded) corpus
+├── results.json               last committed precision/recall snapshot
+├── baseline_v0.38.0.json      frozen v0.38.0 numbers for the before table
+├── run_benchmark.py           stdlib runner and Pages generator
+├── corpus/                    main corpus, including the original 85 plus five new tools
+└── heldout/
+    ├── manifest.json
+    └── corpus/                40 samples written after the #7–#11 fixes
 ```
 
-`difficulty: evasion` samples are malicious on purpose but written to stress a known heuristic gap (typos, split words, encodings, non-English text, transformed secrets, unusual spellings). A miss on those is expected; unexpected misses on easy samples are filed as `detection-gap` issues.
+`difficulty: evasion` samples are malicious on purpose but written to stress a known heuristic gap (typos, split words, encodings, non-English text, transformed secrets, unusual spellings). On the original 85-sample corpus those evasions were missed in v0.38.0 and are caught after the v0.39.0 rule changes. Held-out evasions use *different* wording; a miss there is reported and is not patched away against the held-out set.
 
 ## Honesty
 
-The scanners are regex and pattern heuristics. Determined attackers can evade them, and benign typography or HTML can trip them. The Pages write-up lists every false negative and false positive on this corpus.
+The scanners are regex and pattern heuristics. Determined attackers can evade them, and benign typography or HTML can trip them. The Pages write-up lists every false negative and false positive on both the expanded corpus and the held-out set.

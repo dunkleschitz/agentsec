@@ -47,13 +47,20 @@ TAG_LO, TAG_HI = 0xE0001, 0xE007F
 OVERRIDE_RE = re.compile(
     r"(?is)(?:"
     r"ignore\s+(?:all\s+)?(?:previous|prior|above|earlier)\s+(?:instructions?|rules?|prompts?|directives?)"
-    r"|disregard\s+(?:your|the)\s+(?:system|safety|previous)\s+(?:prompt|instructions?|rules?)"
-    r"|override\s+(?:your|the|all)\s+(?:system|safety|previous)?\s*(?:prompt|instructions?|rules?|policies)?"
+    r"|disregard\s+(?:all\s+|any\s+)?(?:your\s+|the\s+)?(?:system|safety|previous|prior|above|earlier)\s+(?:prompt|instructions?|rules?)"
+    # Require an instruction-like noun so "override the system font" stays clean.
+    r"|override\s+(?:your|the|all)\s+(?:system\s+|safety\s+|previous\s+)?(?:prompt|instructions?|rules?|policies)"
     r"|you\s+are\s+now\s+(?:in\s+)?(?:DAN|developer|unrestricted|jailbreak|god)\b"
     r"|jailbreak(?:\s+mode)?"
     r"|new\s+(?:system\s+)?(?:instructions?|rules?|directive)\s*:"
     r"|from\s+now\s+on\s+you\s+(?:must|will|shall)\b"
     r"|do\s+not\s+follow\s+(?:your|the)\s+(?:system|original)\s+(?:prompt|instructions?)"
+    # Common non-English override phrasing (French, Spanish, German, Portuguese, Italian).
+    r"|ignorez\s+les\s+instructions\s+pr[eé]c[eé]dentes"
+    r"|ignora(?:d|r)?\s+las\s+instrucciones\s+(?:anteriores|previas)"
+    r"|ignoriere?\s+(?:die\s+)?(?:bisherigen|vorherigen|fr[uü]heren)\s+anweisungen"
+    r"|ignore\s+as\s+instru[cç][oõ]es\s+anteriores"
+    r"|ignora\s+le\s+istruzioni\s+precedenti"
     r")"
 )
 
@@ -123,9 +130,18 @@ MD_IMG_RE = re.compile(
     r"!\[([^\]]*)\]\(\s*<?((?:https?:)?//[^\s)\"'<>\]]+|[a-zA-Z][\w+.-]*:[^\s)]+)>?",
 )
 HTML_SRC_RE = re.compile(
-    r"<\s*(?:img|iframe|script|link|embed|object|video|audio|source)\b[^>]*?"
-    r"\b(?:src|href|data|poster)\s*=\s*[\"']?((?:https?:)?//[^\"'\s>]+)",
+    r"<\s*(?P<tag>img|iframe|script|link|embed|object|video|audio|source)\b[^>]*?"
+    r"\b(?:src|href|data|poster)\s*=\s*[\"']?(?P<url>(?:https?:)?//[^\"'\s>]+)",
     re.I,
+)
+# Auto-executing tags are always a TR09 hit. Ordinary <img>/<link> logos on a
+# CDN are not, unless the URL itself looks like a tracker or callback.
+_AUTO_EXEC_TAGS = frozenset({"script", "iframe", "embed", "object"})
+_TRACKER_QUERY_RE = re.compile(
+    r"(?i)[?&](?:data|secret|token|key|payload|q|content|email|leak|uid|user|id)=",
+)
+_TRACKER_PATH_RE = re.compile(
+    r"(?i)/(?:pixel|track(?:ing|er)?|beacon|collect(?:or)?|exfil|hook|callback)(?:/|\.|\b)",
 )
 
 B64_RE = re.compile(r"(?<![A-Za-z0-9+/=])([A-Za-z0-9+/]{40,}={0,2})(?![A-Za-z0-9+/=])")
@@ -312,6 +328,103 @@ def find_hidden_unicode(text):
     return hits
 
 
+
+# Distinctive jailbreak keywords used for typo-tolerant matching. Short or
+# common words (rules, system, your) are omitted to avoid misfolding ordinary
+# prose.
+_JAILBREAK_WORDS = (
+    "ignore", "disregard", "previous", "prior", "earlier", "preceding",
+    "instructions", "instruction", "prompts", "prompt", "directives",
+    "directive", "jailbreak", "unrestricted",
+)
+_JAILBREAK_BY_LEN = {}
+for _w in _JAILBREAK_WORDS:
+    _JAILBREAK_BY_LEN.setdefault(len(_w), []).append(_w)
+
+# Mid-word punctuation used to split "ig-nore pre-vious in-structions".
+_SPLIT_WORD_RE = re.compile(r"(?<=[A-Za-z])[-_./\\]+(?=[A-Za-z])")
+_ROT13_HINT_RE = re.compile(r"(?i)\b(?:rot\s*-?\s*13|caesar(?:\s+cipher)?)\b")
+_ROT13_TABLE = str.maketrans(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+    "NOPQRSTUVWXYZABCDEFGHIJKLMnopqrstuvwxyzabcdefghijklm",
+)
+
+
+def _damerau_leq(a, b, max_dist):
+    """True if Damerau-Levenshtein distance(a, b) <= max_dist."""
+    if a == b:
+        return True
+    la, lb = len(a), len(b)
+    if abs(la - lb) > max_dist:
+        return False
+    # Banded DP is unnecessary at these word lengths (<= 14).
+    prev_prev = None
+    prev = list(range(lb + 1))
+    for i, ca in enumerate(a, 1):
+        curr = [i]
+        for j, cb in enumerate(b, 1):
+            cost = 0 if ca == cb else 1
+            best = min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost)
+            if prev_prev is not None and i > 1 and j > 1 and ca == b[j - 2] and a[i - 2] == cb:
+                best = min(best, prev_prev[j - 2] + 1)
+            curr.append(best)
+        if min(curr) > max_dist:
+            return False
+        prev_prev, prev = prev, curr
+    return prev[-1] <= max_dist
+
+
+def _fold_typos(token):
+    low = token.lower()
+    n = len(low)
+    if n < 5:
+        return token
+    max_dist = 1 if n < 8 else 2
+    for length, words in _JAILBREAK_BY_LEN.items():
+        if abs(length - n) > max_dist:
+            continue
+        for word in words:
+            if _damerau_leq(low, word, max_dist):
+                if token[0].isupper():
+                    return word[0].upper() + word[1:]
+                return word
+    return token
+
+
+def _normalize_jailbreak_text(text):
+    """Undo typo and mid-word punctuation evasions of override phrases."""
+    unsplitted = _SPLIT_WORD_RE.sub("", text)
+    parts = re.split(r"([^A-Za-z]+)", unsplitted)
+    out = []
+    for part in parts:
+        if part and part[0].isalpha():
+            out.append(_fold_typos(part))
+        else:
+            out.append(part)
+    return "".join(out)
+
+
+def _rot13(s):
+    return s.translate(_ROT13_TABLE)
+
+
+def _autoload_is_suspicious(url, tag=None):
+    """Return True if an auto-loading URL is worth a TR09 finding."""
+    url = (url or "").strip()
+    if not url:
+        return False
+    tag = (tag or "").lower()
+    if EXFIL_HOST_RE.search(url):
+        return True
+    if _TRACKER_QUERY_RE.search(url) or _TRACKER_PATH_RE.search(url):
+        return True
+    # Markdown images in tool results are a classic injection/exfil vector.
+    if tag == "markdown" or tag in _AUTO_EXEC_TAGS:
+        return True
+    # Ordinary <img src="https://cdn…/logo.png"> / stylesheet links stay quiet.
+    return False
+
+
 def decode_candidates(text):
     """Yield (kind, decoded_str, start_idx) for base64/hex blobs that look instructive."""
     out = []
@@ -341,6 +454,18 @@ def decode_candidates(text):
             continue
         if len(s) >= 12 and INSTR_HINT_RE.search(s):
             out.append(("hex", s, m.start()))
+    # ROT13 / Caesar: decode when a hint is present, or when the decoded
+    # text (but not the original) matches an instruction-override phrase.
+    # Random English almost never rot13s into OVERRIDE_RE, so this is safe
+    # without a required hint; the hint just makes the intent obvious.
+    rotated = _rot13(text)
+    if rotated != text and OVERRIDE_RE.search(rotated) and not OVERRIDE_RE.search(text):
+        m = OVERRIDE_RE.search(rotated)
+        out.append(("rot13", rotated[m.start():m.start() + 80], m.start()))
+    elif _ROT13_HINT_RE.search(text):
+        m = OVERRIDE_RE.search(rotated) or INSTR_HINT_RE.search(rotated)
+        if m and not OVERRIDE_RE.search(text):
+            out.append(("rot13", rotated[m.start():m.start() + 80], m.start()))
     return out
 
 
@@ -357,9 +482,18 @@ def scan_text(text, source, tool, turn, disabled=None):
         findings.append(Finding(rule, source, tool, turn, msg, _excerpt(text, idx)))
 
     if "TR01" not in disabled:
+        hit = None
         for m in OVERRIDE_RE.finditer(text):
-            add("TR01", "override/jailbreak phrasing at line %d" % _line_of(text, m.start()), m.start())
-            break  # one per result is enough
+            hit = m
+            break
+        if hit is None:
+            folded = _normalize_jailbreak_text(text)
+            if folded != text:
+                for m in OVERRIDE_RE.finditer(folded):
+                    hit = m
+                    break
+        if hit is not None:
+            add("TR01", "override/jailbreak phrasing at line %d" % _line_of(text, hit.start()), hit.start())
 
     if "TR02" not in disabled:
         for m in ROLE_RE.finditer(text):
@@ -410,15 +544,19 @@ def scan_text(text, source, tool, turn, disabled=None):
             break
 
     if "TR09" not in disabled:
+        md_hit = False
         for m in MD_IMG_RE.finditer(text):
-            add("TR09", "markdown image loads external URL at line %d: %s"
-                % (_line_of(text, m.start()), m.group(2)[:80]), m.start())
-            break
-        else:
-            for m in HTML_SRC_RE.finditer(text):
-                add("TR09", "HTML element auto-loads URL at line %d: %s"
-                    % (_line_of(text, m.start()), m.group(1)[:80]), m.start())
+            if _autoload_is_suspicious(m.group(2), tag="markdown"):
+                add("TR09", "markdown image loads external URL at line %d: %s"
+                    % (_line_of(text, m.start()), m.group(2)[:80]), m.start())
+                md_hit = True
                 break
+        if not md_hit:
+            for m in HTML_SRC_RE.finditer(text):
+                if _autoload_is_suspicious(m.group("url"), tag=m.group("tag")):
+                    add("TR09", "HTML element auto-loads URL at line %d: %s"
+                        % (_line_of(text, m.start()), m.group("url")[:80]), m.start())
+                    break
 
     return findings
 

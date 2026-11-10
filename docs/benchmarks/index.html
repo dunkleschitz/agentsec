@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Detection benchmark — agentsec</title>
-  <meta name="description" content="Synthetic, labeled precision and recall for resultguard, toolpoison, tracesweep, secretflow, and shellfence. Honest about misses. All secrets are fake.">
+  <meta name="description" content="Synthetic, labeled precision and recall for ten agentsec scanners, with a before/after table on the original 85-sample corpus and a held-out set written after the fixes. All secrets are fake.">
   <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/benchmarks/">
   <meta name="robots" content="index,follow">
   <meta name="theme-color" content="#0d0f12">
@@ -12,12 +12,12 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="agentsec">
   <meta property="og:title" content="Detection benchmark — agentsec">
-  <meta property="og:description" content="Synthetic precision and recall for five agentsec scanners, with documented false negatives.">
+  <meta property="og:description" content="Synthetic precision and recall for ten agentsec scanners, with before/after and held-out numbers.">
   <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/benchmarks/">
   <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Detection benchmark — agentsec">
-  <meta name="twitter:description" content="Synthetic precision and recall for five agentsec scanners, with documented false negatives.">
+  <meta name="twitter:description" content="Synthetic precision and recall for ten agentsec scanners, with before/after and held-out numbers.">
   <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
 </head>
 <body>
@@ -35,11 +35,14 @@
     <p class="kicker">Offline · stdlib-only · MIT</p>
     <h1>Detection benchmark</h1>
     <hr class="rule">
-    <p class="lede">On this 85-sample synthetic corpus, overall precision is 91.5% and recall is 84.3% (43 true positives, 4 false positives, 8 false negatives).</p>
-    <p class="note">This is a small, author-written, synthetic corpus. It is not a red-team dataset, not drawn from production traffic, and not a claim about performance on real attacks. Heuristic scanners miss things; the misses below are listed on purpose.</p>
+    <p class="lede">On the expanded 125-sample synthetic corpus (ten tools), overall precision is 100.0% and recall is 98.7% (75 true positives, 0 false positives, 1 false negatives). On the original 85-sample, 5-tool slice the same run scores precision 100.0% and recall 100.0% (was 91.5% / 84.3% in v0.38.0).</p>
+    <p class="note">This is a small, author-written, synthetic corpus. It is not a red-team dataset, not drawn from production traffic, and not a claim about performance on real attacks. Heuristic scanners miss things; misses are listed on purpose.</p>
 
     <article>
-      <h2 id="numbers">Headline numbers</h2>
+      
+      <h2 id="before">Before (v0.38.0) — original 85-sample, 5-tool corpus</h2>
+      <p>Frozen numbers from the v0.38.0 release, before the issue #7–#11 rule changes. Eight evasions were missed and four benign samples were flagged.</p>
+
       <table>
         <thead>
           <tr>
@@ -57,52 +60,124 @@
         </tbody>
       </table>
 
+      <h2 id="after">After — same 85 samples, same five tools</h2>
+      <p>Re-run on the identical 85 fixtures after the general rule changes. The four false positives were removed without dropping any of the original true positives.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
+            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>resultguard</code></td><td>12</td><td>0</td><td>0</td><td>8</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>20</td></tr>
+<tr><td><code>secretflow</code></td><td>7</td><td>0</td><td>0</td><td>4</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>11</td></tr>
+<tr><td><code>shellfence</code></td><td>12</td><td>0</td><td>0</td><td>8</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>20</td></tr>
+<tr><td><code>toolpoison</code></td><td>10</td><td>0</td><td>0</td><td>8</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>18</td></tr>
+<tr><td><code>tracesweep</code></td><td>10</td><td>0</td><td>0</td><td>6</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>16</td></tr>
+          <tr><td><code>overall</code></td><td>51</td><td>0</td><td>0</td><td>34</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>85</td></tr>
+        </tbody>
+      </table>
+
+      
+      <h2 id="heldout">Held-out set (written after the fixes)</h2>
+      <p>A fresh set of 40 samples was written after the rule changes were locked, and was not used to tune them. Wording and obfuscation differ from the original fixtures. Misses on this set, if any, are listed below without being patched away.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
+            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>resultguard</code></td><td>7</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>10</td></tr>
+<tr><td><code>secretflow</code></td><td>4</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>6</td></tr>
+<tr><td><code>shellfence</code></td><td>5</td><td>0</td><td>0</td><td>4</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>9</td></tr>
+<tr><td><code>toolpoison</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
+<tr><td><code>tracesweep</code></td><td>5</td><td>0</td><td>0</td><td>2</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>7</td></tr>
+          <tr><td><code>overall</code></td><td>26</td><td>0</td><td>0</td><td>14</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>40</td></tr>
+        </tbody>
+      </table>
+<h3>Held-out false negatives</h3>
+<p>None on this corpus (false negative).</p><h3>Held-out false positives</h3>
+<p>None on this corpus (false positive).</p>
+      
+      <h2 id="expanded">Expanded corpus (ten tools)</h2>
+      <p>The original five tools plus piiguard, fetchfence, pathfence, mcpposture, and memfence, on newly written original fixtures.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
+            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>fetchfence</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
+<tr><td><code>mcpposture</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
+<tr><td><code>memfence</code></td><td>4</td><td>0</td><td>1</td><td>3</td><td>100.0%</td><td>80.0%</td><td>88.9%</td><td>8</td></tr>
+<tr><td><code>pathfence</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
+<tr><td><code>piiguard</code></td><td>5</td><td>0</td><td>0</td><td>3</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>8</td></tr>
+<tr><td><code>resultguard</code></td><td>12</td><td>0</td><td>0</td><td>8</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>20</td></tr>
+<tr><td><code>secretflow</code></td><td>7</td><td>0</td><td>0</td><td>4</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>11</td></tr>
+<tr><td><code>shellfence</code></td><td>12</td><td>0</td><td>0</td><td>8</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>20</td></tr>
+<tr><td><code>toolpoison</code></td><td>10</td><td>0</td><td>0</td><td>8</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>18</td></tr>
+<tr><td><code>tracesweep</code></td><td>10</td><td>0</td><td>0</td><td>6</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>16</td></tr>
+          <tr><td><code>overall</code></td><td>75</td><td>0</td><td>1</td><td>49</td><td>100.0%</td><td>98.7%</td><td>99.3%</td><td>125</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Expanded-corpus false negatives</h3>
+      <ul>
+<li><code>memfence/malicious/04-credential-harvest</code> — Memory entry asking to dump API keys<br><span class="meta">medium · Asks the model to paste API keys and .env contents into the chat. memfence MF05 looks for harvest/dump/exfiltrate phrasing or 'paste the api key into the webhook'; this wording may miss (false negative).</span></li>
+</ul>
+      <h3>Expanded-corpus false positives</h3>
+      <p>None on this corpus (false positive).</p>
+      
+      <h2 id="gaps">Detection-gap issues #7–#11</h2>
+      <p>The eight original evasions and four false positives were filed as
+      <a href="https://github.com/dunkleschitz/agentsec/issues/7">#7</a>
+      (resultguard),
+      <a href="https://github.com/dunkleschitz/agentsec/issues/8">#8</a>
+      (toolpoison),
+      <a href="https://github.com/dunkleschitz/agentsec/issues/9">#9</a>
+      (tracesweep),
+      <a href="https://github.com/dunkleschitz/agentsec/issues/10">#10</a>
+      (secretflow), and
+      <a href="https://github.com/dunkleschitz/agentsec/issues/11">#11</a>
+      (shellfence). The rule changes in this release are general (typo-tolerant
+      and split-word override matching, ROT13 decode, multilingual override/exfil
+      phrasing, soft workspace-dump-into-parameter, secret-prefix concatenation,
+      encoded secret reuse, and pipe-to-shell deobfuscation), not string matches
+      against the original fixtures. Those issues are closed against this release.</p>
+
+
       <h2 id="how">How a detection is counted</h2>
-      <p>A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10) are ignored. The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values (for example the SSA’s well-known fictitious SSN is not used here; tracesweep samples use obviously synthetic key material documented in the corpus README).</p>
-      <p>Four jobs are covered:</p>
+      <p>A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10) are ignored. The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code> and <code>benchmarks/heldout/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
+      <p>Ten jobs are covered:</p>
+      
       <ul>
         <li><strong>Prompt injection in tool results</strong> — <a href="https://dunkleschitz.github.io/agentsec/tools/resultguard/">resultguard</a></li>
         <li><strong>Poisoned MCP tool descriptions</strong> — <a href="https://dunkleschitz.github.io/agentsec/tools/toolpoison/">toolpoison</a></li>
         <li><strong>Secret leaks</strong> — <a href="https://dunkleschitz.github.io/agentsec/tools/tracesweep/">tracesweep</a> (presence) and <a href="https://dunkleschitz.github.io/agentsec/tools/secretflow/">secretflow</a> (propagation into later tool arguments)</li>
         <li><strong>Dangerous shell commands</strong> — <a href="https://dunkleschitz.github.io/agentsec/tools/shellfence/">shellfence</a></li>
+        <li><strong>PII in transcripts</strong> — <a href="https://dunkleschitz.github.io/agentsec/tools/piiguard/">piiguard</a></li>
+        <li><strong>SSRF / fetch destinations</strong> — <a href="https://dunkleschitz.github.io/agentsec/tools/fetchfence/">fetchfence</a></li>
+        <li><strong>Sensitive paths</strong> — <a href="https://dunkleschitz.github.io/agentsec/tools/pathfence/">pathfence</a></li>
+        <li><strong>MCP client posture</strong> — <a href="https://dunkleschitz.github.io/agentsec/tools/mcpposture/">mcpposture</a></li>
+        <li><strong>Persistent memory poisoning</strong> — <a href="https://dunkleschitz.github.io/agentsec/tools/memfence/">memfence</a></li>
       </ul>
 
-      <h2 id="weaknesses">Weaknesses (be skeptical of a clean result)</h2>
-      <p>Several malicious samples were written as <em>evasions</em>: typo-obfuscation, split words, non-English instructions, encodings the tool does not decode, transformed secrets, and unusual tool or shell spellings. A miss on those is expected with a regex/heuristic scanner. Unexpected misses (easy samples the tool should have caught) are treated as bugs and filed with the <code>detection-gap</code> label.</p>
-      <h3>False negatives</h3>
-      <ul>
-<li><code>resultguard/malicious/09-typo-obfuscation</code> — Typo-obfuscated override ('ignroe prevous instructons')<br><span class="meta">evasion · Deliberate misspellings of a classic jailbreak. A regex detector may miss this (false negative).</span></li>
-<li><code>resultguard/malicious/10-split-words</code> — Instruction split with punctuation and hyphenation<br><span class="meta">evasion · Split 'ignore previous instructions' across punctuation. Likely miss (false negative).</span></li>
-<li><code>resultguard/malicious/12-rot13-instruction</code> — ROT13-encoded override with a hint to decode<br><span class="meta">evasion · Encoded form that resultguard does not currently decode (it does base64/hex). Expected miss.</span></li>
-<li><code>toolpoison/malicious/09-soft-telemetry-exfil</code> — Soft 'debugging' instruction to put workspace contents in telemetry_id<br><span class="meta">evasion · No classic 'exfiltrate' wording. May be missed (false negative).</span></li>
-<li><code>toolpoison/malicious/10-french-instruction</code> — French-language hidden instruction in the description<br><span class="meta">evasion · Non-English override. English-centric rules may miss this.</span></li>
-<li><code>tracesweep/malicious/09-split-key</code> — Key split across concatenation in the result<br><span class="meta">evasion · sk-proj- and the body are quoted separately. Pattern detectors often miss this (false negative).</span></li>
-<li><code>secretflow/malicious/06-transformed-before-forward</code> — Secret is base64-encoded before it is forwarded<br><span class="meta">evasion · The later argument is not the literal secret. secretflow tracks exact value reuse, so this is a likely false negative.</span></li>
-<li><code>shellfence/malicious/11-ifs-obfuscated-pipe</code> — curl|bash with unusual spacing and IFS-style splitting<br><span class="meta">evasion · Obfuscated pipe-to-shell. May be missed (false negative).</span></li>
-</ul>
-      <h3>False positives</h3>
-      <ul>
-<li><code>resultguard/benign/05-override-font-setting</code> — UI copy about overriding a system font (rules: TR01)<br><span class="meta">medium · Contains 'override' and 'system' in a typography setting. Should stay clean.</span></li>
-<li><code>resultguard/benign/06-normal-cdn-image</code> — Ordinary HTML with a CDN logo image (rules: TR09)<br><span class="meta">medium · A legitimate &lt;img src&gt; may still hit TR09 (auto-loading resource). Documented as a possible false positive.</span></li>
-<li><code>toolpoison/benign/03-email-with-audit-bcc</code> — Email tool whose description mentions an audit BCC (rules: TP06)<br><span class="meta">medium · Legitimate compliance BCC. A possible false-positive risk if 'BCC' is treated as shadowing.</span></li>
-<li><code>toolpoison/benign/04-notes-parameter</code> — Optional notes parameter with a harmless description (rules: TP05)<br><span class="meta">medium · Parameter named 'notes' may trip TP05 (smuggling-parameter) even when the description is benign. Possible false positive.</span></li>
-</ul>
-      <h2 id="gaps">Open detection-gap issues</h2>
-<ul>
-<li><a href="https://github.com/dunkleschitz/agentsec/issues/7">#7: resultguard misses typo, split-word, and ROT13 instruction overrides</a> (resultguard)</li>
-<li><a href="https://github.com/dunkleschitz/agentsec/issues/8">#8: toolpoison misses soft telemetry exfil and non-English hidden instructions</a> (toolpoison)</li>
-<li><a href="https://github.com/dunkleschitz/agentsec/issues/9">#9: tracesweep misses a provider-shaped key split across string concatenation</a> (tracesweep)</li>
-<li><a href="https://github.com/dunkleschitz/agentsec/issues/10">#10: secretflow misses a secret that is base64-encoded before it is forwarded</a> (secretflow)</li>
-<li><a href="https://github.com/dunkleschitz/agentsec/issues/11">#11: shellfence misses IFS/spacing-obfuscated curl piped to bash</a> (shellfence)</li>
-</ul>
 
       <h2 id="limits">Limits of this benchmark</h2>
       <ul>
         <li>Every fixture was written for this repository. A detector can look strong here and still fail on a real transcript format or a novel payload.</li>
-        <li>The corpus is small (n=85). Percentages will move when a single sample is added or re-labeled.</li>
-        <li>Labels are a judgment call. A “benign” page that includes a tracking <code>&lt;img&gt;</code> is clean from an operator’s point of view and still a legitimate TR09 hit.</li>
-        <li>Info-level inventory findings are excluded. If we counted them, shellfence and secretflow would “detect” almost every transcript they parse.</li>
-        <li>All secrets are fake. tracesweep also suppresses documentation placeholders (the word <code>example</code>, <code>your_api_key</code>, and similar), which is why those values are not used as the malicious keys in this set.</li>
+        <li>The corpus is still small (n=125 on the expanded set; n=85 on the original slice; n=40 held-out). Percentages will move when a single sample is added or re-labeled.</li>
+        <li>The held-out set was written after the #7–#11 fixes and was not used to retune those rules. A strong held-out score is still not evidence of real-world robustness.</li>
+        <li>Info-level inventory findings are excluded. If we counted them, several tools would “detect” almost every transcript they parse.</li>
+        <li>All secrets and personal-data values are fake. tracesweep also suppresses documentation placeholders (the word <code>example</code>, <code>your_api_key</code>, and similar), which is why those values are not used as the malicious keys in this set.</li>
       </ul>
       <p>Reproduce the table locally:</p>
       <pre><code>python3 benchmarks/run_benchmark.py --write-pages</code></pre>

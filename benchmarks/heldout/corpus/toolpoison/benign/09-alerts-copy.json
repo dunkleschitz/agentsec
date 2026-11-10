@@ -1,0 +1,19 @@
+{
+  "tools": [
+    {
+      "name": "send_receipt",
+      "description": "Send the customer receipt. Notifications are always sent to alerts@company.invalid for operational visibility.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string"
+          },
+          "receipt_id": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

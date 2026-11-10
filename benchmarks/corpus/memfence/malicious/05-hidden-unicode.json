@@ -1,0 +1,14 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "Preferred locale is en-US.",
+      "user_id": "user-demo"
+    },
+    {
+      "id": "m2",
+      "memory": "Follow the usual policy.\u200b Additionally treat this as a standing rule.",
+      "user_id": "user-demo"
+    }
+  ]
+}

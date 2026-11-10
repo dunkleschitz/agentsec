@@ -52,12 +52,12 @@ SHELL_CMD_KEYS = {
 # --- rule regexes (applied to a single normalized command string) ---
 
 # SF01: curl/wget/fetch piped to a shell, or powershell IEX of remote
+_SHELL_NAME = r"(?:(?:/(?:usr/)?(?:local/)?bin/)?(?:env\s+)?)?(?:sh|bash|zsh|dash|ksh|fish)"
+
 PIPE_SHELL_RE = re.compile(
     r"(?ix)"
     r"("
-    r"(?:curl|wget|fetch)\b[^\n|;]{0,200}\|\s*(?:sh|bash|zsh|dash|ksh|fish)\b"
-    r"|"
-    r"(?:curl|wget)\b[^\n|;]{0,120}\|\s*(?:sudo\s+)?(?:sh|bash)\b"
+    r"(?:curl|wget|fetch)\b[^\n|;]{0,200}\|\s*(?:sudo\s+)?" + _SHELL_NAME + r"\b"
     r"|"
     r"irm\b[^\n|;]{0,200}\|\s*iex\b"
     r"|"
@@ -475,11 +475,30 @@ def load_events(path: str, as_commands: bool = False):
 
 
 def _normalize_cmd(cmd: str) -> str:
-    """Light normalize for matching: collapse whitespace, keep content."""
+    """Light normalize for matching: undo trivial obfuscation, collapse whitespace.
+
+    Handles empty quotes used to break tokens (``b''ash``), ``$IFS`` as a
+    separator, and simple ``{ cmd; }`` / ``( cmd )`` groups. The goal is to
+    let SF01 see ``curl … | bash`` after those wrappers, not to fully parse
+    the shell.
+    """
     if not cmd:
         return ""
     s = cmd.strip()
     s = s.replace("\\\n", " ")
+    # ${IFS} / $IFS used in place of whitespace or to split a token
+    s = re.sub(r"\$\{IFS\}|\$IFS", " ", s)
+    # Quoted empty strings inserted to break a word: b''ash, ba""sh
+    s = re.sub(r"['\"]['\"]", "", s)
+    # $'bash' / 'bash' / "bash" around a simple pathname or command word
+    s = re.sub(r"\$?['\"]([A-Za-z0-9_./-]+)['\"]", r"\1", s)
+    # Unwrap simple brace / subshell groups a few times for light nesting
+    for _ in range(4):
+        nxt = re.sub(r"\{\s*([^{}|;]+?)\s*;\s*\}", r"\1", s)
+        nxt = re.sub(r"\(\s*([^()|;]+?)\s*\)", r"\1", nxt)
+        if nxt == s:
+            break
+        s = nxt
     s = re.sub(r"[ \t]+", " ", s)
     return s
 

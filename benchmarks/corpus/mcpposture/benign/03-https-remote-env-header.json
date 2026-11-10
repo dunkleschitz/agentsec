@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "docs": {
+      "url": "https://mcp.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:DOCS_MCP_TOKEN}"
+      }
+    }
+  }
+}

@@ -61,6 +61,22 @@ class TestDetectors(unittest.TestCase):
             with self.subTest(rule=rid):
                 self.assertIn(rid, rules_in("leaked: %s end" % secret))
 
+
+    def test_split_openai_key_across_concatenation(self):
+        body = "HeldOutTrace0000000001abcdEF"
+        text = 'const key = "sk-proj-" + "%s";' % body
+        self.assertIn("TS-OPENAI", rules_in(text))
+        secrets = [h["secret"] for h in ts.scan_text(text) if h["rule"].id == "TS-OPENAI"]
+        self.assertIn("sk-proj-" + body, secrets)
+
+    def test_split_github_token_and_implicit_concat(self):
+        body = "FAKE0tracesweep0test0token0000000007"
+        self.assertIn("TS-GITHUB", rules_in('"ghp_" + "%s"' % body))
+        self.assertIn("TS-GITHUB", rules_in('"ghp_" "%s"' % body))
+
+    def test_ordinary_string_concat_is_not_a_key(self):
+        self.assertNotIn("TS-OPENAI", rules_in('const msg = "hello-" + "world-not-a-key-value";'))
+
     def test_github_pat_and_variants(self):
         for t in ("gho_", "ghs_", "ghu_"):
             self.assertIn("TS-GITHUB", rules_in(t + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"))

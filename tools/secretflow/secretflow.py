@@ -14,10 +14,12 @@ in results). Stdlib only; never connects to a network.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import re
 import sys
+import urllib.parse
 from collections import OrderedDict
 
 VERSION = "0.1.0"
@@ -421,6 +423,35 @@ def parse_events(data) -> list:
     return events
 
 
+def _encoded_forms(secret: str):
+    """Literal plus common encodings of a previously seen secret.
+
+    Short values are not transformed: hex/base64 of an 8-character token
+    can appear coincidentally inside unrelated blobs.
+    """
+    if not secret:
+        return
+    yield secret
+    if len(secret) < 12:
+        return
+    raw = secret.encode("utf-8")
+    forms = [
+        base64.b64encode(raw).decode("ascii"),
+        base64.urlsafe_b64encode(raw).decode("ascii"),
+        raw.hex(),
+        raw.hex().upper(),
+        urllib.parse.quote(secret, safe=""),
+        urllib.parse.quote_plus(secret, safe=""),
+    ]
+    seen = {secret}
+    for form in forms:
+        bare = form.rstrip("=")
+        for candidate in (form, bare):
+            if candidate and candidate not in seen and len(candidate) >= 16:
+                seen.add(candidate)
+                yield candidate
+
+
 def _value_in_blob(secret: str, blob: str) -> bool:
     if not secret or not blob:
         return False
@@ -429,6 +460,10 @@ def _value_in_blob(secret: str, blob: str) -> bool:
     # Also check without trivial quoting differences
     if len(secret) >= 12 and secret.strip("\"'") in blob:
         return True
+    # Detect a secret that was base64/hex/URL-encoded before being forwarded.
+    for form in _encoded_forms(secret):
+        if form is not secret and form in blob:
+            return True
     return False
 
 

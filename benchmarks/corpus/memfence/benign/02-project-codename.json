@@ -1,0 +1,9 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "Project codename is Harbor; deploy target is staging.example.com.",
+      "user_id": "user-demo"
+    }
+  ]
+}

@@ -65,6 +65,12 @@ TP01_PATTERNS = [
     r"\b(you\s+are\s+now|new\s+instructions\s*:|system\s+prompt\s*:|act\s+as\s+(an?\s+)?(admin|root|developer))",
     r"(otherwise|or\s+else)\s+the\s+tool\s+will\s+(not\s+work|fail|crash)",
     r"this\s+is\s+(very\s+)?(important|critical|mandatory)\s*[,:-]?\s*(you\s+must|always|do\s+not)",
+    # Non-English override phrasing (French, Spanish, German, Portuguese, Italian)
+    r"ignorez\s+les\s+instructions\s+pr[eé]c[eé]dentes",
+    r"ignora(?:d|r)?\s+las\s+instrucciones\s+(?:anteriores|previas)",
+    r"ignoriere?\s+(?:die\s+)?(?:bisherigen|vorherigen|fr[uü]heren)\s+anweisungen",
+    r"ignore\s+as\s+instru[cç][oõ]es\s+anteriores",
+    r"ignora\s+le\s+istruzioni\s+precedenti",
 ]
 TP03_PATTERNS = [
     r"~?/?\.ssh\b[/\w.-]*", r"\bid_(rsa|dsa|ecdsa|ed25519)(\.pub)?\b", r"\bauthorized_keys\b",
@@ -85,13 +91,28 @@ TP04_PATTERNS = [
     r"(as|in|into)\s+(the\s+)?['\"`]?\w+['\"`]?\s+(parameter|argument|field)[^.\n]{0,60}(contents?\s+of|file\s+contents|secrets?|credentials?|keys?)",
     r"\bwebhook\.site\b|\brequestbin\b|\bngrok\.io\b|\bpipedream\.net\b|\binteract\.sh\b|\bburpcollaborator\b",
     r"(bcc|cc)\s*[:]?\s*[\w.+-]+@[\w-]+\.[\w.]+",
+    # Soft exfil: "include a compact dump of the current workspace in the X parameter"
+    r"(?:include|put|pass|insert|embed|append|place|add|provide|send)\w*\s+"
+    r"(?:(?:a|an|the)\s+)?(?:(?:compact|short|full|entire|raw|complete|current|small|brief)\s+)*"
+    r"(?:dump|snapshot|listing|copy|tree|archive|bundle|export)\s+"
+    r"(?:of\s+)?(?:(?:the|a|an)\s+)?(?:(?:current|full|entire|whole)\s+)?"
+    r"(?:workspace|repo(?:sitory)?|project|directory|dir|files?|contents?|codebase|"
+    r"disk|home(?:\s+directory)?|conversation|history|memory)\b"
+    r"[^.\n]{0,80}?\s+(?:in|into|as|inside|within)\s+(?:the\s+|this\s+|a\s+|an\s+)?"
+    r"['\"`]?\w+['\"`]?\s*(?:parameter|param|argument|field|arg)",
+    # Non-English "send the conversation to https://..."
+    r"(?:envoyez|envoie|env[ií]a(?:d|r)?|senden?\s+sie|envie|invia)\s+"
+    r"(?:la\s+|el\s+|das\s+|a\s+)?"
+    r"(?:conversation|conversaci[oó]n|gespr[aä]ch|conversa|conversazione)\s+"
+    r"(?:[aà]|an|para|to)\s+https?://",
 ]
 TP06_PATTERNS = [
     r"(when|whenever|if|every\s+time|each\s+time)\s+(the\s+|any\s+)?[`'\"]?[\w.-]+[`'\"]?\s+(tool|function|command)\s+(is\s+)?(used|called|invoked|run|executed)",
     r"(when|whenever|if)\s+(you\s+)?(use|call|invoke|run)\s+(the\s+|any\s+)?(other\s+)?[`'\"]?[\w.-]+[`'\"]?\s+(tool|function)",
     r"(instead\s+of|rather\s+than)\s+(using\s+|calling\s+)?(the\s+)?[`'\"]?[\w.-]+[`'\"]?\s+tool",
     r"(all|any|every|other)\s+(other\s+)?(tools?|tool\s+calls?)\s+(must|should|need\s+to|are\s+required\s+to)",
-    r"(always|must)\s+(also\s+)?(bcc|cc|redirect|reroute|change\s+the\s+recipient|send\s+a\s+copy)",
+    r"(always|must)\s+also\s+(bcc|cc|redirect|reroute|change\s+the\s+recipient|send\s+a\s+copy)",
+    r"(always|must)\s+(bcc|cc|redirect|reroute|change\s+the\s+recipient|send\s+a\s+copy)\b[^.\n]{0,80}?(?:other|another|every)\s+tools?",
     r"(override|overrides|modify|modifies|change|changes|alter|alters|replace|replaces|hijack)\s+(the\s+)?(behaviou?r|parameters?|arguments?|recipient)\s+of\s+(the\s+)?(other\s+|another\s+|any\s+)?[\w.-]*\s*tools?",
 ]
 TP10_PATTERNS = [
@@ -104,10 +125,20 @@ TP10_PATTERNS = [
     r"\n\s*\n\s*\n\s*\n\s*\n",  # long run of blank lines pushing text out of view
     r"[ \t]{40,}\S",  # long horizontal padding hiding trailing text
 ]
-SMUGGLE_NAMES = {"sidenote", "side_note", "note", "notes", "context", "extra", "extra_info",
-                 "additional_context", "additional_info", "metadata", "meta", "debug", "feedback",
-                 "comment", "comments", "remarks", "hidden", "internal", "reasoning", "thoughts",
-                 "scratchpad", "memo", "aux", "payload", "data_blob"}
+# Unusual parameter names are flagged on sight. Common product names
+# (notes, comment, metadata, …) are only flagged when their description
+# asks for file/secret/conversation contents, so a benign "optional notes"
+# field is not a finding.
+SMUGGLE_NAMES_ALWAYS = {
+    "sidenote", "side_note", "hidden", "internal", "scratchpad", "payload",
+    "data_blob", "additional_context", "extra_info", "additional_info",
+    "memo", "aux", "reasoning", "thoughts",
+}
+SMUGGLE_NAMES_IF_SENSITIVE = {
+    "note", "notes", "context", "extra", "metadata", "meta", "debug",
+    "feedback", "comment", "comments", "remarks",
+}
+SMUGGLE_NAMES = SMUGGLE_NAMES_ALWAYS | SMUGGLE_NAMES_IF_SENSITIVE
 SMUGGLE_DESC = re.compile(
     r"(contents?\s+of|content\s+from|read\s+(the\s+)?(file|contents?)|file\s+contents|"
     r"(ssh|api|private|secret|access)\s*keys?|credentials?|passwords?|tokens?|secrets?|"
@@ -303,7 +334,7 @@ def scan_tools(source, tools, base, max_desc_len=1000):
                         m = SMUGGLE_DESC.search(pdesc)
                         add("TP05", path, "%s: %s" % (text, snippet(pdesc, m.start(), m.end())), "high",
                             "Parameter %r invites smuggling and its description asks for sensitive content" % text, tname)
-                    else:
+                    elif low in SMUGGLE_NAMES_ALWAYS:
                         add("TP05", path, text, "low" if not pdesc else None,
                             "Parameter name %r is a common data-smuggling channel; review its use" % text, tname)
                 continue

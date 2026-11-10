@@ -211,8 +211,63 @@ ENTROPY_RULE = Rule("TS-ENTROPY", "High-entropy string", "low",
 GENERIC_KEY_NAME_RE = re.compile(r"(?i)" + GENERIC_KEYS)
 
 
+
+# Reconstruct secrets split across trivial string concatenation
+# ("sk-proj-" + "BODY" or implicit "sk-proj-" "BODY").
+_CONCAT_PREFIX = (
+    r"sk-proj-|sk-svcacct-|sk-admin-|sk-ant-|sk-|"
+    r"github_pat_|gh[pousr]_|xox[baprs]-|"
+    r"AKIA|ASIA|AIza|sk_live_|rk_live_"
+)
+_CONCAT_SECRET_RE = re.compile(
+    r"(?P<q1>['\"])"
+    r"(?P<prefix>" + _CONCAT_PREFIX + r")"
+    r"(?P<head>[A-Za-z0-9_\-]*)"
+    r"(?P=q1)"
+    r"\s*(?:\+|\.)\s*"
+    r"(?P<q2>['\"])"
+    r"(?P<body>[A-Za-z0-9_\-]{4,})"
+    r"(?P=q2)"
+)
+_IMPLICIT_CONCAT_SECRET_RE = re.compile(
+    r"(?P<q1>['\"])"
+    r"(?P<prefix>" + _CONCAT_PREFIX + r")"
+    r"(?P<head>[A-Za-z0-9_\-]*)"
+    r"(?P=q1)"
+    r"\s+"
+    r"(?P<q2>['\"])"
+    r"(?P<body>[A-Za-z0-9_\-]{4,})"
+    r"(?P=q2)"
+)
+
+
+def join_concatenated_secrets(text):
+    """Join string-literal concatenations that start with a known key prefix.
+
+    ``"sk-proj-" + "BODY"`` becomes ``"sk-proj-BODY"`` so TS-OPENAI and the
+    other prefix rules can fire. Adjacent extra pieces are folded in a loop
+    so ``"sk-proj-" + "AAA" + "BBB"`` also reconstructs. Ordinary
+    concatenations that do not start with a known prefix are left alone.
+    """
+    if not text or ("+" not in text and '" "' not in text and "' '" not in text and '"\n' not in text):
+        # Fast path: still run implicit-concat regex only when quotes sit near each other
+        if not text or ('"' not in text and "'" not in text):
+            return text
+
+    def repl(m):
+        return m.group("q1") + m.group("prefix") + m.group("head") + m.group("body") + m.group("q1")
+
+    prev = None
+    while prev != text:
+        prev = text
+        text = _CONCAT_SECRET_RE.sub(repl, text)
+        text = _IMPLICIT_CONCAT_SECRET_RE.sub(repl, text)
+    return text
+
+
 def scan_text(text, entropy=False, entropy_threshold=4.0, rules=None):
     """Scan a string. Returns list of dicts {rule, secret, start, end}."""
+    text = join_concatenated_secrets(text or "")
     hits = []
     for rule in (rules if rules is not None else RULES):
         for m in rule.regex.finditer(text):

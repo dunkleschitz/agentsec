@@ -1,0 +1,9 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "Remember the sprint ends next Friday; no production changes on Fridays.",
+      "user_id": "user-demo"
+    }
+  ]
+}
