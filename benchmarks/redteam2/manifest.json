@@ -1632,5 +1632,18 @@
       "source": "Look-alike of MO13; MCP Authorization spec recommends RFC 7591",
       "set": "redteam2"
     }
-  ]
+  ],
+  "gap_issues": {
+    "fetchfence": "https://github.com/dunkleschitz/agentsec/issues/17",
+    "mcpoauth": "https://github.com/dunkleschitz/agentsec/issues/18",
+    "mcpposture": "https://github.com/dunkleschitz/agentsec/issues/19",
+    "memfence": "https://github.com/dunkleschitz/agentsec/issues/20",
+    "pathfence": "https://github.com/dunkleschitz/agentsec/issues/21",
+    "piiguard": "https://github.com/dunkleschitz/agentsec/issues/22",
+    "resultguard": "https://github.com/dunkleschitz/agentsec/issues/23",
+    "secretflow": "https://github.com/dunkleschitz/agentsec/issues/24",
+    "shellfence": "https://github.com/dunkleschitz/agentsec/issues/25",
+    "toolpoison": "https://github.com/dunkleschitz/agentsec/issues/26",
+    "tracesweep": "https://github.com/dunkleschitz/agentsec/issues/27"
+  }
 }

@@ -3055,7 +3055,19 @@
         "tool": "mcpoauth"
       }
     ],
-    "gap_issues": {},
+    "gap_issues": {
+      "fetchfence": "https://github.com/dunkleschitz/agentsec/issues/17",
+      "mcpoauth": "https://github.com/dunkleschitz/agentsec/issues/18",
+      "mcpposture": "https://github.com/dunkleschitz/agentsec/issues/19",
+      "memfence": "https://github.com/dunkleschitz/agentsec/issues/20",
+      "pathfence": "https://github.com/dunkleschitz/agentsec/issues/21",
+      "piiguard": "https://github.com/dunkleschitz/agentsec/issues/22",
+      "resultguard": "https://github.com/dunkleschitz/agentsec/issues/23",
+      "secretflow": "https://github.com/dunkleschitz/agentsec/issues/24",
+      "shellfence": "https://github.com/dunkleschitz/agentsec/issues/25",
+      "toolpoison": "https://github.com/dunkleschitz/agentsec/issues/26",
+      "tracesweep": "https://github.com/dunkleschitz/agentsec/issues/27"
+    },
     "independent": true,
     "method": "READMEs/usage only; no detector source, rule files, or benchmarks/redteam/ samples were read. Techniques cited in SOURCES.md. Files marked generated=true are materialized by generate.py (fake provider-shaped secrets that GitHub push protection would block).",
     "overall": {
