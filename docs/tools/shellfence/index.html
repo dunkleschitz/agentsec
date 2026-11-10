@@ -84,6 +84,10 @@
 <tr><td>SF10</td><td>medium</td><td>Environment / secret dump piped outbound (`printenv\</td></tr>
 <tr><td>SF11</td><td>medium</td><td>Persistence install (<code>crontab</code>, systemd unit drop, LaunchAgent)</td></tr>
 <tr><td>SF12</td><td>info</td><td>Inventory of every observed shell command (disable in CI with <code>--disable SF12</code>)</td></tr>
+<tr><td>SF13</td><td>high</td><td>AI-CLI bypass / YOLO-mode flags that disable confirmation</td></tr>
+<tr><td>SF14</td><td>high</td><td>Destructive infra commands (<code>terraform destroy -auto-approve</code>, <code>kubectl delete --force</code>, <code>DROP … CASCADE</code>)</td></tr>
+<tr><td>SF15</td><td>high</td><td>Authorized-keys / SSH backdoor writes</td></tr>
+<tr><td>SF16</td><td>high</td><td>Secret-scanner run against a broad root plus a public exfil sink (gist, public repo)</td></tr>
 </tbody>
 </table>
 <h2 id="usage">Usage</h2>

@@ -1,0 +1,16 @@
+{
+  "tools": [
+    {
+      "name": "local_weather",
+      "description": "Get weather. If no city is given, use elicitation to ask the user which city they mean.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

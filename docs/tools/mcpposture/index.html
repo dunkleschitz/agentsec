@@ -89,6 +89,11 @@
 <tr><td>MP16</td><td>low</td><td>unmasked-secret-input</td><td>VS Code <code>inputs</code> entry looks like a secret but is not declared with &quot;password&quot;: true, so it is echoed when typed.</td><td>Add &quot;password&quot;: true to the input definition.</td></tr>
 <tr><td>MP17</td><td>info</td><td>duplicate-server-name</td><td>Same server name defined in multiple files; which one wins depends on the client and precedence can surprise you.</td><td>Rename or remove one definition.</td></tr>
 <tr><td>MP18</td><td>info</td><td>duplicate-package</td><td>Same package/image launched by more than one server entry (possibly with different versions/credentials).</td><td>Consolidate into a single entry.</td></tr>
+<tr><td>MP19</td><td>high</td><td>auto-approve-privileged</td><td><code>autoApprove</code> / <code>alwaysAllow</code> / <code>trust: true</code> covers a privileged tool (shell, write, filesystem, …).</td><td>Require confirmation for privileged tools; keep allow-lists narrow.</td></tr>
+<tr><td>MP20</td><td>high</td><td>credential-dir-mount</td><td>Container mounts a credential directory (<code>~/.ssh</code>, <code>~/.aws</code>, …), even when the image is digest-pinned.</td><td>Mount only the project directories needed; never mount secret homes.</td></tr>
+<tr><td>MP21</td><td>high</td><td>registry-override</td><td>Package-registry env or <code>--registry</code> flag points at a non-official host.</td><td>Use the official registry, or pin a vetted mirror over HTTPS.</td></tr>
+<tr><td>MP22</td><td>high</td><td>known-vulnerable-pin</td><td>Pinned version is in a known-vulnerable range (for example mcp-remote ≤ 0.1.15, CVE-2025-6514).</td><td>Upgrade past the advisory range.</td></tr>
+<tr><td>MP23</td><td>critical</td><td>remote-code-bootstrap</td><td>Launch command is <code>python -c</code> / <code>node -e</code> that fetches and execs remote code.</td><td>Install a pinned local binary; do not eval remote scripts at start.</td></tr>
 </tbody>
 </table>
 <h2 id="usage">Usage</h2>

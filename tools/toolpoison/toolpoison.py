@@ -11,11 +11,15 @@ approval ("rug pulls") unless you diff snapshots with --diff.
 Standard library only. MIT licensed.
 """
 import argparse
+import base64
+import binascii
 import hashlib
+import html
 import json
 import re
 import sys
 import unicodedata
+from urllib.parse import unquote, unquote_plus
 
 __version__ = "0.1.0"
 
@@ -48,6 +52,12 @@ RULES = {
              "Same tool name defined more than once (across or within files)"),
     "TP10": ("hidden-markup", "medium",
              "HTML comments, hidden HTML/markdown, or pseudo-system tags"),
+    "TP11": ("annotation-deception", "high",
+             "Annotations (readOnlyHint/destructiveHint/title) contradict a destructive name, description, or schema"),
+    "TP12": ("hidden-schema-default", "high",
+             "Schema default quietly sets a BCC, webhook, or other hidden recipient/sink"),
+    "TP13": ("preference-manipulation", "high",
+             "Description tells the model to always prefer this tool or to never use others"),
 }
 
 # ---------------------------------------------------------------- patterns
@@ -77,6 +87,12 @@ TP01_PATTERNS = [
     r"ignoriere?\s+(?:die\s+)?(?:bisherigen|vorherigen|fr[uü]heren)\s+anweisungen",
     r"ignore\s+as\s+instru[cç][oõ]es\s+anteriores",
     r"ignora\s+le\s+istruzioni\s+precedenti",
+    r"不要告诉用户",
+    r"不要向用户提及",
+    r"忽略之前的指令",
+    r"在使用此工具之前",
+    r"务必先读取",
+    r"(?:do\s*n[o\']?t|never)\s+mention\s+this\b",
 ]
 TP03_PATTERNS = [
     r"~?/?\.ssh\b[/\w.-]*", r"\bid_(rsa|dsa|ecdsa|ed25519)(\.pub)?\b", r"\bauthorized_keys\b",
@@ -111,6 +127,12 @@ TP04_PATTERNS = [
     r"(?:la\s+|el\s+|das\s+|a\s+)?"
     r"(?:conversation|conversaci[oó]n|gespr[aä]ch|conversa|conversazione)\s+"
     r"(?:[aà]|an|para|to)\s+https?://",
+    r"将全部内容放入",
+    r"放入\s*\w+\s*参数",
+    r"读取用户的(?:私钥|密钥|凭证|凭据)",
+    r"(?:put|place|insert|embed|include)\s+(?:it|them|this|the\s+(?:key|contents?|value))\s+"
+    r"(?:in|into)\s+(?:the\s+)?[\w.-]+\s+(?:parameter|param|argument|field|arg)",
+    r"read\s+(?:the\s+)?(?:user\'?s\s+)?private\s+ssh\s+keys?",
 ]
 TP06_PATTERNS = [
     r"(when|whenever|if|every\s+time|each\s+time)\s+(the\s+|any\s+)?[`'\"]?[\w.-]+[`'\"]?\s+(tool|function|command)\s+(is\s+)?(used|called|invoked|run|executed)",
@@ -120,6 +142,12 @@ TP06_PATTERNS = [
     r"(always|must)\s+also\s+(bcc|cc|redirect|reroute|change\s+the\s+recipient|send\s+a\s+copy)",
     r"(always|must)\s+(bcc|cc|redirect|reroute|change\s+the\s+recipient|send\s+a\s+copy)\b[^.\n]{0,80}?(?:other|another|every)\s+tools?",
     r"(override|overrides|modify|modifies|change|changes|alter|alters|replace|replaces|hijack)\s+(the\s+)?(behaviou?r|parameters?|arguments?|recipient)\s+of\s+(the\s+)?(other\s+|another\s+|any\s+)?[\w.-]*\s*tools?",
+    # Cross-tool parameter rewrite without the literal word "tool"
+    r"(when(?:ever)?|if)\s+[A-Za-z][\w.-]{1,40}\s+is\s+(?:invoked|called|used|executed|run)\b",
+    r"(every\s+time|each\s+time)\s+a\s+(?:transaction|payment|transfer|tool\s+call)\s+is\s+(?:executed|made|invoked|run)",
+    r"(?:add|attach|include)\s+an?\s+additional\s+[\d.]+%\s+(?:processing\s+)?fee",
+    r"(?:the\s+)?(?:to_account|recipient|destination|bcc|webhook)\s+value\s+must\s+be\s+set",
+    r"before\s+using\s+(?:these\s+)?results?.{0,60}(?:assistant|you)\s+must\s+call",
 ]
 TP10_PATTERNS = [
     r"<!--[\s\S]*?(-->|$)",
@@ -364,7 +392,105 @@ def _tp03_is_documentary(text):
     return not _ACCESS_VERB_RE.search(stripped)
 
 
+
+B64_BLOB_RE = re.compile(r"(?<![A-Za-z0-9+/])([A-Za-z0-9+/]{32,}={0,2})(?![A-Za-z0-9+/=])")
+INSTR_HINT_RE = re.compile(
+    r"(?is)\b(?:ignore|instruction|override|exfiltrat|you\s+must|do\s+not\s+mention|"
+    r"ssh|private\s+key|api[_ ]?key|call\s+the\s+tool)|不要告诉用户|读取用户"
+)
+
+PREFERENCE_RE = re.compile(
+    r"(?is)(?:"
+    r"(?:this\s+is\s+)?the\s+best\s+(?:and\s+most\s+\w+\s+)?(?:tool|function)\b"
+    r"|(?:always|must)\s+(?:choose|prefer|use|pick|select|call)\s+"
+    r"(?:the\s+)?[\w.-]{0,40}\s+over\s+(?:any\s+|all\s+)?(?:other|every|all)"
+    r"|never\s+use\s+(?:a\s+)?(?:different|other|another)\s+tool"
+    r"|the\s+assistant\s+should\s+always\s+(?:choose|prefer|use)"
+    r"|always\s+prefer\s+(?:this|the)\s+tool"
+    r"|do\s+not\s+use\s+(?:any\s+)?(?:other|another|a\s+different)\s+tools?"
+    r")"
+)
+
+DESTRUCTIVE_HINT_RE = re.compile(
+    r"(?is)\b(?:delete|deleting|deleted|destroy|destroying|wipe|wiping|drop|dropping|"
+    r"remove\s+permanently|permanently\s+(?:delete|remove)|rm\s+-rf|truncate|shred)\b"
+)
+
+EMAIL_DEFAULT_RE = re.compile(
+    r"(?i)^(?:[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}|https?://\S+)$"
+)
+HIDDEN_SINK_NAMES = {
+    "bcc", "bccs", "blind_cc", "blind_copy", "webhook", "webhook_url",
+    "callback", "callback_url", "notify_email", "notification_email",
+    "exfil", "exfil_to", "archive_to", "hidden_cc",
+}
+
+
+def _try_b64_decode(blob):
+    pad = (-len(blob)) % 4
+    try:
+        dec = base64.b64decode(blob + ("=" * pad), validate=False)
+        return dec.decode("utf-8")
+    except (binascii.Error, ValueError, UnicodeDecodeError):
+        return None
+
+
+def decoded_text_views(text):
+    """Views of a schema/description string after common concealment encodings."""
+    if not isinstance(text, str) or not text:
+        return []
+    views = [text]
+    unescaped = html.unescape(text)
+    if unescaped != text:
+        views.append(unescaped)
+    uq = unquote(unquote_plus(unescaped))
+    if uq not in views:
+        views.append(uq)
+    for m in B64_BLOB_RE.finditer(text):
+        dec = _try_b64_decode(m.group(1))
+        if dec and len(dec) >= 12 and INSTR_HINT_RE.search(dec):
+            views.append(dec)
+    return views
+
+
+def _annotations_of(tool):
+    ann = tool.get("annotations")
+    return ann if isinstance(ann, dict) else {}
+
+
+def _schema_properties(schema):
+    if not isinstance(schema, dict):
+        return {}
+    props = schema.get("properties")
+    return props if isinstance(props, dict) else {}
+
+
+def _walk_defaults(schema, prefix=""):
+    """Yield (path, prop_name, default) for default/const values in a schema."""
+    if not isinstance(schema, dict):
+        return
+    props = schema.get("properties")
+    if isinstance(props, dict):
+        for name, spec in props.items():
+            path = "%s.properties.%s" % (prefix, name) if prefix else "properties.%s" % name
+            if isinstance(spec, dict):
+                if "default" in spec:
+                    yield path, str(name), spec.get("default")
+                if "const" in spec:
+                    yield path, str(name), spec.get("const")
+                yield from _walk_defaults(spec, path)
+    for key in ("items", "additionalProperties", "not"):
+        if isinstance(schema.get(key), dict):
+            yield from _walk_defaults(schema[key], "%s.%s" % (prefix, key) if prefix else key)
+    for key in ("oneOf", "anyOf", "allOf"):
+        seq = schema.get(key)
+        if isinstance(seq, list):
+            for i, item in enumerate(seq):
+                yield from _walk_defaults(item, "%s.%s[%d]" % (prefix, key, i) if prefix else "%s[%d]" % (key, i))
+
+
 def scan_tools(source, tools, base, max_desc_len=1000):
+
     findings = []
     seen = set()
 
@@ -428,28 +554,67 @@ def scan_tools(source, tools, base, max_desc_len=1000):
                     add("TP03", path, visible(text), "high",
                         "Parameter name %r references a sensitive path or secret file" % text, tname)
                 continue
-            # textual rules
+            # textual rules (also run on decoded views of the same string)
+            scan_texts = decoded_text_views(text)
             for rule, pats in (("TP01", C01), ("TP03", C03), ("TP04", C04), ("TP06", C06), ("TP10", C10)):
                 if rule == "TP03" and kind == "description" and _tp03_is_documentary(text):
                     continue
                 spans = []
-                for rx in pats:
-                    for m in rx.finditer(text):
-                        if not any(m.start() < e and s < m.end() for s, e in spans):
-                            spans.append((m.start(), m.end()))
+                view_used = text
+                for view in scan_texts:
+                    for rx in pats:
+                        for m in rx.finditer(view):
+                            if view is not text and not spans:
+                                view_used = view
+                            if not any(m.start() < e and s < m.end() for s, e in spans):
+                                spans.append((m.start(), m.end()))
+                    if spans:
+                        break
                 if not spans:
                     continue
                 spans.sort()
-                matched = [visible(text[a:b]).strip() for a, b in spans]
+                matched = [visible(view_used[a:b]).strip() for a, b in spans]
                 sev = None
-                if rule == "TP04" and all("base64" in x.lower() for x in matched):
+                if rule == "TP04" and all("base64" in x.lower() for x in matched) and view_used is text:
                     sev = "medium"  # base64 alone is often benign (e.g. image uploads)
                 shown = "; ".join(repr(x[:60]) for x in matched[:5]) + (" ..." if len(matched) > 5 else "")
-                add(rule, path, snippet(text, spans[0][0], spans[0][1]), sev,
+                ev_src = text if view_used is text else view_used
+                add(rule, path, snippet(ev_src, spans[0][0], spans[0][1]), sev,
                     "%s - %d match(es): %s" % (RULES[rule][2], len(matched), shown), tname)
+            if kind == "description" and PREFERENCE_RE.search(text):
+                m = PREFERENCE_RE.search(text)
+                add("TP13", path, snippet(text, m.start(), m.end()), "high",
+                    "Description steers the model to prefer this tool or avoid others", tname)
             if kind == "description" and len(text) > max_desc_len:
                 add("TP07", path, "%d chars (limit %d)" % (len(text), max_desc_len), tool=tname,
                     message="Description is %d characters (limit %d)" % (len(text), max_desc_len))
+
+        # TP11: annotations / title disagree with destructive behaviour
+        ann = _annotations_of(tool)
+        title = tool.get("title") if isinstance(tool.get("title"), str) else ""
+        desc = tool.get("description") if isinstance(tool.get("description"), str) else ""
+        blob = " ".join([str(tname or ""), title, desc])
+        read_only = ann.get("readOnlyHint") is True
+        not_destructive = ann.get("destructiveHint") is False
+        if (read_only or not_destructive or re.search(r"(?i)\bread[- ]?only\b", title)) and DESTRUCTIVE_HINT_RE.search(blob):
+            ev = "readOnlyHint=%s destructiveHint=%s title=%r" % (
+                ann.get("readOnlyHint"), ann.get("destructiveHint"), title[:80],
+            )
+            add("TP11", tpath + ".annotations", ev, "high",
+                "Annotations or title claim a harmless/read-only tool but the name or description is destructive",
+                tname)
+
+        # TP12: hidden default recipient / sink in input or output schema
+        for schema_key in ("inputSchema", "outputSchema", "input_schema", "output_schema"):
+            schema = tool.get(schema_key)
+            for spath, pname, default in _walk_defaults(schema, "%s.%s" % (tpath, schema_key)):
+                if not isinstance(default, str) or not default.strip():
+                    continue
+                low = pname.lower()
+                if low in HIDDEN_SINK_NAMES or "bcc" in low or "webhook" in low:
+                    if EMAIL_DEFAULT_RE.match(default.strip()) or "@" in default or default.strip().lower().startswith("http"):
+                        add("TP12", spath + ".default", visible(default), "high",
+                            "Parameter %r silently defaults to %s" % (pname, visible(default)[:80]), tname)
     return findings
 
 

@@ -15,9 +15,12 @@ toolgate (policy you write), yolocheck (static autonomy settings) and hitlguard
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import json
 import os
 import re
+import shlex
 import sys
 
 VERSION = "0.1.0"
@@ -37,6 +40,10 @@ RULES = {
     "SF10": ("medium", "Environment / secret dump piped outbound (printenv|curl, env to remote)"),
     "SF11": ("medium", "Persistence install (crontab, systemd unit drop, rc.local, LaunchAgent)"),
     "SF12": ("info", "Inventory of shell commands observed in tool calls"),
+    "SF13": ("high", "AI-agent permission-bypass flag (--dangerously-skip-permissions, --yolo, --trust-all-tools)"),
+    "SF14": ("critical", "Destructive infra / data-plane command (terraform destroy -auto-approve, kubectl delete --force, DROP ... CASCADE)"),
+    "SF15": ("high", "SSH authorized_keys or equivalent backdoor persistence"),
+    "SF16": ("high", "Secret-harvest pipeline followed by a public exfil channel (scanner on / plus public repo/gist/upload)"),
 }
 
 SHELL_TOKENS = {
@@ -166,7 +173,7 @@ PERMS_RE = re.compile(
 GIT_DANGER_RE = re.compile(
     r"(?ix)"
     r"("
-    r"\bgit\s+push\b[^\n|;]{0,80}--force(?:-with-lease)?\b"
+    r"\bgit\s+push\b[^\n|;]{0,80}--force(?!-with-lease)\b"
     r"|"
     r"\bgit\s+push\b[^\n|;]{0,40}-f\b"
     r"|"
@@ -548,7 +555,122 @@ def _snippet(cmd: str, limit: int = 120) -> str:
     return s[: limit - 3] + "..."
 
 
+
+AI_BYPASS_RE = re.compile(
+    r"(?ix)"
+    r"("
+    r"--dangerously-skip-permissions\b"
+    r"|"
+    r"--trust-all-tools\b"
+    r"|"
+    r"--allow-all(?:-tools)?\b"
+    r"|"
+    r"\b(?:gemini|google-gemini)(?:-cli)?\b[^\n|;]{0,80}--yolo\b"
+    r"|"
+    r"\b(?:claude|claude[-_]?code)\b[^\n|;]{0,80}--dangerously-skip-permissions\b"
+    r"|"
+    r"\b(?:q|amazon-?q)\b[^\n|;]{0,80}(?:--trust-all-tools|--no-interactive)\b"
+    r")"
+)
+
+INFRA_DESTROY_RE = re.compile(
+    r"(?ix)"
+    r"("
+    r"\bterraform\s+destroy\b[^\n|;]{0,120}-auto-approve\b"
+    r"|"
+    r"\bkubectl\s+delete\b[^\n|;]{0,160}(?:--force\b|--grace-period\s*=\s*0\b)"
+    r"|"
+    r"\bdrop\s+(?:schema|database|table)\b[^\n|;]{0,80}\bcascade\b"
+    r"|"
+    r"\bdrop\s+schema\b[^\n|;]{0,40}\bproduction\b"
+    r")"
+)
+
+AUTHORIZED_KEYS_RE = re.compile(
+    r"(?ix)"
+    r"("
+    r"(?:>>|tee\s+-a)\s+[^\n|;]*authorized_keys\b"
+    r"|"
+    r"authorized_keys\b[^\n|;]{0,40}(?:>>|tee\s+-a)"
+    r"|"
+    r"echo\s+[^\n|;]{0,200}>>\s*[^\n|;]*\.ssh/authorized_keys\b"
+    r")"
+)
+
+SECRET_SCANNER_RE = re.compile(
+    r"(?ix)"
+    r"\b(?:trufflehog|gitleaks|ggshield|git-secrets|noseyparker|detect-secrets)\b"
+)
+BROAD_SCAN_ROOT_RE = re.compile(
+    r"(?ix)(?:\s|^)(?:/|/\$?HOME\b|~(?:/|$)|/home(?:/|\b)|/Users(?:/|\b)|filesystem\s+/)"
+)
+PUBLIC_EXFIL_RE = re.compile(
+    r"(?ix)"
+    r"("
+    r"\bgh\s+repo\s+create\b[^\n|;]{0,80}--public\b"
+    r"|"
+    r"\bgh\s+gist\s+create\b"
+    r"|"
+    r"\bgit\s+push\b[^\n|;]{0,40}\b(?:--set-upstream|-u)\b"
+    r"|"
+    r"\bcurl\b[^\n|;]{0,80}\b-X\s*POST\b"
+    r")"
+)
+
+PS_ENCODED_RE = re.compile(
+    r"(?ix)"
+    r"(?:powershell|pwsh)\b[^\n|;]{0,200}(?:-encodedcommand|-enc|-ec)\s+([A-Za-z0-9+/]{20,}={0,2})"
+    r"|"
+    r"(?:-encodedcommand|-enc)\s+([A-Za-z0-9+/]{20,}={0,2})"
+)
+PS_BYPASS_RE = re.compile(
+    r"(?ix)(?:powershell|pwsh)\b[^\n|;]{0,80}-executionpolicy\s+bypass\b"
+)
+
+
+def _split_segments(cmd: str) -> list:
+    parts = re.split(r"(?:&&|\|\||(?<!\|);|\n)", cmd)
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _tokens(seg: str) -> list:
+    try:
+        return shlex.split(seg, posix=True)
+    except ValueError:
+        return seg.split()
+
+
+def _decode_ps_encoded(cmd: str) -> str | None:
+    m = PS_ENCODED_RE.search(cmd)
+    if not m:
+        return None
+    blob = next(g for g in m.groups() if g)
+    pad = (-len(blob)) % 4
+    try:
+        raw = base64.b64decode(blob + ("=" * pad), validate=False)
+    except (binascii.Error, ValueError):
+        return None
+    for enc in ("utf-16-le", "utf-16", "utf-8"):
+        try:
+            s = raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+        if any(c.isprintable() or c in "\r\n\t" for c in s) and len(s.strip()) >= 4:
+            return s
+    return None
+
+
+def _python_reverse_shell(cmd: str) -> bool:
+    if not re.search(r"(?i)\bpython(?:3)?\b", cmd):
+        return False
+    low = cmd.lower()
+    if "socket" not in low:
+        return False
+    return bool(re.search(r"(?i)(?:pty|dup2|subprocess|connect\s*\(|/dev/tcp)", cmd))
+
+
 def classify_command(command: str, source: str, tool: str = "", turn=None, disabled=None):
+
     """Return findings for one shell command."""
     disabled = set(disabled or [])
     findings = []
@@ -573,11 +695,14 @@ def classify_command(command: str, source: str, tool: str = "", turn=None, disab
     if PRIV_ESC_RE.search(n):
         add("SF03", "Privilege escalation token in command: %s" % _snippet(n, 90))
 
-    if REV_SHELL_RE.search(n):
+    if REV_SHELL_RE.search(n) or _python_reverse_shell(n):
         add("SF04", "Reverse shell / remote listener pattern: %s" % _snippet(n, 90))
 
-    if ENCODED_EVAL_RE.search(n):
+    ps_decoded = _decode_ps_encoded(n) or _decode_ps_encoded(raw)
+    if ENCODED_EVAL_RE.search(n) or PS_ENCODED_RE.search(n) or PS_BYPASS_RE.search(n):
         add("SF05", "Encoded/remote eval pattern: %s" % _snippet(n, 90))
+    elif ps_decoded and ENCODED_EVAL_RE.search(_normalize_cmd(ps_decoded)):
+        add("SF05", "PowerShell EncodedCommand decodes to remote/eval content: %s" % _snippet(ps_decoded, 90))
 
     if PERMS_RE.search(n):
         add("SF06", "Permission-weakening chmod/chown/icacls: %s" % _snippet(n, 90))
@@ -596,6 +721,32 @@ def classify_command(command: str, source: str, tool: str = "", turn=None, disab
 
     if PERSIST_RE.search(n):
         add("SF11", "Persistence install pattern: %s" % _snippet(n, 90))
+
+    if AI_BYPASS_RE.search(n):
+        add("SF13", "AI-agent permission-bypass flag: %s" % _snippet(n, 90))
+
+    if INFRA_DESTROY_RE.search(n):
+        add("SF14", "Destructive infra / data-plane command: %s" % _snippet(n, 90))
+
+    if AUTHORIZED_KEYS_RE.search(n):
+        add("SF15", "SSH authorized_keys backdoor persistence: %s" % _snippet(n, 90))
+
+    # Pipeline reasoning: secret scanner over a broad root + a public exfil sink,
+    # even when the two appear in adjacent list segments rather than one regex.
+    segments = _split_segments(n)
+    has_broad_scan = any(SECRET_SCANNER_RE.search(seg) and BROAD_SCAN_ROOT_RE.search(seg) for seg in segments)         or (SECRET_SCANNER_RE.search(n) and BROAD_SCAN_ROOT_RE.search(n))
+    has_public = any(PUBLIC_EXFIL_RE.search(seg) for seg in segments) or PUBLIC_EXFIL_RE.search(n)
+    if has_broad_scan and has_public:
+        add("SF16", "Secret-harvest pipeline followed by a public exfil channel: %s" % _snippet(n, 90))
+
+    # Re-run selected regexes on a decoded PowerShell body so obfuscation
+    # through -EncodedCommand still hits SF01/SF04/etc.
+    if ps_decoded:
+        inner = _normalize_cmd(ps_decoded)
+        if PIPE_SHELL_RE.search(inner):
+            add("SF01", "Decoded PowerShell downloads and executes a remote script: %s" % _snippet(inner, 90))
+        if REV_SHELL_RE.search(inner) or _python_reverse_shell(inner):
+            add("SF04", "Decoded PowerShell reverse shell: %s" % _snippet(inner, 90))
 
     return findings
 

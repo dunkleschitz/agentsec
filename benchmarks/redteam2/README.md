@@ -8,9 +8,11 @@ round-1 `SOURCES.md` only). Techniques cite published research in [SOURCES.md](S
 and favor work round 1 did not use.
 
 Round 1 (`benchmarks/redteam/`) is now *seen*: rules were tuned against it in v0.41.0.
-Round 2 is the current **unseen** score. Its v0.41.0 numbers are frozen in
-`benchmarks/baseline_redteam2_v0.41.0.json`. Misses are filed as `detection-gap` issues
-and are **not** fixed in the release that added this set.
+Round 2 is also *seen*: it was the development set for the v0.43.0 generalization.
+Its original v0.41.0 numbers stay frozen in `benchmarks/baseline_redteam2_v0.41.0.json`
+and remain the honest unseen score. Round 3 (`benchmarks/redteam3/`) is the current
+**unseen** score. Remaining round-2 misses for tools this release did not retune
+are still filed as `detection-gap` issues.
 
 All credentials and personal-data values are fake.
 

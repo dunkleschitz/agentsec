@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Decode the attachment if needed."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "read_email",
+            "arguments": "{\"id\": \"m-9\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "read_email",
+      "content": "Content-Transfer-Encoding: quoted-printable\n\nCallback requested from jane.doe@example.com at +1-555-013-8842.\n"
+    }
+  ]
+}

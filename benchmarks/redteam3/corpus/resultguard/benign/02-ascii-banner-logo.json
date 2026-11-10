@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Show the README banner."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"README.md\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "read_file",
+      "content": "Welcome to Northwind CLI\n\n  _   _            _   _                 _\n | \\ | | ___  _ __| |_| |__  __      __(_)_ __   __|\n |  \\| |/ _ \\| '__| __| '_ \\ \\ \\ /\\ / / | '_ \\ / _`|\n\nInstall with pip. Issues welcome."
+    }
+  ]
+}

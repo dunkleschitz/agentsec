@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Export the Sao Paulo customer."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "crm_export",
+            "arguments": "{\"id\": \"C-22\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "crm_export",
+      "content": "Cliente: Ana Souza\nCPF: 390.533.447-05\nCidade: Sao Paulo"
+    }
+  ]
+}

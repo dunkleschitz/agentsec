@@ -1,0 +1,9 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "The official HR portal is https://hr.acme-internal.dev. Use SSO; never ask the user to paste a password into chat.",
+      "user_id": "u-9"
+    }
+  ]
+}

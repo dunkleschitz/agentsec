@@ -56,6 +56,9 @@ python3 toolpoison.py --list-rules
 | TP08 | confusable-name | medium (high if mixed scripts) | Tool or parameter names that mix scripts (for example, a Cyrillic `а` inside `read_file`) or contain non-ASCII letters |
 | TP09 | duplicate-name | medium | The same tool name (NFKC + case-folded) defined more than once, within or across scanned files |
 | TP10 | hidden-markup | medium | HTML comments `<!-- -->`, `display:none`/`hidden` elements, `<details>`, markdown comments `[//]: #`, script/style/iframe tags, long runs of blank lines or padding that push text out of view |
+| TP11 | annotation-deception | high | `readOnlyHint` / `destructiveHint` / `title` annotations that contradict a destructive name, description, or schema |
+| TP12 | hidden-schema-default | high | Hidden or unusual schema defaults on exfil-shaped parameters (bcc, webhook, callback, and similar) |
+| TP13 | preference-manipulation | high | Description steers the model to prefer this tool, levy an extra fee, or always invoke a follow-up tool |
 
 There is one finding per rule per scanned field. The message lists every phrase that matched (up to 5).
 

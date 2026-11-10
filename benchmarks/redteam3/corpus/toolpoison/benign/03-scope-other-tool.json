@@ -1,0 +1,28 @@
+{
+  "tools": [
+    {
+      "name": "read_text",
+      "description": "Read a UTF-8 text file. For images, use read_image instead.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "read_image",
+      "description": "Read an image and return a short caption.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

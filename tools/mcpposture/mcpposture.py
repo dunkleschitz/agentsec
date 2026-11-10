@@ -85,6 +85,21 @@ RULES: Dict[str, Dict[str, str]] = {
     "MP18": {"name": "duplicate-package", "severity": "info",
              "rationale": "Same package/image launched by more than one server entry (possibly with different versions/credentials).",
              "fix": "Consolidate into a single entry."},
+    "MP19": {"name": "auto-approve-privileged-tools", "severity": "high",
+             "rationale": "Client auto-approves or always-allows command execution or file writes, so a poisoned tool result can act without a human in the loop.",
+             "fix": "Require confirmation for exec and write tools; keep auto-approve lists empty or limited to read-only tools."},
+    "MP20": {"name": "credential-directory-mount", "severity": "high",
+             "rationale": "Container mounts a host credential directory (~/.ssh, ~/.aws, ~/.gnupg, ~/.kube, cloud-CLI config) into the server, exposing keys even when the image is digest-pinned.",
+             "fix": "Mount only the specific project files needed, read-only, and never a secrets directory."},
+    "MP21": {"name": "package-registry-override", "severity": "high",
+             "rationale": "Environment redirects package installs to a non-official registry (npm_config_registry, PIP_INDEX_URL, ...), so a pinned name can still resolve to a substitute package.",
+             "fix": "Use the official registry, or pin a known-good checksum and a registry you control."},
+    "MP22": {"name": "known-vulnerable-package", "severity": "critical",
+             "rationale": "Pinned package version is in a published vulnerable range (for example mcp-remote before the CVE-2025-6514 fix).",
+             "fix": "Upgrade to a fixed version and review the advisory before pinning."},
+    "MP23": {"name": "remote-code-bootstrap", "severity": "critical",
+             "rationale": "Launch command downloads and executes remote code (python -c urlopen/exec, node -e fetch/eval) on every start.",
+             "fix": "Install a local, pinned, reviewed copy of the server and run that binary."},
 }
 
 # ---------------------------------------------------------------------------
@@ -505,6 +520,97 @@ def broad_root(p: str) -> Optional[str]:
     return None
 
 
+
+CRED_DIR_RE = re.compile(
+    r"(?ix)"
+    r"(?:^|[\\/])"
+    r"(?:\.ssh|\.aws|\.gnupg|\.kube|\.azure|\.config[\\/]gcloud|\.docker[\\/]config\.json|"
+    r"\.git-credentials|\.netrc|\.npmrc)"
+    r"(?:$|[\\/])"
+)
+
+REGISTRY_ENV = {
+    "NPM_CONFIG_REGISTRY", "npm_config_registry",
+    "YARN_REGISTRY", "YARN_NPM_REGISTRY_SERVER",
+    "PIP_INDEX_URL", "PIP_EXTRA_INDEX_URL", "UV_INDEX_URL", "UV_EXTRA_INDEX_URL",
+    "POETRY_HTTP_BASIC", "TWINE_REPOSITORY_URL",
+}
+OFFICIAL_REGISTRY_HOSTS = {
+    "registry.npmjs.org", "registry.yarnpkg.com", "registry.npmmirror.com",
+    "pypi.org", "files.pythonhosted.org", "pypi.python.org",
+    "repo.maven.apache.org", "index.crates.io", "proxy.golang.org",
+}
+
+# Advisory ranges: inclusive upper bound of still-vulnerable versions.
+# Compare dotted numeric prefixes only (0.1.15 < 0.1.16).
+VULN_PACKAGES = {
+    # CVE-2025-6514 / GHSA-6xpm-ggf7-wc3p: mcp-remote <= 0.1.15
+    "mcp-remote": [("0.1.15", "CVE-2025-6514")],
+}
+
+AUTO_APPROVE_KEYS = ("autoApprove", "alwaysAllow", "always_allow", "auto_approve", "autoAllow")
+PRIVILEGED_TOOL_RE = re.compile(
+    r"(?i)(?:execute[_-]?command|run[_-]?command|write[_-]?to[_-]?file|write[_-]?file|"
+    r"edit[_-]?file|shell|bash|terminal|exec|powershell|cmd|run_pty|start_process)"
+)
+
+REMOTE_BOOTSTRAP_RE = re.compile(
+    r"(?is)"
+    r"(?:python(?:3)?|node|nodejs)\b.{0,40}(?:-[ce]\b).{0,80}"
+    r"(?:urllib|urlopen|requests|httpx|fetch|https?://).{0,120}"
+    r"(?:exec|eval|system|popen|spawn|Function\()"
+    r"|exec\s*\(\s*(?:\w+\.)?urlopen"
+    r"|(?:eval|exec)\s*\(\s*(?:await\s+)?(?:fetch|requests)"
+)
+
+
+def _parse_dotted_version(s: str):
+    m = re.search(r"(\d+(?:\.\d+){0,4})", s or "")
+    if not m:
+        return None
+    return tuple(int(x) for x in m.group(1).split("."))
+
+
+def _ver_le(a, b) -> bool:
+    if a is None or b is None:
+        return False
+    n = max(len(a), len(b))
+    a = a + (0,) * (n - len(a))
+    b = b + (0,) * (n - len(b))
+    return a <= b
+
+
+def _pkg_name_and_version(spec: str):
+    """Best-effort (name, version) from npm/pypi/docker-ish package specs."""
+    if not spec:
+        return None, None
+    s = spec.strip()
+    # pypi name==version
+    m = re.search(r"^([A-Za-z0-9_.-]+)\s*==\s*([0-9][\w.!+-]*)$", s)
+    if m:
+        return m.group(1), m.group(2)
+    # npm @scope/name@version or name@version
+    if s.startswith("@"):
+        m = re.match(r"^(@[^@/]+/[^@/]+)@(.+)$", s)
+        if m:
+            return m.group(1), m.group(2)
+    elif "@" in s and not s.startswith(("git+", "http://", "https://")):
+        name, ver = s.rsplit("@", 1)
+        if name and ver:
+            return name, ver
+    return pkg_name(s) if s else None, None
+
+
+def _is_official_registry(url: str) -> bool:
+    try:
+        u = urlsplit(url)
+    except ValueError:
+        return False
+    host = (u.hostname or "").lower()
+    return host in OFFICIAL_REGISTRY_HOSTS or host.endswith(".npmjs.org") or host.endswith(".pythonhosted.org")
+
+
+
 TMP_RE = re.compile(r"^(/tmp/|/var/tmp/|/dev/shm/|/private/tmp/|[A-Za-z]:[\\/].*[\\/]Temp[\\/]|%TEMP%|%TMP%|\$TMPDIR|\$\{TMPDIR\}|~/Downloads/|/Users/[^/]+/Downloads/|/home/[^/]+/Downloads/|[A-Za-z]:[\\/]+Users[\\/]+[^\\/]+[\\/]+Downloads[\\/])", re.I)
 PIPE_SHELL_RE = re.compile(
     r"((curl|wget|fetch)\b[^|;&]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|(curl|wget)\b[^|;&]*\|\s*(python3?|node|perl|ruby)\b|"
@@ -536,6 +642,18 @@ def audit_server(srv: Server) -> None:
     cfg = srv.cfg
     add = lambda rid, msg, ev="", sev=None: srv.findings.append(
         Finding(rid, sev or RULES[rid]["severity"], srv.file, srv.name, msg, srv.line, ev))
+
+    # Client-level auto-approve / always-allow / trust-all
+    if cfg.get("trust") is True or str(cfg.get("trust", "")).lower() in {"true", "all"}:
+        add("MP19", "server is marked trust: true (tools may run without confirmation)", "trust=true")
+    for key in AUTO_APPROVE_KEYS:
+        val = cfg.get(key)
+        if val is True or (isinstance(val, str) and val.lower() in {"true", "all", "*"}):
+            add("MP19", f"{key} enables unattended tool use", f"{key}={val}")
+        elif isinstance(val, list):
+            privileged = [str(x) for x in val if PRIVILEGED_TOOL_RE.search(str(x))]
+            if privileged:
+                add("MP19", f"{key} auto-approves privileged tools: {', '.join(privileged[:6])}", f"{key}={privileged}")
 
     url = None
     for k in ("url", "serverUrl", "httpUrl", "uri", "endpoint"):
@@ -576,6 +694,9 @@ def audit_server(srv: Server) -> None:
             add("MP15", f"env {k} injects code/libraries into the server process", f"{k}={vs[:60]}")
         if k.upper() == "NODE_OPTIONS" and re.search(r"(--require|-r\s|--import|--loader|--experimental-loader|--inspect)", vs):
             add("MP15", "NODE_OPTIONS preloads code or opens an inspector port", f"NODE_OPTIONS={vs[:60]}")
+        if k in REGISTRY_ENV or k.upper() in {x.upper() for x in REGISTRY_ENV}:
+            if vs.strip() and not is_placeholder(vs) and not _is_official_registry(vs if "://" in vs else "https://%s" % vs):
+                add("MP21", f"env {k} redirects package installs to a non-official registry", f"{k}={vs[:80]}")
     if secret_named >= 4:
         add("MP13", f"{secret_named} secret-bearing env vars passed to one server", f"{secret_named} vars")
 
@@ -706,9 +827,21 @@ def audit_server(srv: Server) -> None:
                 add("MP10", f"executes from temp/download location: {p}", p)
                 break
 
-        # pipe-to-shell
-        if PIPE_SHELL_RE.search(joined):
+        # pipe-to-shell / remote bootstrap
+        if PIPE_SHELL_RE.search(joined) or REMOTE_BOOTSTRAP_RE.search(joined):
             add("MP11", "arguments download and execute remote code", joined[:100])
+            if REMOTE_BOOTSTRAP_RE.search(joined):
+                add("MP23", "launch command downloads and executes remote code at start", joined[:120])
+
+        # known-vulnerable pinned versions (advisory ranges, not a single fixture)
+        if pkg:
+            name, ver = _pkg_name_and_version(pkg)
+            if name and ver and name in VULN_PACKAGES:
+                got = _parse_dotted_version(ver)
+                for ceiling, advisory in VULN_PACKAGES[name]:
+                    if _ver_le(got, _parse_dotted_version(ceiling)):
+                        add("MP22", f"package {name}@{ver} is in the vulnerable range (<={ceiling}, {advisory})", pkg)
+                        break
 
 
 def check_docker(srv: Server, add, flags: List[str]) -> None:
@@ -745,6 +878,8 @@ def check_docker(srv: Server, add, flags: List[str]) -> None:
                 add("MP05", f"host root filesystem mounted into container: {val}", f"{name} {val}", "critical")
             elif src and broad_root(src):
                 add("MP05", f"over-broad host path mounted into container ({broad_root(src)}): {val}", f"{name} {val}")
+            elif src and CRED_DIR_RE.search(norm_path(src)):
+                add("MP20", f"host credential directory mounted into container: {val}", f"{name} {val}")
         elif name in ("-e", "--env") and val and "=" in val:
             k, v = val.split("=", 1)
             reason = looks_secret_kv(k, v)

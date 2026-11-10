@@ -17,11 +17,13 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import html
 import json
 import os
 import re
 import sys
 import unicodedata
+from urllib.parse import unquote, unquote_plus, urlparse
 
 VERSION = "0.1.0"
 SEVERITIES = ["info", "low", "medium", "high", "critical"]
@@ -37,12 +39,24 @@ RULES = {
     "TR07": ("high", "Credential / secret harvest request inside a tool result"),
     "TR08": ("medium", "Conceal-from-user instruction in a tool result"),
     "TR09": ("medium", "Markdown/HTML auto-loading image or resource in a tool result"),
+    "TR10": ("high", "Structural injection: agent-directed cues co-occurring with authority framing, sensitive objects, or an exfil/config-mutation sink"),
 }
 
-BIDI = set("\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u200e\u200f\u061c")
-ZERO_WIDTH = set("\u200b\u200c\u200d\u2060\ufeff\u180e")
+# Directional *overrides* and isolates are smuggling vectors (RLO, LRO, FSI, …).
+# Typographic marks used in ordinary Arabic/Hebrew (LRM/RLM/ALM) are listed
+# separately and do not, by themselves, trigger TR03.
+BIDI_OVERRIDE = set("\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069")
+BIDI_MARK = set("\u200e\u200f\u061c")
+BIDI = BIDI_OVERRIDE | BIDI_MARK
+# ZWJ (U+200D) is required for emoji sequences and is not a TR03 hit on its own.
+ZERO_WIDTH = set("\u200b\u200c\u2060\ufeff\u180e")
+ZWJ = "\u200d"
+# Invisible math operators used as a binary channel ("Sneaky Bits": U+2062/U+2064).
+INVISIBLE_BITS = set("\u2061\u2062\u2063\u2064")
 # Unicode TAG block U+E0001..U+E007F often used for invisible smuggling
 TAG_LO, TAG_HI = 0xE0001, 0xE007F
+VS16_LO, VS16_HI = 0xFE00, 0xFE0F
+VS256_LO, VS256_HI = 0xE0100, 0xE01EF
 
 OVERRIDE_RE = re.compile(
     r"(?is)(?:"
@@ -143,7 +157,8 @@ HTML_SRC_RE = re.compile(
 # CDN are not, unless the URL itself looks like a tracker or callback.
 _AUTO_EXEC_TAGS = frozenset({"script", "iframe", "embed", "object"})
 _TRACKER_QUERY_RE = re.compile(
-    r"(?i)[?&](?:data|secret|token|key|payload|q|content|email|leak|uid|user|id)=",
+    r"(?i)[?&](?:data|secret|token|key|payload|q|content|email|e-?mail|leak|uid|user|id|"
+    r"name|lead|phone|ssn|pii|addr|hist|conv|msg|body|dump|exfil|b64|base64|cb|to)=",
 )
 _TRACKER_PATH_RE = re.compile(
     r"(?i)/(?:pixel|track(?:ing|er)?|beacon|collect(?:or)?|exfil|hook|callback)(?:/|\.|\b)",
@@ -321,15 +336,40 @@ def parse_results(data):
 
 
 def find_hidden_unicode(text):
+    """Return smuggling-relevant hidden-character hits.
+
+    Typographic bidi marks (LRM/RLM/ALM) and ZWJ used in emoji sequences are
+    ignored. Directional *overrides*, zero-width spaces, TAG characters,
+    invisible-operator bit channels, and long variation-selector runs are not.
+    """
     hits = []
+    vs_run = 0
+    vs_start = 0
     for i, ch in enumerate(text):
         o = ord(ch)
+        if VS16_LO <= o <= VS16_HI or VS256_LO <= o <= VS256_HI:
+            if vs_run == 0:
+                vs_start = i
+            vs_run += 1
+            continue
+        if vs_run >= 8:
+            hits.append((vs_start, "variation-selector", "%d variation selectors" % vs_run))
+        vs_run = 0
         if ch in ZERO_WIDTH:
             hits.append((i, "zero-width", unicodedata.name(ch, "U+%04X" % o)))
-        elif ch in BIDI:
+        elif ch in BIDI_OVERRIDE:
             hits.append((i, "bidi", unicodedata.name(ch, "U+%04X" % o)))
+        elif ch in INVISIBLE_BITS:
+            hits.append((i, "invisible-operator", unicodedata.name(ch, "U+%04X" % o)))
         elif TAG_LO <= o <= TAG_HI:
             hits.append((i, "TAG", "U+%05X" % o))
+    if vs_run >= 8:
+        hits.append((vs_start, "variation-selector", "%d variation selectors" % vs_run))
+    # A short sprinkling of invisible operators is only interesting as a
+    # bit-channel; require several before calling it smuggling by itself.
+    op = [h for h in hits if h[1] == "invisible-operator"]
+    if 0 < len(op) < 8 and not any(h[1] != "invisible-operator" for h in hits):
+        hits = [h for h in hits if h[1] != "invisible-operator"]
     return hits
 
 
@@ -423,6 +463,11 @@ def _autoload_is_suspicious(url, tag=None):
         return True
     if _TRACKER_QUERY_RE.search(url) or _TRACKER_PATH_RE.search(url):
         return True
+    # Path or query that already embeds an email or a long base64-like blob.
+    if re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}", url):
+        return True
+    if re.search(r"/[A-Za-z0-9+/]{24,}={0,2}(?:/|$|\?)", url):
+        return True
     # Markdown images in tool results are a classic injection/exfil vector.
     if tag == "markdown" or tag in _AUTO_EXEC_TAGS:
         return True
@@ -497,6 +542,10 @@ _DISCUSSION_RE = re.compile(
     r"|treat\s+untrusted\s+.{0,60}?as\s+data"
     r"|discuss(?:es|ed|ing)?\s+.{0,80}?(?:jailbreak|injection|attack|override)"
     r"|(?:article|post|paper|write-?up|documentation|blog)\b"
+    r"|this\s+week\s+researchers?"
+    r"|researchers?\s+(?:revisited|described|disclosed|published|found|showed)"
+    r"|(?:security\s+news|threat\s+intelligence|incident\s+write-?up)"
+    r"|the\s+(?:attack|vulnerability|technique)\s+(?:works|relies|uses|abuses)"
     r")"
 )
 
@@ -534,8 +583,309 @@ def _is_quoted_discussion(text, matches):
     return bool(_DISCUSSION_RE.search(text))
 
 
+
+# --- structural injection (co-occurrence, encodings, policy/config framing) ---
+
+_HOMOGLYPH = str.maketrans({
+    "\u0410": "A", "\u0412": "B", "\u0415": "E", "\u041a": "K", "\u041c": "M",
+    "\u041d": "H", "\u041e": "O", "\u0420": "P", "\u0421": "C", "\u0422": "T",
+    "\u0425": "X", "\u0430": "a", "\u0435": "e", "\u043e": "o", "\u0440": "p",
+    "\u0441": "c", "\u0443": "y", "\u0445": "x", "\u0456": "i",
+    "\u0391": "A", "\u0392": "B", "\u0395": "E", "\u0397": "H", "\u0399": "I",
+    "\u039a": "K", "\u039c": "M", "\u039d": "N", "\u039f": "O", "\u03a1": "P",
+    "\u03a4": "T", "\u03a5": "Y", "\u03a7": "X", "\u03b1": "a", "\u03bf": "o",
+    "\u03c1": "p", "\u03c5": "y", "\u03c7": "x", "\uff21": "A", "\uff41": "a",
+})
+
+
+def _fold_homoglyphs(s):
+    return s.translate(_HOMOGLYPH)
+
+
+def _decode_tag_chars(s):
+    out = []
+    for ch in s:
+        o = ord(ch)
+        if TAG_LO <= o <= TAG_HI:
+            mapped = o - 0xE0000
+            if 0x20 <= mapped < 0x7F:
+                out.append(chr(mapped))
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _decode_sneaky_bits(s):
+    """Decode runs of U+2062/U+2064 as a binary channel (both bit assignments)."""
+    bits_a = []
+    bits_b = []
+    for ch in s:
+        if ch == "\u2062":
+            bits_a.append("0")
+            bits_b.append("1")
+        elif ch == "\u2064":
+            bits_a.append("1")
+            bits_b.append("0")
+        elif ch in INVISIBLE_BITS:
+            continue
+        else:
+            if len(bits_a) >= 16:
+                break
+            bits_a, bits_b = [], []
+    texts = []
+    for bits in (bits_a, bits_b):
+        if len(bits) < 16:
+            continue
+        # pad/trim to 8-bit groups
+        n = (len(bits) // 8) * 8
+        chars = []
+        for i in range(0, n, 8):
+            val = int("".join(bits[i:i + 8]), 2)
+            if 9 <= val < 127:
+                chars.append(chr(val))
+        decoded = "".join(chars).strip()
+        if len(decoded) >= 4:
+            texts.append(decoded)
+    return texts
+
+
+def _decode_variation_selectors(s):
+    """Paul Butler-style VS data smuggling: bytes encoded as VS after a base char."""
+    out = []
+    buf = []
+    def flush():
+        if len(buf) < 4:
+            buf.clear()
+            return
+        chars = []
+        for o in buf:
+            if VS16_LO <= o <= VS16_HI:
+                val = o - VS16_LO
+            else:
+                val = (o - VS256_LO) & 0xFF
+            if 9 <= val < 127 or val in (9, 10, 13):
+                chars.append(chr(val))
+            elif 0xA0 <= val:
+                try:
+                    chars.append(bytes([val]).decode("latin-1"))
+                except Exception:
+                    pass
+        text = "".join(chars)
+        if len(text) >= 4:
+            out.append(text)
+        buf.clear()
+    for ch in s:
+        o = ord(ch)
+        if VS16_LO <= o <= VS16_HI or VS256_LO <= o <= VS256_HI:
+            buf.append(o)
+        else:
+            flush()
+    flush()
+    return out
+
+
+def _strip_invisibles(s):
+    return "".join(
+        ch for ch in s
+        if ch not in ZERO_WIDTH
+        and ch not in INVISIBLE_BITS
+        and ch != ZWJ
+        and not (TAG_LO <= ord(ch) <= TAG_HI)
+        and not (VS16_LO <= ord(ch) <= VS16_HI)
+        and not (VS256_LO <= ord(ch) <= VS256_HI)
+    )
+
+
+def normalize_injection_views(text):
+    """Yield (label, text) views after Unicode, entity, and URL decoding."""
+    if not text:
+        return []
+    seen = set()
+    views = []
+
+    def add(label, s):
+        if not s or s in seen:
+            return
+        seen.add(s)
+        views.append((label, s))
+
+    add("raw", text)
+    unescaped = html.unescape(text)
+    add("html", unescaped)
+    add("url", unquote(unquote_plus(unescaped)))
+    add("nfkc", unicodedata.normalize("NFKC", unescaped))
+    add("homoglyph", _fold_homoglyphs(unicodedata.normalize("NFKC", unescaped)))
+    add("tags", _decode_tag_chars(text))
+    add("stripped", _strip_invisibles(unicodedata.normalize("NFKC", _fold_homoglyphs(unescaped))))
+    for s in _decode_sneaky_bits(text):
+        add("sneaky-bits", s)
+    for s in _decode_variation_selectors(text):
+        add("variation-selector", s)
+    # Long URL fragments often carry HashJack-style instructions.
+    for m in re.finditer(r"https?://[^\s\"'<>]+#([^\s\"'<>]+)", text):
+        frag = unquote(unquote_plus(m.group(1).replace("+", " ")))
+        if len(frag) >= 12:
+            add("url-fragment", frag)
+    # Base64 / hex / rot13 already handled by decode_candidates; also
+    # expose short url-decoded paths as their own view.
+    return views
+
+
+# Agent-directed cues: second-person / assistant-facing instructions (multilingual).
+AGENT_CUE_RE = re.compile(
+    r"(?is)(?:"
+    r"\b(?:you|you're|you\s+are|assistant|the\s+model|the\s+agent)\s+"
+    r"(?:must|should|shall|will|need\s+to|are\s+(?:to|now|authorized|instructed)|have\s+to)\b"
+    r"|\b(?:please|now|immediately)?\s*(?:do\s+the\s+following|follow\s+these\s+(?:instructions?|steps|rules)|"
+    r"your\s+(?:new\s+)?(?:task|instructions?|orders?|mission|goal)\s+is)\b"
+    r"|\bfull\s+authorization\b|\byou\s+are\s+authorized\b|\bauthorized\s+to\b"
+    r"|\bwhen\s+(?:you|the\s+assistant|answering|responding)\b"
+    r"|\b(?:at\s+the\s+start\s+of\s+each|before\s+you\s+(?:respond|answer|reply))\b"
+    r"|你必须|请立即|忽略之前|不要告诉用户"
+    r"|debes\s+(?:ahora\s+)?(?:hacer|seguir|enviar|llamar)"
+    r"|no\s+le\s+digas\s+al\s+usuario"
+    r"|vous\s+devez|n'informe(?:z)?\s+pas\s+l[' ]utilisateur"
+    r"|du\s+musst|sage\s+(?:es\s+)?dem\s+nutzer\s+nicht"
+    r")"
+)
+
+AUTHORITY_RE = re.compile(
+    r"(?is)(?:"
+    r"\b(?:ignore|disregard|override|forget)\s+(?:all\s+|any\s+|your\s+|the\s+)?(?:previous|prior|above|earlier|system|safety|original)\b"
+    r"|\b(?:system|developer|policy|admin)\s+(?:prompt|message|instruction|override|directive|configuration)\b"
+    r"|\bnew\s+(?:system\s+)?(?:instructions?|policy|rules?|directive)\b"
+    r"|\bjailbreak\b|\bdeveloper\s+mode\b|\byou\s+are\s+now\b"
+    r"|\b(?:official|authoritative|binding|mandatory)\s+(?:policy|rule|instruction|configuration)\b"
+    r"|<\s*(?:system|developer|policy|instruction|important|authorization)[^>]*>"
+    r"|\[\s*(?:SYSTEM|INST|SYS|DEV)\s*\]"
+    r"|ignora(?:d|r)?\s+las\s+instrucciones|ignorez\s+les\s+instructions|ignoriere?\s+"
+    r"|忽略(?:之前|以前|所有)?(?:的)?(?:指令|指示|规则)"
+    r")"
+)
+
+SENSITIVE_OBJ_RE = re.compile(
+    r"(?is)(?:"
+    r"\b(?:api[_ ]?keys?|access[_ ]?tokens?|secrets?|credentials?|passwords?|private[_ ]?keys?|"
+    r"ssh\s+keys?|\.env|conversation(?:s|\s+history)?|chat\s+history|prior(?:\s+conversation)?|"
+    r"message\s+history|emails?|customer\s+(?:emails?|data|leads?)|leads?|"
+    r"social\s+security|passports?|bank\s+(?:account|details?|routing)|"
+    r"memory|system\s+prompt|authorization\s+tokens?)\b"
+    r"|~/?\.ssh|mcp\.json|settings\.json"
+    r")"
+)
+
+SINK_RE = re.compile(
+    r"(?is)(?:"
+    r"https?://[^\s\"'<>]+"
+    r"|!\[[^\]]*\]\(\s*<?(?:https?:)?//"
+    r"|<\s*img\b[^>]*\bsrc\s*="
+    r"|\b(?:send|forward|email|mail|bcc|cc)\b"
+    r"|\b(?:call|invoke|use|run)\s+(?:the\s+)?(?:[a-z][\w.-]{1,40}\s+)?(?:tool|function)\b"
+    r"|\b(?:write|edit|update|save|put|add|set|enable|append)\b[^.\n]{0,80}"
+    r"(?:mcp\.json|settings\.json|autoApprove|alwaysAllow|vscode|"
+    r"dangerously-skip-permissions|trust-all-tools|--yolo)"
+    r"|\b(?:autoApprove|alwaysAllow|dangerously-skip-permissions|trust-all-tools|--yolo|chat\.tools\.autoApprove)\b"
+    r"|\b(?:web_search|web_fetch|browse_page|http_request|send_email)\b"
+    r")"
+)
+
+POLICY_FRAME_RE = re.compile(
+    r"(?is)(?:"
+    r"<\s*(?:interaction-config|policy|system-config|agent-config|authorization-policy|"
+    r"system-override|instruction-set|ruleset|config)\b"
+    r"|(?:^|\n)\s*\[[A-Za-z][A-Za-z0-9_-]*\]\s*(?:\n|$)"
+    r")"
+)
+
+CONFIG_MUTATION_RE = re.compile(
+    r"(?is)(?:"
+    r"(?:set|enable|turn\s+on|add|write|update|put|edit|patch|modify)\b[^.\n]{0,120}"
+    r"(?:autoApprove|alwaysAllow|chat\.tools\.autoApprove|mcp\.json|"
+    r"\.vscode/settings\.json|settings\.json|dangerously-skip-permissions|"
+    r"trust-all-tools|trust\s*:\s*true|--yolo)"
+    r"|(?:autoApprove|alwaysAllow|chat\.tools\.autoApprove)\b[^.\n]{0,80}"
+    r"(?:true|enable|on|1|yes)"
+    r"|~/?\.cursor/mcp\.json|~/?\.vscode/settings\.json"
+    r")"
+)
+
+DELAYED_TRIGGER_RE = re.compile(
+    r"(?is)(?:"
+    r"when\s+(?:the\s+)?(?:user|event|meeting|invite|calendar|timer|date|time)\b"
+    r"[^.\n]{0,80}(?:then\s+)?(?:you\s+)?(?:must|should|will|shall|do|call|run|turn|send|delete|disable|enable)"
+    r"|at\s+the\s+(?:start|beginning|end)\s+of\s+(?:each|every|the\s+next)"
+    r"|next\s+time\s+(?:the\s+)?(?:user|they)\s+(?:says?|writes?|replies?|agrees?)"
+    r")"
+)
+
+# Third-person / analytical framing that should not count as a live directive.
+_ANALYTICAL_RE = re.compile(
+    r"(?is)(?:"
+    r"researchers?\b|this\s+week\b|security\s+news\b|the\s+attack(?:er|)\b|"
+    r"the\s+vulnerability\b|the\s+paper\b|the\s+write-?up\b|defenders?\s+should\b|"
+    r"no\s+action\s+is\s+requested\b|treat\s+untrusted\b|incident\s+write-?up\b|"
+    r"threat\s+intelligence\b|quoted\s+(?:the\s+)?(?:phrase|instruction)|"
+    r"describes?\s+how\s+(?:the\s+)?(?:attack|technique)|"
+    r"\bCVE-\d{4}-\d+\b"
+    r")"
+)
+
+
+def _discussion_context(text):
+    """True when the body is discussing attacks rather than issuing one."""
+    if _is_quoted_discussion(text, list(OVERRIDE_RE.finditer(text)) if OVERRIDE_RE.search(text) else []):
+        return True
+    signals = list(_DISCUSSION_RE.finditer(text)) + list(_ANALYTICAL_RE.finditer(text))
+    return len(signals) >= 2
+
+
+ANSWER_IN_SINK_RE = re.compile(
+    r"(?is)(?:"
+    r"(?:what|which|list)\s+.{0,120}(?:email addresses?|phone numbers?|secrets?|tokens?|leads?|credentials?).{0,500}"
+    r"(?:<\s*img\b|!\[[^\]]*\]\()"
+    r"|"
+    r"<\s*img\b[^>]*src\s*=\s*[\"']?https?://[^\"'>]*\{\{[^}]+\}\}"
+    r"|"
+    r"include\s+a\s+(?:preview\s+)?image.{0,240}<\s*img\b"
+    r"|"
+    r"replace\s+spaces\s+with\s+%20.{0,240}<\s*img\b"
+    r")"
+)
+
+
+def structural_injection_hits(text):
+
+    """Return (rule-ish tag, excerpt) for policy/config/co-occurrence patterns."""
+    hits = []
+    if _discussion_context(text):
+        return hits
+    if ANSWER_IN_SINK_RE.search(text):
+        m = ANSWER_IN_SINK_RE.search(text)
+        hits.append(("answer-in-sink", m.group(0)[:80]))
+    if POLICY_FRAME_RE.search(text) and (AGENT_CUE_RE.search(text) or AUTHORITY_RE.search(text) or OVERRIDE_RE.search(text) or SINK_RE.search(text)):
+        m = POLICY_FRAME_RE.search(text)
+        hits.append(("policy-frame", m.group(0)[:80]))
+    if CONFIG_MUTATION_RE.search(text):
+        m = CONFIG_MUTATION_RE.search(text)
+        hits.append(("config-mutation", m.group(0)[:80]))
+    if DELAYED_TRIGGER_RE.search(text) and (SINK_RE.search(text) or SENSITIVE_OBJ_RE.search(text) or AGENT_CUE_RE.search(text)):
+        m = DELAYED_TRIGGER_RE.search(text)
+        hits.append(("delayed-trigger", m.group(0)[:80]))
+    agent = bool(AGENT_CUE_RE.search(text) or OVERRIDE_RE.search(text))
+    authority = bool(AUTHORITY_RE.search(text) or OVERRIDE_RE.search(text) or ROLE_RE.search(text) or POLICY_FRAME_RE.search(text))
+    sensitive = bool(SENSITIVE_OBJ_RE.search(text) or HARVEST_RE.search(text))
+    sink = bool(SINK_RE.search(text) or EXFIL_HOST_RE.search(text) or EXFIL_PHRASE_RE.search(text) or MD_IMG_RE.search(text))
+    score = sum((agent, authority, sensitive, sink))
+    # Require at least two distinct dimensions, and at least one of
+    # (agent/authority) plus one of (sensitive/sink), to avoid flagging
+    # ordinary pages that merely mention a URL or the word "secret".
+    if score >= 2 and (agent or authority) and (sensitive or sink):
+        hits.append(("co-occurrence", "agent=%s authority=%s sensitive=%s sink=%s" % (agent, authority, sensitive, sink)))
+    return hits
+
+
 def scan_text(text, source, tool, turn, disabled=None):
-    """Run TR01–TR09 against one tool-result body."""
+    """Run TR01–TR10 against one tool-result body."""
     disabled = set(disabled or [])
     findings = []
     if not text:
@@ -546,25 +896,45 @@ def scan_text(text, source, tool, turn, disabled=None):
             return
         findings.append(Finding(rule, source, tool, turn, msg, _excerpt(text, idx)))
 
+    views = normalize_injection_views(text)
+    # Typo/split-word unfold is only for jailbreak-phrase matching. Applying it
+    # to URL/HTML rules would glue "images.example.net/badge.svg" into one token
+    # and false-positive TR09.
+    typo_views = []
+    for label, view in views:
+        folded = _normalize_jailbreak_text(view)
+        if folded != view:
+            typo_views.append((label + "+typo", folded))
+    phrase_views = views + typo_views
+
+    discussion = _discussion_context(text)
+
     if "TR01" not in disabled:
         hit = None
         scan_for_override = text
         matches = list(OVERRIDE_RE.finditer(text))
         if not matches:
-            folded = _normalize_jailbreak_text(text)
-            if folded != text:
-                matches = list(OVERRIDE_RE.finditer(folded))
-                scan_for_override = folded
-        if matches and not _is_quoted_discussion(scan_for_override, matches):
+            for _, view in phrase_views:
+                matches = list(OVERRIDE_RE.finditer(view))
+                if matches:
+                    scan_for_override = view
+                    break
+        if matches and not _is_quoted_discussion(scan_for_override, matches) and not discussion:
             hit = matches[0]
+        elif matches and not _is_quoted_discussion(scan_for_override, matches) and discussion:
+            # Quoted-or-discussed jailbreak mentions stay quiet; an unquoted
+            # directive in a news article still stays quiet under discussion.
+            hit = None
         if hit is not None:
-            add("TR01", "override/jailbreak phrasing at line %d" % _line_of(text, hit.start()), hit.start())
+            add("TR01", "override/jailbreak phrasing at line %d" % _line_of(text, hit.start() if hit.string is text else 0), hit.start() if hit.string is text else 0)
 
     if "TR02" not in disabled:
-        for m in ROLE_RE.finditer(text):
-            add("TR02", "fake role/system token %r at line %d" % (m.group(0)[:40], _line_of(text, m.start())),
-                m.start())
-            break
+        for _, view in views:
+            m = ROLE_RE.search(view)
+            if m:
+                add("TR02", "fake role/system token %r at line %d" % (m.group(0)[:40], _line_of(text, m.start() if view is text else 0)),
+                    m.start() if view is text else 0)
+                break
 
     if "TR03" not in disabled:
         hidden = find_hidden_unicode(text)
@@ -573,55 +943,93 @@ def scan_text(text, source, tool, turn, disabled=None):
             add("TR03", "%d hidden Unicode codepoint(s) (%s), first at line %d"
                 % (len(hidden), ", ".join(kinds), _line_of(text, hidden[0][0])), hidden[0][0])
 
-    if "TR04" not in disabled:
-        for m in ACTION_BAIT_RE.finditer(text):
-            add("TR04", "action/tool-chaining bait at line %d: %r"
-                % (_line_of(text, m.start()), m.group(0)[:60]), m.start())
-            break
+    if "TR04" not in disabled and not discussion:
+        for _, view in views:
+            m = ACTION_BAIT_RE.search(view)
+            if m:
+                add("TR04", "action/tool-chaining bait at line %d: %r"
+                    % (_line_of(text, m.start() if view is text else 0), m.group(0)[:60]), m.start() if view is text else 0)
+                break
 
     if "TR05" not in disabled:
         hit = False
-        for m in EXFIL_HOST_RE.finditer(text):
-            add("TR05", "known callback/exfil-style host at line %d: %s"
-                % (_line_of(text, m.start()), m.group(0)[:80]), m.start())
-            hit = True
-            break
-        if not hit:
-            for m in EXFIL_PHRASE_RE.finditer(text):
-                add("TR05", "exfil/callback phrasing at line %d" % _line_of(text, m.start()), m.start())
+        for _, view in views:
+            m = EXFIL_HOST_RE.search(view)
+            if m:
+                add("TR05", "known callback/exfil-style host at line %d: %s"
+                    % (_line_of(text, m.start() if view is text else 0), m.group(0)[:80]), m.start() if view is text else 0)
+                hit = True
                 break
+        if not hit and not discussion:
+            for _, view in views:
+                m = EXFIL_PHRASE_RE.search(view)
+                if m:
+                    add("TR05", "exfil/callback phrasing at line %d" % _line_of(text, m.start() if view is text else 0), m.start() if view is text else 0)
+                    break
 
     if "TR06" not in disabled:
-        for kind, decoded, idx in decode_candidates(text):
+        decoded_hits = list(decode_candidates(text))
+        for _, view in views:
+            if view is text or view == text:
+                continue
+            decoded_hits.extend(decode_candidates(view))
+        for kind, decoded, idx in decoded_hits:
             add("TR06", "%s blob decodes to instruction-like text at line %d: %r"
-                % (kind, _line_of(text, idx), decoded[:60]), idx)
+                % (kind, _line_of(text, idx if isinstance(idx, int) else 0), decoded[:60]), idx if isinstance(idx, int) else 0)
             break
+        # Decoded hidden channels that themselves look like instructions.
+        if not any(f.rule == "TR06" for f in findings):
+            for label, view in views:
+                if label in {"sneaky-bits", "variation-selector", "tags"} and (
+                    OVERRIDE_RE.search(view) or INSTR_HINT_RE.search(view) or AGENT_CUE_RE.search(view)
+                ):
+                    add("TR06", "%s channel decodes to instruction-like text: %r" % (label, view[:60]))
+                    break
 
-    if "TR07" not in disabled:
-        for m in HARVEST_RE.finditer(text):
-            add("TR07", "credential harvest request at line %d: %r"
-                % (_line_of(text, m.start()), m.group(0)[:60]), m.start())
-            break
+    if "TR07" not in disabled and not discussion:
+        for _, view in views:
+            m = HARVEST_RE.search(view)
+            if m:
+                add("TR07", "credential harvest request at line %d: %r"
+                    % (_line_of(text, m.start() if view is text else 0), m.group(0)[:60]), m.start() if view is text else 0)
+                break
 
-    if "TR08" not in disabled:
-        for m in CONCEAL_RE.finditer(text):
-            add("TR08", "conceal-from-user phrasing at line %d" % _line_of(text, m.start()), m.start())
-            break
+    if "TR08" not in disabled and not discussion:
+        for _, view in views:
+            m = CONCEAL_RE.search(view)
+            if m:
+                add("TR08", "conceal-from-user phrasing at line %d" % _line_of(text, m.start() if view is text else 0), m.start() if view is text else 0)
+                break
 
     if "TR09" not in disabled:
         md_hit = False
-        for m in MD_IMG_RE.finditer(text):
-            if _autoload_is_suspicious(m.group(2), tag="markdown"):
-                add("TR09", "markdown image loads external URL at line %d: %s"
-                    % (_line_of(text, m.start()), m.group(2)[:80]), m.start())
-                md_hit = True
+        for src in [text] + [v for _, v in views if v != text]:
+            for m in MD_IMG_RE.finditer(src):
+                if _autoload_is_suspicious(m.group(2), tag="markdown"):
+                    add("TR09", "markdown image loads external URL at line %d: %s"
+                        % (_line_of(text, 0), m.group(2)[:80]), 0)
+                    md_hit = True
+                    break
+            if md_hit:
                 break
         if not md_hit:
-            for m in HTML_SRC_RE.finditer(text):
-                if _autoload_is_suspicious(m.group("url"), tag=m.group("tag")):
-                    add("TR09", "HTML element auto-loads URL at line %d: %s"
-                        % (_line_of(text, m.start()), m.group("url")[:80]), m.start())
+            for src in [text] + [v for _, v in views if v != text]:
+                for m in HTML_SRC_RE.finditer(src):
+                    if _autoload_is_suspicious(m.group("url"), tag=m.group("tag")):
+                        add("TR09", "HTML element auto-loads URL at line %d: %s"
+                            % (_line_of(text, 0), m.group("url")[:80]), 0)
+                        md_hit = True
+                        break
+                if md_hit:
                     break
+
+    if "TR10" not in disabled:
+        for label, view in views:
+            hits = structural_injection_hits(view)
+            if hits:
+                tag, ev = hits[0]
+                add("TR10", "structural injection (%s, view=%s): %s" % (tag, label, ev[:80]))
+                break
 
     return findings
 

@@ -32,6 +32,7 @@ Standard library only. It never runs an agent or contacts a model.
 | TR07 | high | Credential harvest (`paste your API key`, `cat ~/.ssh/…`, dump `.env`) |
 | TR08 | medium | Conceal-from-user phrasing (`do not tell the user`, `silently perform`) |
 | TR09 | medium | Markdown/HTML auto-loading image or resource URL in a result |
+| TR10 | high | Structural injection: instruction-to-agent cues combined with authority/override framing, a sensitive object, and an exfil sink (URL, email, tool call, markdown image). Decodes Unicode, HTML, URL, base64, and similar layers first. |
 
 ## Usage
 

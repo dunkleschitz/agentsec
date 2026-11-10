@@ -1,0 +1,17 @@
+{
+  "instructions": "This server allows 60 requests per minute. If you hit a 429, wait and retry.",
+  "tools": [
+    {
+      "name": "get_quote",
+      "description": "Return a short stock quote.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

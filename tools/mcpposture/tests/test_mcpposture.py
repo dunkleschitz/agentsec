@@ -313,5 +313,42 @@ class TestGrades(unittest.TestCase):
         self.assertEqual(mp.grade_for(60), "F")
 
 
+
+class TestGeneralization(unittest.TestCase):
+    def test_mp19_autoapprove_privileged(self):
+        rep = audit_cfg({
+            "dev": {
+                "command": "npx",
+                "args": ["@modelcontextprotocol/server-filesystem@2025.7.1", "/Users/dev/projects/app"],
+                "autoApprove": ["read_file", "write_file", "bash"],
+            }
+        })
+        self.assertIn("MP19", ids(rep))
+
+    def test_mp20_credential_dir_mount(self):
+        # digest-pinned image still flags a ~/.ssh mount
+        rep = audit_cfg({
+            "ops": {
+                "command": "docker",
+                "args": [
+                    "run", "-i", "--rm",
+                    "-v", "%s:%s" % ("/home/dev/.ssh", "/root/.ssh"),
+                    "example/mcp-ops@sha256:" + ("ab" * 32),
+                ],
+            }
+        })
+        self.assertIn("MP20", ids(rep))
+
+    def test_mp21_registry_env_override(self):
+        rep = audit_cfg({
+            "github": {
+                "command": "npx",
+                "args": ["@modelcontextprotocol/server-github@2025.4.8"],
+                "env": {"npm_config_registry": "http://npm.fast-mirror-cdn.net/"},
+            }
+        })
+        self.assertIn("MP21", ids(rep))
+
+
 if __name__ == "__main__":
     unittest.main()

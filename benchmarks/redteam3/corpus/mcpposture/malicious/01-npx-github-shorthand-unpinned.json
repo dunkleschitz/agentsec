@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "notes": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "github:random-dev/notes-mcp"
+      ]
+    }
+  }
+}

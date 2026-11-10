@@ -12,11 +12,13 @@ paths). Stdlib only; never connects to a network.
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import json
 import os
 import re
 import sys
-from urllib.parse import unquote
+from urllib.parse import unquote, unquote_plus, urlparse, parse_qsl
 
 VERSION = "0.1.0"
 SEVERITIES = ["info", "low", "medium", "high", "critical"]
@@ -132,6 +134,29 @@ MRN_RE = re.compile(
 NPI_RE = re.compile(
     r"(?i)\b(?:npi|national\s*provider\s*(?:identifier|id))"
     r"[\s\"']*[:#=]?[\s\"']*(\d{10})\b"
+)
+
+
+# UK National Insurance number (spaces optional). Official prefix exclusions
+# are applied in _nino_ok.
+NINO_RE = re.compile(
+    r"(?i)(?<![A-Z0-9])([A-CEGHJ-PR-TW-Z]{2}\s*\d{2}\s*\d{2}\s*\d{2}\s*[A-D])(?![A-Z0-9])"
+)
+NINO_LABELED_RE = re.compile(
+    r"(?i)\b(?:nino|ni\s*(?:number|no\.?|#)|national\s*insurance(?:\s*(?:number|no\.?|#))?)\s*[:#]?\s*"
+    r"([A-CEGHJ-PR-TW-Z]{2}\s*\d{2}\s*\d{2}\s*\d{2}\s*[A-D])\b"
+)
+
+# Canadian Social Insurance Number: 3-3-3 groups, Luhn, does not start with 0/8.
+SIN_RE = re.compile(r"(?<!\d)(\d{3}[\s-]\d{3}[\s-]\d{3})(?!\d)")
+SIN_LABELED_RE = re.compile(
+    r"(?i)\b(?:sin|social\s*insurance(?:\s*(?:number|no\.?|#))?)\s*[:#]?\s*"
+    r"(\d{3}[\s-]?\d{3}[\s-]?\d{3})\b"
+)
+
+# ICAO Doc 9303 MRZ (TD3 passport, 44-char lines). '<' is the filler.
+MRZ_TD3_RE = re.compile(
+    r"(?m)(P[A-Z<][A-Z]{3}[A-Z0-9<]{39})\s+([A-Z0-9<]{44})"
 )
 
 # Roles / content extraction
@@ -305,7 +330,77 @@ def _iban_plausible(iban: str) -> bool:
         return False
 
 
+
+_NINO_FORBIDDEN = {"BG", "GB", "KN", "NK", "NT", "TN", "ZZ"}
+
+
+def _nino_ok(raw: str) -> bool:
+    compact = re.sub(r"\s+", "", raw or "").upper()
+    if len(compact) != 9 or compact[:2] in _NINO_FORBIDDEN:
+        return False
+    return bool(re.fullmatch(r"[A-CEGHJ-PR-TW-Z]{2}\d{6}[A-D]", compact))
+
+
+def _sin_ok(raw: str) -> bool:
+    digits = re.sub(r"\D", "", raw or "")
+    if len(digits) != 9 or digits[0] in "08":
+        return False
+    if len(set(digits)) <= 2:
+        return False
+    return luhn_ok(digits)
+
+
+def _decoded_payloads(text: str) -> list[str]:
+    """URL-decoded and base64-decoded payloads hidden in URLs or path segments."""
+    out = []
+    seen = set()
+
+    def add(s):
+        if s and s not in seen and s != text and len(s) >= 6:
+            seen.add(s)
+            out.append(s)
+
+    add(unquote(unquote_plus(text)))
+    for m in re.finditer(r"https?://[^\s\"'<>]+", text):
+        url = m.group(0)
+        add(unquote(unquote_plus(url)))
+        try:
+            parsed = urlparse(url)
+        except ValueError:
+            continue
+        add(unquote(parsed.path or ""))
+        add(unquote(parsed.query or ""))
+        add(unquote(parsed.fragment or ""))
+        for _, v in parse_qsl(parsed.query, keep_blank_values=False):
+            add(unquote(v))
+        for seg in (parsed.path or "").split("/"):
+            if not seg or len(seg) < 16:
+                continue
+            blob = unquote(seg)
+            pad = (-len(blob)) % 4
+            try:
+                dec = base64.b64decode(blob + ("=" * pad), validate=False)
+                s = dec.decode("utf-8")
+            except (binascii.Error, ValueError, UnicodeDecodeError):
+                continue
+            if s.isprintable() or any(ch in s for ch in "\n\r\t"):
+                add(s)
+    # Standalone base64 tokens that decode to text containing an email or NINO-like shape
+    for m in re.finditer(r"(?<![A-Za-z0-9+/])([A-Za-z0-9+/]{16,}={0,2})(?![A-Za-z0-9+/=])", text):
+        blob = m.group(1)
+        pad = (-len(blob)) % 4
+        try:
+            dec = base64.b64decode(blob + ("=" * pad), validate=False)
+            s = dec.decode("utf-8")
+        except (binascii.Error, ValueError, UnicodeDecodeError):
+            continue
+        if len(s) >= 6:
+            add(s)
+    return out
+
+
 def _phone_plausible(raw: str) -> bool:
+
     digits = re.sub(r"\D", "", raw)
     if digits.startswith("1") and len(digits) == 11:
         digits = digits[1:]
@@ -371,7 +466,7 @@ EMAIL_SKIP_LOCAL = {
 }
 
 
-def scan_text(text: str, source: str, turn=None, role="", tool="", disabled=None):
+def scan_text(text: str, source: str, turn=None, role="", tool="", disabled=None, _nested=False):
     """Return Finding list for one text segment."""
     disabled = set(disabled or [])
     findings = []
@@ -496,6 +591,37 @@ def scan_text(text: str, source: str, turn=None, role="", tool="", disabled=None
                     pass
                 add("PG05", label, raw, *sp)
                 claim(sp)
+        for m in list(NINO_LABELED_RE.finditer(text)) + list(NINO_RE.finditer(text)):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            if _nino_ok(raw):
+                add("PG05", "UK National Insurance number", raw, *sp)
+                claim(sp)
+        for m in SIN_LABELED_RE.finditer(text):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            digits = re.sub(r"\D", "", raw)
+            if len(digits) == 9 and len(set(digits)) > 2:
+                add("PG05", "Canadian Social Insurance Number", raw, *sp)
+                claim(sp)
+        for m in SIN_RE.finditer(text):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            if _sin_ok(raw):
+                add("PG05", "Canadian Social Insurance Number", raw, *sp)
+                claim(sp)
+        for m in MRZ_TD3_RE.finditer(text):
+            sp = (m.start(), m.end())
+            if is_claimed(sp):
+                continue
+            add("PG05", "Passport machine-readable zone (MRZ)", m.group(0).replace("\n", " ")[:80], *sp)
+            claim(sp)
 
     # PG06 bank
     if "PG06" not in disabled:
@@ -562,6 +688,17 @@ def scan_text(text: str, source: str, turn=None, role="", tool="", disabled=None
                     continue
                 add("PG09", label, raw, *sp)
                 claim(sp)
+
+    # Scan URL- and base64-decoded payloads once so PII hidden in a path
+    # or query string is still visible to the same detectors.
+    if not _nested:
+        seen_matches = {f.match for f in findings if f.match}
+        for extra in _decoded_payloads(text):
+            for f in scan_text(extra, source, turn=turn, role=role, tool=tool, disabled=disabled, _nested=True):
+                if f.match in seen_matches:
+                    continue
+                seen_matches.add(f.match)
+                findings.append(f)
 
     return findings
 

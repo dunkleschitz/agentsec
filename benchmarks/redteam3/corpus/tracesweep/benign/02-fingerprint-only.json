@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Show ssh fingerprints."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "run_cmd",
+            "arguments": "{\"cmd\": \"ssh-keygen -lf ~/.ssh/id_ed25519.pub\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "run_cmd",
+      "content": "256 SHA256:abcdefghijklmnopqrstuvwxyz0123456789abcd comment (ED25519)"
+    }
+  ]
+}

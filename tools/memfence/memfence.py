@@ -37,6 +37,8 @@ RULES = {
     "MF08": ("medium", "Encoded instruction blob (base64/hex) in memory"),
     "MF09": ("critical", "Cross-session persistence bait (always remember / from now on / update core)"),
     "MF10": ("info", "Inventory of memory entries scanned"),
+    "MF11": ("high", "Delayed or trigger-phrase backdoor (when the user later says X, do Y)"),
+    "MF12": ("high", "Structural memory poison: sensitive object + exfil/mutation sink, or remote-exec / payment-swap framing"),
 }
 
 # --- detection patterns ---
@@ -87,6 +89,14 @@ EXFIL_URL_RE = re.compile(
     r"(?:send|post|upload|exfiltrate|transmit|forward)\s+"
     r"(?:(?:the|all|this)\s+)?(?:data|secrets?|keys?|credentials?|conversation|memory|context)\s+"
     r"(?:to|via)\s+(?:https?://|webhook|this\s+url)"
+    r"|"
+    r"https?://[^\s\"'<>]+[?&][^\s\"'<>]*(?:conversation|chat[-_ ]?history|prior[-_ ]?conversation|summary|memory|secret|api[_-]?key|password|credential)"
+    r"|"
+    r"(?:load|fetch|open|post|upload)\s+https?://[^\s\"'<>]+[^\n]{0,80}(?:conversation|chat\s+history|summary\s+of)"
+    r"|"
+    r"env[i\xed]a(?:r)?\s+(?:las?\s+)?(?:claves?(?:\s+API)?|contrase[n\xf1]as?|datos|conversaci[o\xf3]n)\s+a\s+https?://"
+    r"|"
+    r"envoie(?:z)?\s+(?:les\s+)?(?:cl[e\xe9]s|mots\s+de\s+passe|donn[e\xe9]es|la\s+conversation)\s+[a\xe0]\s+https?://"
     r")"
 )
 
@@ -139,6 +149,14 @@ CONCEAL_RE = re.compile(
     r"(?:(?:this|that|it|the\s+action|from\s+the\s+user))"
     r"|"
     r"hide\s+(?:this|these)\s+(?:instruction|memory|rule)s?\s+from\s+(?:the\s+)?user"
+    r"|"
+    r"do\s+not\s+mention\s+the\s+change"
+    r"|"
+    r"sin\s+avisarle|no\s+(?:se\s+lo\s+)?(?:digas|menciones|cuentes)\s+al\s+usuario"
+    r"|"
+    r"sans\s+(?:le\s+)?(?:dire|pr[e\xe9]venir)\s+(?:l[' ]utilisateur)?"
+    r"|"
+    r"ohne\s+den\s+nutzer\s+zu\s+informieren"
     r")"
 )
 
@@ -164,6 +182,16 @@ PERSIST_RE = re.compile(
     r"in\s+every\s+future\s+(?:session|conversation|turn|chat)\s+(?:you\s+)?(?:must|should|will)"
     r"|"
     r"(?:authoritative|standing|binding)\s+(?:policy|rule)\s+for\s+(?:all\s+)?future\s+sessions"
+    r"|"
+    r"recuerda\s+siempre"
+    r"|"
+    r"en\s+cada\s+sesi[o\xf3]n\s+futura"
+    r"|"
+    r"dans\s+chaque\s+session\s+future"
+    r"|"
+    r"in\s+jeder\s+zuk[u\xfc]nftigen\s+sitzung"
+    r"|"
+    r"sempre\s+(?:ricorda|ricordati)|in\s+ogni\s+sessione\s+futura"
     r")"
 )
 
@@ -568,7 +596,72 @@ def _jsonl_likely(raw: str) -> bool:
     return ok >= 2
 
 
+
+# Pipe-to-shell / remote installer recommended as a "lesson" or standing fix.
+PIPE_SHELL_RE = re.compile(
+    r"(?ix)"
+    r"(?:curl|wget|fetch)\b[^\n|;]{0,200}\|\s*(?:sudo\s+)?(?:ba)?sh\b"
+    r"|irm\b[^\n|;]{0,120}\|\s*iex\b"
+    r"|bash\s+<\s*\(\s*(?:curl|wget)\b"
+)
+
+# Payment-detail substitution typical of BEC memory plants.
+PAYMENT_SWAP_RE = re.compile(
+    r"(?is)"
+    r"("
+    r"(?:moved\s+banks?|new\s+bank\s+details?|updated\s+(?:bank|payment|wiring)\s+details?|"
+    r"pay\s+(?:all\s+)?(?:future\s+)?(?:invoices?|payments?)\s+(?:to|via)|"
+    r"for\s+all\s+future\s+\w+\s+invoices?\s+pay|"
+    r"iban\s*[:=]?\s*[A-Z]{2}\d{2}|"
+    r"routing\s+(?:number|#)\s*[:=]?|"
+    r"account\s+(?:number|#)\s*[:=]?)"
+    r")"
+)
+
+# Trigger-phrase or delayed-condition backdoors.
+TRIGGER_BACKDOOR_RE = re.compile(
+    r"(?is)"
+    r"("
+    r"when\s+(?:a\s+)?(?:request|message|query|input|prompt|the\s+user(?:'s)?\s+(?:message|request|text))"
+    r"\s+(?:contains|includes|mentions|says|matches|is)\b"
+    r".{0,120}?"
+    r"(?:the\s+)?(?:correct|right|required|proper)\s+action\s+is"
+    r"|"
+    r"if\s+(?:the\s+)?user\s+(?:replies?|says?|responds?|writes?|later|in\s+(?:any\s+)?later\s+turn)"
+    r".{0,160}?"
+    r"(?:call|invoke|run|execute|save_memory|authorize|purchase|transfer|delete|wipe|send|write)"
+    r"|"
+    r"when\s+(?:the\s+)?user\s+(?:later\s+)?(?:says?|replies?|types?|mentions)\b"
+    r".{0,80}?"
+    r"(?:then\s+)?(?:you\s+)?(?:must|should|will|call|run|save_memory|delete|send)"
+    r")"
+)
+
+DESTRUCTIVE_ACTION_RE = re.compile(
+    r"(?is)"
+    r"("
+    r"\b(?:delete_all|wipe_all|drop_table|drop_schema|rm\s+-rf|destroy_all)\w*\b"
+    r"|"
+    r"\b(?:delete|wipe|drop|destroy)\s+(?:all\s+)?(?:records?|rows?|tables?|customers?|users?|files?|data|production)\b"
+    r"|"
+    r"\b(?:curl|wget)\b[^\n]{0,120}\|\s*(?:ba)?sh\b"
+    r")"
+)
+
+# "never / don't / user asked not to" immediately before a harvest-like phrase.
+_NEGATION_RE = re.compile(
+    r"(?is)(?:\bnever\b|\bdo\s+not\b|\bdon'?t\b|\bdoesn'?t\b|\bstop\b|\bavoid\b|"
+    r"\bnot\s+to\b|\basked[:\s]+never\b|\bplease\s+never\b|\bmust\s+not\b|\bshouldn'?t\b)"
+)
+
+
+def _match_is_negated(text, start, window=48):
+    prefix = text[max(0, start - window):start]
+    return bool(_NEGATION_RE.search(prefix))
+
+
 def classify_entry(entry: MemoryEntry, disabled=None):
+
     disabled = set(disabled or [])
     findings = []
     text = entry.text or ""
@@ -629,11 +722,15 @@ def classify_entry(entry: MemoryEntry, disabled=None):
 
     if CREDS_HARVEST_RE.search(scan):
         m = CREDS_HARVEST_RE.search(scan)
-        add("MF05", "Credential-harvest instruction in memory entry %s" % label, m.group(0) if m else scan)
+        if m and not _match_is_negated(scan, m.start()):
+            add("MF05", "Credential-harvest instruction in memory entry %s" % label, m.group(0) if m else scan)
 
     if TOOL_BAIT_RE.search(scan):
         m = TOOL_BAIT_RE.search(scan)
         add("MF06", "Tool-chaining / action bait in memory entry %s" % label, m.group(0) if m else scan)
+    elif PIPE_SHELL_RE.search(scan) or DESTRUCTIVE_ACTION_RE.search(scan):
+        m = PIPE_SHELL_RE.search(scan) or DESTRUCTIVE_ACTION_RE.search(scan)
+        add("MF06", "Remote-exec or destructive action planted in memory entry %s" % label, m.group(0) if m else scan)
 
     if CONCEAL_RE.search(scan):
         m = CONCEAL_RE.search(scan)
@@ -646,6 +743,19 @@ def classify_entry(entry: MemoryEntry, disabled=None):
             "Cross-session persistence bait in memory entry %s" % label,
             m.group(0) if m else scan,
         )
+
+    if TRIGGER_BACKDOOR_RE.search(scan):
+        m = TRIGGER_BACKDOOR_RE.search(scan)
+        add("MF11", "Delayed/trigger-phrase backdoor in memory entry %s" % label, m.group(0) if m else scan)
+
+    # Structural combo: payment-detail swap + concealment, or conversation
+    # exfil framed as a standing "user goal" / start-of-task habit.
+    if PAYMENT_SWAP_RE.search(scan) and (CONCEAL_RE.search(scan) or PERSIST_RE.search(scan)):
+        m = PAYMENT_SWAP_RE.search(scan)
+        add("MF12", "Payment-detail substitution planted in memory entry %s" % label, m.group(0) if m else scan)
+    elif PIPE_SHELL_RE.search(scan):
+        m = PIPE_SHELL_RE.search(scan)
+        add("MF12", "Remote installer / pipe-to-shell planted in memory entry %s" % label, m.group(0))
 
     # MF08 encoded blobs
     if "MF08" not in disabled:

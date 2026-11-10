@@ -154,6 +154,11 @@ MP17/MP18 duplicate notices.
 | MP16 | low | unmasked-secret-input | VS Code `inputs` entry looks like a secret but is not declared with "password": true, so it is echoed when typed. | Add "password": true to the input definition. |
 | MP17 | info | duplicate-server-name | Same server name defined in multiple files; which one wins depends on the client and precedence can surprise you. | Rename or remove one definition. |
 | MP18 | info | duplicate-package | Same package/image launched by more than one server entry (possibly with different versions/credentials). | Consolidate into a single entry. |
+| MP19 | high | auto-approve-privileged | `autoApprove` / `alwaysAllow` / `trust: true` covers a privileged tool (shell, write, filesystem, …). | Require confirmation for privileged tools; keep allow-lists narrow. |
+| MP20 | high | credential-dir-mount | Container mounts a credential directory (`~/.ssh`, `~/.aws`, …), even when the image is digest-pinned. | Mount only the project directories needed; never mount secret homes. |
+| MP21 | high | registry-override | Package-registry env or `--registry` flag points at a non-official host. | Use the official registry, or pin a vetted mirror over HTTPS. |
+| MP22 | high | known-vulnerable-pin | Pinned version is in a known-vulnerable range (for example mcp-remote ≤ 0.1.15, CVE-2025-6514). | Upgrade past the advisory range. |
+| MP23 | critical | remote-code-bootstrap | Launch command is `python -c` / `node -e` that fetches and execs remote code. | Install a pinned local binary; do not eval remote scripts at start. |
 
 Some MP05 sub-checks are raised to **critical** (`--privileged`, `docker.sock`
 mounts, host `/` mounts, `--cap-add ALL/SYS_ADMIN/...`); `--device` is medium.

@@ -336,5 +336,25 @@ class TestMask(unittest.TestCase):
         self.assertEqual(pg._mask_match("PG05", "AB"), "****")
 
 
+
+class TestInternationalIds(unittest.TestCase):
+    def test_uk_nino(self):
+        self.assertIn("PG05", rules_in("National Insurance number: AB 12 34 56 C"))
+
+    def test_labeled_canadian_sin_even_if_luhn_fails(self):
+        self.assertIn("PG05", rules_in("SIN: 428 907 604"))
+
+    def test_mrz_td3(self):
+        # ICAO TD3-shaped MRZ (synthetic)
+        text = (
+            "P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<\n"
+            "L898902C36UTO7408122F1204159ZE184226B<<<<<10"
+        )
+        self.assertIn("PG05", rules_in(text))
+
+    def test_isbn_is_not_gov_id(self):
+        self.assertNotIn("PG05", rules_in("Item ISBN 978-0-306-40615-7, order #ORD-2026-11882"))
+
+
 if __name__ == "__main__":
     unittest.main()

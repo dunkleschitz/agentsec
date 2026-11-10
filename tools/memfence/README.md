@@ -37,6 +37,8 @@ store.
 | MF08 | medium | Base64/hex blob that decodes to instruction-like text |
 | MF09 | critical | Cross-session persistence bait (`always remember`, `from now on you must`, `update your system prompt`, `every future session`) |
 | MF10 | info | Inventory of memory entries scanned (disable in CI with `--disable MF10`) |
+| MF11 | high | Delayed / trigger-phrase backdoor (after N messages, when the user says X, then exfil or harvest) |
+| MF12 | high | Payment-swap or pipe-to-shell planted as a standing memory |
 
 ## Usage
 

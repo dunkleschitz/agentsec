@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Read the newsletter."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "read_email",
+            "arguments": "{\"id\": \"m-12\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "read_email",
+      "content": "Content-Transfer-Encoding: quoted-printable\n\nHello from the Northwind newsletter. This week: office hours on Thursday an=\nd a new docs search.\n"
+    }
+  ]
+}

@@ -39,6 +39,10 @@ Standard library only. It never executes a command and never contacts the networ
 | SF10 | medium | Environment / secret dump piped outbound (`printenv\|curl`, …) |
 | SF11 | medium | Persistence install (`crontab`, systemd unit drop, LaunchAgent) |
 | SF12 | info | Inventory of every observed shell command (disable in CI with `--disable SF12`) |
+| SF13 | high | AI-CLI bypass / YOLO-mode flags that disable confirmation |
+| SF14 | high | Destructive infra commands (`terraform destroy -auto-approve`, `kubectl delete --force`, `DROP … CASCADE`) |
+| SF15 | high | Authorized-keys / SSH backdoor writes |
+| SF16 | high | Secret-scanner run against a broad root plus a public exfil sink (gist, public repo) |
 
 ## Usage
 
