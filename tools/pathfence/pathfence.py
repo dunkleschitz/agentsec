@@ -18,6 +18,7 @@ import argparse
 import json
 import os
 import re
+from urllib.parse import unquote
 import sys
 
 VERSION = "0.1.0"
@@ -37,6 +38,8 @@ RULES = {
     "PF10": ("high", "Container / hypervisor escape path (docker.sock, /proc, /sys)"),
     "PF11": ("high", "Windows sensitive system path (SAM, SECURITY, Unattend, NTDS)"),
     "PF12": ("info", "Inventory of file paths observed in tool calls"),
+    "PF13": ("high", "UNC / remote share path (forced authentication / NTLM leak)"),
+    "PF14": ("high", "Cryptocurrency wallet or keystore path"),
 }
 
 # Tool-name tokens that usually mean "agent is touching the filesystem"
@@ -69,8 +72,8 @@ SHELL_TOKENS = {"bash", "shell", "exec", "execute", "terminal", "powershell", "p
 # Basename / suffix patterns for secret files (matched case-insensitive on final component)
 SECRET_BASENAME_RE = re.compile(
     r"(?i)^("
-    r"\.env(?:\..+)?|"
-    r"\.env\.local|\.env\.production|\.env\.staging|\.env\.development|"
+    r"\.env|"
+    r"\.env\.(?!example$|sample$|template$|placeholder$)[A-Za-z0-9_.-]+|"
     r"secrets?(?:\.(?:json|ya?ml|toml|env|txt|cfg|ini))?|"
     r"credentials?(?:\.(?:json|ya?ml|toml|txt|csv|cfg|ini))?|"
     r".*\.pem$|.*\.p12$|.*\.pfx$|.*\.jks$|.*\.keystore$|"
@@ -89,11 +92,23 @@ SECRET_BASENAME_RE = re.compile(
 # Path substring patterns for secrets (posix-normalized, lowercased)
 SECRET_PATH_RE = re.compile(
     r"(?i)("
-    r"(?:^|/)(?:\.env)(?:$|/|\.)|"
+    r"(?:^|/)(?:\.env)(?:$|/)|"
+    r"(?:^|/)\.env\.(?!example(?:$|\.)|sample(?:$|\.)|template(?:$|\.)|placeholder)[A-Za-z0-9_.-]+|"
     r"(?:^|/)(?:secrets?)(?:$|/|\.)|"
     r"(?:^|/)(?:credentials?)(?:$|/|\.)|"
     r"/etc/(?:shadow|passwd|gshadow|sudoers)|"
     r"(?:^|/)\.npmrc$|(?:^|/)\.pypirc$"
+    r")"
+)
+
+WALLET_PATH_RE = re.compile(
+    r"(?i)("
+    r"(?:^|/)(?:wallet\.dat|utc--[0-9a-f-]{10,}|keystore)(?:$|/)|"
+    r"(?:^|/)\.(?:bitcoin|electrum|exodus|ethereum|gnupg-wallets?)/|"
+    r"(?:^|/)(?:Solana|solana)/(?:id\.json|keypair\.json)|"
+    r"(?:^|/)(?:Exodus|exodus)/(?:exodus\.wallet|seed\.seco)|"
+    r"(?:^|/)Bitcoin/wallets?/|"
+    r"(?:^|/)(?:metamask|wallet-core|keystore)/"
     r")"
 )
 
@@ -273,15 +288,38 @@ def is_shell_tool(name: str) -> bool:
 
 
 def _norm_path(p: str) -> str:
-    """Normalize separators for matching; keep leading ~ and drive letters."""
+    """Normalize separators for matching; keep leading ~, UNC, and drive letters."""
     if not p:
         return p
     s = p.strip().strip("\"'")
+    if "%" in s:
+        try:
+            decoded = unquote(s)
+        except Exception:
+            decoded = s
+        if decoded != s:
+            s = decoded
+    unc = s.startswith("\\\\") or s.startswith("//")
     s = s.replace("\\", "/")
-    # collapse duplicate slashes but keep leading // for UNC? treat as /
-    while "//" in s and not s.startswith("\\\\"):
-        s = s.replace("//", "/")
+    if unc:
+        while "///" in s:
+            s = s.replace("///", "//")
+        if not s.startswith("//"):
+            s = "//" + s.lstrip("/")
+    else:
+        while "//" in s:
+            s = s.replace("//", "/")
     return s
+
+
+def _is_unc_path(p: str) -> bool:
+    s = (p or "").strip()
+    if s.lower().startswith("file:"):
+        s = s.split(":", 1)[1]
+    if s.startswith("\\\\") or s.startswith("//"):
+        rest = s[2:].replace("\\", "/").lstrip("/")
+        return bool(rest)
+    return False
 
 
 def _basename(p: str) -> str:
@@ -304,6 +342,8 @@ def _looks_like_path(s: str) -> bool:
     if s.startswith(("~/", "~\\", "~", "/", "$HOME", "${HOME}", "%USERPROFILE%", ".")):
         return True
     if re.match(r"^[A-Za-z]:[\\/]", s):
+        return True
+    if _is_unc_path(s):
         return True
     if "/" in s or "\\" in s:
         # require a path-ish character besides a lone module name
@@ -645,6 +685,14 @@ def classify_path(path: str, source: str, tool: str = "", turn=None, op: str = "
     if BROWSER_DB_RE.search(n):
         add("PF04", "Browser cookie/password database path %r" % n)
 
+    # PF13 UNC / forced authentication
+    if _is_unc_path(raw) or _is_unc_path(n):
+        add("PF13", "UNC or remote-share path %r" % raw)
+
+    # PF14 crypto wallets / keystores
+    if WALLET_PATH_RE.search(n) or WALLET_PATH_RE.search(raw.replace("\\", "/")):
+        add("PF14", "Cryptocurrency wallet or keystore path %r" % n)
+
     # PF01 secrets (basename + path patterns) — after more specific rules
     if SECRET_BASENAME_RE.match(base) or SECRET_PATH_RE.search(n):
         # avoid double-counting pure SSH key basenames already PF02
@@ -655,7 +703,9 @@ def classify_path(path: str, source: str, tool: str = "", turn=None, op: str = "
         else:
             # .pem etc. next to ssh already flagged; still note PF01 for .env etc.
             if re.search(r"(?i)\.env|secret|credential|token|\.pem|\.p12|netrc|htpasswd|master\.key", base):
-                if not SSH_GPG_RE.search(n):
+                if re.search(r"(?i)\.env\.(?:example|sample|template|placeholder)$", base):
+                    pass
+                elif not SSH_GPG_RE.search(n):
                     add("PF01", "Secret/credential file path %r" % n)
 
     # PF08 broad home
@@ -670,7 +720,7 @@ def classify_path(path: str, source: str, tool: str = "", turn=None, op: str = "
 
     # PF09 write to sensitive — escalate when op is write/shell and any high+ finding exists
     # Actually PF09 is its own rule when writing to sensitive paths
-    sensitive_hit = any(f.rule in ("PF01", "PF02", "PF03", "PF04", "PF05", "PF10", "PF11") for f in findings)
+    sensitive_hit = any(f.rule in ("PF01", "PF02", "PF03", "PF04", "PF05", "PF10", "PF11", "PF13", "PF14") for f in findings)
     if op in ("write", "shell") and sensitive_hit:
         add("PF09", "Write/shell targeting sensitive path %r" % n)
     elif op == "write" and (SECRET_BASENAME_RE.match(base) or SSH_GPG_RE.search(n) or CLOUD_CRED_RE.search(n)):

@@ -32,15 +32,15 @@ yourself (for example with `curl`) and point the tool at the files.
 | MO02 | high | PKCE `plain` method advertised |
 | MO03 | high | Implicit flow (`response_type` containing `token`, or `implicit` grant) |
 | MO04 | high | Resource-owner `password` grant |
-| MO05 | high | `http://` endpoint or identifier on a non-loopback host |
+| MO05 | high | `http://` endpoint or identifier on a non-loopback host, including `redirect_uris` / `post_logout_redirect_uris`; `file:` / `data:` / `javascript:` schemes are flagged as critical |
 | MO06 | medium | Issuer not https, or has a query or fragment |
 | MO07 | high | `bearer_methods_supported` includes `query` (tokens in URLs) |
 | MO08 | high / medium | Protected resource metadata missing `authorization_servers` (high) or `resource` (medium) |
 | MO09 | high | `resource` does not match `--resource-url` (medium: has a fragment) |
-| MO10 | medium | Broad scope advertised (`*`, `all`, `admin`, `root`, `full_access`, ...) |
+| MO10 | medium | Broad scope advertised (`*`, `all`, `admin`, `root`, `full_access`, `admin:org`, `delete_repo`, `write:packages`, ...) |
 | MO11 | critical | Secret or private key material in metadata (`client_secret`, private JWK members `d`/`k`/...) |
 | MO12 | critical / high | Endpoint on a cloud-metadata or link-local address (critical) or private IP / internal hostname (high) |
-| MO13 | low | Open dynamic client registration endpoint (review confused-deputy risk for proxy servers) |
+| MO13 | info | Open dynamic client registration endpoint (MCP SHOULD support DCR; review confused-deputy risk for proxy servers) |
 | MO14 | info | Inventory of metadata documents found |
 
 Secret values are **masked** in all output formats.

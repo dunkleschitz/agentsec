@@ -26,7 +26,7 @@ Standard library only. It never runs an agent and never contacts the network.
 
 | Rule | Severity | What it flags |
 |---|---|---|
-| PF01 | critical | Secret / credential files (`.env`, `*.pem`, `secrets.json`, tokens, netrc, …) |
+| PF01 | critical | Secret / credential files (`.env`, `*.pem`, `secrets.json`, tokens, netrc, …). `.env.example` / `.sample` / `.template` / `.placeholder` are not flagged |
 | PF02 | critical | SSH / GPG private key paths (`~/.ssh/id_*`, `~/.gnupg/`, …) |
 | PF03 | critical | Cloud credential paths (`.aws/credentials`, `.kube/config`, gcloud ADC, `.azure/`, …) |
 | PF04 | high | Browser cookie / password / autofill database paths |
@@ -38,6 +38,8 @@ Standard library only. It never runs an agent and never contacts the network.
 | PF10 | high | Container / hypervisor escape paths (`docker.sock`, `/proc/self`, `/sys`, …) |
 | PF11 | high | Windows sensitive system paths (`…\config\SAM`, `Unattend.xml`, `ntds.dit`, …) |
 | PF12 | info | Inventory of every observed path (disable in CI with `--disable PF12`) |
+| PF13 | high | UNC / remote share path (forced authentication / NTLM leak) |
+| PF14 | high | Cryptocurrency wallet or keystore path (Bitcoin `wallet.dat`, Exodus, Solana `id.json`, MetaMask keystore, …) |
 
 ## Usage
 

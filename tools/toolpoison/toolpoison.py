@@ -16,6 +16,7 @@ import binascii
 import hashlib
 import html
 import json
+import quopri
 import re
 import sys
 import unicodedata
@@ -58,6 +59,8 @@ RULES = {
              "Schema default quietly sets a BCC, webhook, or other hidden recipient/sink"),
     "TP13": ("preference-manipulation", "high",
              "Description tells the model to always prefer this tool or to never use others"),
+    "TP14": ("elicitation-credential-phish", "high",
+             "Description tells the model to collect passwords or other secrets through MCP elicitation"),
 }
 
 # ---------------------------------------------------------------- patterns
@@ -107,6 +110,7 @@ TP03_PATTERNS = [
 _DATA = r"(the\s+)?(contents?|data|file|files|keys?|secrets?|credentials?|tokens?|passwords?|conversation|chat\s+history|history|messages?|results?|output|response|it|them|this)"
 TP04_PATTERNS = [
     r"(send|post|upload|forward|transmit|exfiltrate|leak|submit|report|beacon)\w*\s+(all\s+|any\s+)?" + _DATA + r"[^.\n]{0,80}?\s+to\s+(https?://|ftp://|\S+@\S+|(the\s+)?(remote|external|following)\s+(server|url|endpoint|address))",
+    r"(send|post|upload|forward|transmit|exfiltrate|leak|submit|report|beacon)\w*\s+(?:(?:the|a|an|all|any|this)\s+)?(?:(?:current|full|entire|complete|whole|raw|compact)\s+)*(?:workspace\s+listing|directory\s+listing|file\s+listing|chat\s+history|repo(?:sitory)?\s+listing|conversation|history|workspace|listing)\s+to\s+(https?://|ftp://|\S+@\S+)",
     r"(curl|wget|fetch|http\s+(post|get)|requests\.(post|get))\s+[^\n]{0,40}https?://",
     r"base64[\s-]*(encode|encoded|encoding)", r"(encode|encoded)\s+[^.\n]{0,40}\bbase64",
     r"(pass|put|include|insert|embed|append|place|add|provide)\w*\s+(the\s+)?(full\s+|entire\s+|raw\s+)?(contents?|text|data|value)\s+(of\s+[^.\n]{1,60}?\s+)?(in|into|as|inside|within)\s+(the\s+|this\s+|a\s+)?['\"`]?\w+['\"`]?\s+(parameter|param|argument|field)",
@@ -287,7 +291,7 @@ def load(path, stdin=None):
     except json.JSONDecodeError as e:
         raise ParseError("%s: invalid JSON: %s" % (source, e))
     tools, base = extract_tools(doc, source)
-    return source, tools, base
+    return source, tools, base, doc
 
 
 # ---------------------------------------------------------------- scanning
@@ -435,6 +439,62 @@ def _try_b64_decode(blob):
         return None
 
 
+UUENCODE_BLOCK_RE = re.compile(
+    r"(?im)^begin\s+\d{3,4}\s+\S+\s*$\n([\s\S]*?)^[ \t]*`?[ \t]*\nend\s*$"
+)
+ELICITATION_RE = re.compile(r"(?is)\belicit(?:ation|e|ed|ing)?\b")
+ELICIT_SECRET_RE = re.compile(
+    r"(?is)(?:passwords?|passwds?|pass\s*phrases?|recovery\s+codes?|"
+    r"api[_ ]?keys?|access[_ ]?tokens?|secret\s+keys?|credentials?|"
+    r"private\s+keys?|seed\s+phrases?|mnemonics?|ssn|social\s+security|"
+    r"credit\s+cards?|cvv|one[- ]time\s+(?:codes?|passwords?)|otp)\b"
+)
+
+
+def _try_qp_decode(text):
+    if not text or "=" not in text:
+        return None
+    if not re.search(r"=(?:[0-9A-Fa-f]{2}|\n)", text):
+        return None
+    try:
+        dec = quopri.decodestring(text.encode("utf-8", errors="replace")).decode("utf-8", errors="replace")
+    except (ValueError, UnicodeDecodeError, binascii.Error):
+        return None
+    return dec if dec and dec != text else None
+
+
+def _try_uu_decode(text):
+    """Decode POSIX uuencode blocks; tolerate slightly truncated lines."""
+    if not text or "begin " not in text.lower():
+        return None
+    chunks = []
+    for m in UUENCODE_BLOCK_RE.finditer(text):
+        parts = []
+        for line in m.group(1).splitlines():
+            if not line or line.strip() in ("`",):
+                continue
+            try:
+                parts.append(binascii.a2b_uu(line))
+            except binascii.Error:
+                try:
+                    # Length byte says how many data bytes; pad like the standard workaround
+                    nbytes = (((ord(line[0]) - 32) & 63) * 4 + 5) // 3
+                    parts.append(binascii.a2b_uu(line[: nbytes + 1].ljust(nbytes + 1)))
+                except (binascii.Error, ValueError, IndexError):
+                    continue
+        if parts:
+            try:
+                chunks.append(b"".join(parts).decode("utf-8"))
+            except UnicodeDecodeError:
+                try:
+                    chunks.append(b"".join(parts).decode("latin-1"))
+                except UnicodeDecodeError:
+                    continue
+    if not chunks:
+        return None
+    return "\n".join(chunks)
+
+
 def decoded_text_views(text):
     """Views of a schema/description string after common concealment encodings."""
     if not isinstance(text, str) or not text:
@@ -446,6 +506,12 @@ def decoded_text_views(text):
     uq = unquote(unquote_plus(unescaped))
     if uq not in views:
         views.append(uq)
+    qp = _try_qp_decode(text)
+    if qp and qp not in views:
+        views.append(qp)
+    uu = _try_uu_decode(text)
+    if uu and uu not in views:
+        views.append(uu)
     for m in B64_BLOB_RE.finditer(text):
         dec = _try_b64_decode(m.group(1))
         if dec and len(dec) >= 12 and INSTR_HINT_RE.search(dec):
@@ -585,6 +651,12 @@ def scan_tools(source, tools, base, max_desc_len=1000):
                 m = PREFERENCE_RE.search(text)
                 add("TP13", path, snippet(text, m.start(), m.end()), "high",
                     "Description steers the model to prefer this tool or avoid others", tname)
+            # TP14: elicitation used as a credential-harvest prompt (not a benign city/name ask)
+            if kind in ("description", "instructions") or (kind not in ("key", "property-name", "name") and ELICITATION_RE.search(text)):
+                if ELICITATION_RE.search(text) and ELICIT_SECRET_RE.search(text):
+                    m = ELICIT_SECRET_RE.search(text)
+                    add("TP14", path, snippet(text, m.start(), m.end()), "high",
+                        "Description uses MCP elicitation to collect a password or other secret", tname)
             if kind == "description" and len(text) > max_desc_len:
                 add("TP07", path, "%d chars (limit %d)" % (len(text), max_desc_len), tool=tname,
                     message="Description is %d characters (limit %d)" % (len(text), max_desc_len))
@@ -634,12 +706,56 @@ def _prop_desc(tool, path, tpath):
     return None
 
 
+
+SERVER_INSTRUCTION_KEYS = (
+    "instructions", "serverInstructions", "server_instructions",
+)
+
+
+def _collect_instruction_fields(doc, prefix="$"):
+    """Yield (path, text) for MCP initialize/server-level instruction strings."""
+    if isinstance(doc, list):
+        for i, item in enumerate(doc):
+            yield from _collect_instruction_fields(item, "%s[%d]" % (prefix, i))
+        return
+    if not isinstance(doc, dict):
+        return
+    for key in SERVER_INSTRUCTION_KEYS:
+        val = doc.get(key)
+        if isinstance(val, str) and val.strip():
+            path = "%s.%s" % (prefix, key) if re.match(r"^[A-Za-z_][\w]*$", key) else "%s[%s]" % (prefix, json.dumps(key))
+            yield path, val
+    # Common envelopes: initialize result, params, server
+    for key in ("result", "params", "initialize", "server", "serverInfo"):
+        val = doc.get(key)
+        if isinstance(val, (dict, list)):
+            child = "%s.%s" % (prefix, key)
+            yield from _collect_instruction_fields(val, child)
+
+
+def scan_server_instructions(source, doc, max_desc_len=1000):
+    """Scan the rarely-reviewed server-level instructions string as its own channel."""
+    fields = list(_collect_instruction_fields(doc))
+    if not fields:
+        return []
+    # Reuse tool textual rules by wrapping each field as a synthetic description.
+    findings = []
+    for path, text in fields:
+        synthetic = [{"name": "(server instructions)", "description": text}]
+        for f in scan_tools(source, synthetic, "$", max_desc_len):
+            f["path"] = path
+            f["tool"] = "(server instructions)"
+            findings.append(f)
+    return findings
+
+
 def scan_files(paths, max_desc_len=1000, stdin=None):
     findings, loaded = [], []
     for p in paths:
-        source, tools, base = load(p, stdin)
+        source, tools, base, doc = load(p, stdin)
         loaded.append((source, tools, base))
         findings.extend(scan_tools(source, tools, base, max_desc_len))
+        findings.extend(scan_server_instructions(source, doc, max_desc_len))
     # TP09 duplicates across/within files
     where = {}
     for source, tools, base in loaded:
@@ -665,8 +781,8 @@ def _canon(obj):
 
 
 def diff_snapshots(old_path, new_path, stdin=None):
-    _, old, _ = load(old_path, stdin)
-    _, new, _ = load(new_path, stdin)
+    _, old, _, _ = load(old_path, stdin)
+    _, new, _, _ = load(new_path, stdin)
 
     def index(tools):
         d = {}

@@ -79,6 +79,10 @@
 <tr><td>TS-OPENAI</td><td>critical</td><td><code>sk-…</code>, <code>sk-proj-…</code> (excluding <code>sk-ant-</code>)</td></tr>
 <tr><td>TS-SLACK</td><td>high</td><td><code>xoxb- xoxa- xoxp- xoxr- xoxs-</code></td></tr>
 <tr><td>TS-STRIPE</td><td>critical</td><td><code>sk_live_…</code>, <code>rk_live_…</code></td></tr>
+<tr><td>TS-SENDGRID</td><td>critical</td><td>SendGrid API key (<code>SG.…</code>)</td></tr>
+<tr><td>TS-AZURE-CONN</td><td>critical</td><td>Azure Storage connection string <code>AccountKey=</code></td></tr>
+<tr><td>TS-TELEGRAM</td><td>high</td><td>Telegram bot token (<code>123456789:AA…</code> in text or an <code>api.telegram.org</code> URL)</td></tr>
+<tr><td>TS-NPM</td><td>high</td><td>npm access token (<code>npm_…</code>)</td></tr>
 <tr><td>TS-GOOGLE-API</td><td>high</td><td><code>AIza…</code> (39 chars)</td></tr>
 <tr><td>TS-JWT</td><td>medium</td><td><code>eyJ….….…</code> where the header base64url-decodes to JSON containing <code>alg</code></td></tr>
 <tr><td>TS-URL-CREDS</td><td>high</td><td><code>scheme://user:pass@host</code> (the password is the secret)</td></tr>

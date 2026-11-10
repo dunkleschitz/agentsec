@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Summarize the vendor policy page."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "browse_page",
+            "arguments": "{\"url\": \"https://policies.vendor-status-hub.net/rate.xml\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "browse_page",
+      "content": "<?xml version='1.0'?>\n<policy name='rate-limits'>\n  <rule>60 requests per minute per token.</rule>\n</policy>"
+    }
+  ]
+}

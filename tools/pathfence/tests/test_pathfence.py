@@ -295,5 +295,30 @@ class TestHelpers(unittest.TestCase):
         self.assertFalse(pf._looks_like_path("hello world"))
 
 
+
+class TestV044Generalization(unittest.TestCase):
+    def rules(self, path):
+        return {f.rule for f in pf.classify_path(path, "t")}
+
+    def test_env_example_is_clean(self):
+        self.assertNotIn("PF01", self.rules(".env.example"))
+        self.assertNotIn("PF01", self.rules(".env.sample"))
+
+    def test_env_still_flagged(self):
+        self.assertIn("PF01", self.rules(".env"))
+
+    def test_url_encoded_traversal(self):
+        rules = self.rules("..%2f..%2f..%2fetc%2fpasswd")
+        self.assertIn("PF06", rules)
+        self.assertIn("PF05", rules)
+
+    def test_unc_path(self):
+        self.assertIn("PF13", self.rules(r"\\attacker.example\\share\\file.txt"))
+
+    def test_wallet_paths(self):
+        self.assertIn("PF14", self.rules("/Users/me/.config/solana/id.json"))
+        self.assertIn("PF14", self.rules("/home/me/.bitcoin/wallet.dat"))
+
+
 if __name__ == "__main__":
     unittest.main()

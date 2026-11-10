@@ -1,0 +1,19 @@
+{
+  "tools": [
+    {
+      "name": "get_quote",
+      "description": "Return a short market quote.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string"
+          }
+        }
+      },
+      "_meta": {
+        "version": "2026.1.0"
+      }
+    }
+  ]
+}

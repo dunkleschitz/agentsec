@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Open the Tokyo tax record."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "tax_lookup",
+            "arguments": "{\"id\": \"T-2\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "tax_lookup",
+      "content": "Name: Hana Suzuki\nMy Number: 1234 5678 9012\nOffice: Tokyo"
+    }
+  ]
+}

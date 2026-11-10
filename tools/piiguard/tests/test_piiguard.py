@@ -356,5 +356,23 @@ class TestInternationalIds(unittest.TestCase):
         self.assertNotIn("PG05", rules_in("Item ISBN 978-0-306-40615-7, order #ORD-2026-11882"))
 
 
+
+class TestV044Generalization(unittest.TestCase):
+    def test_labeled_aadhaar(self):
+        self.assertIn("PG05", rules_in("Name: Rohan Iyer\nAadhaar: 2345 7183 9201\nTitle: Analyst"))
+
+    def test_labeled_cpf_with_checksum(self):
+        self.assertIn("PG05", rules_in("Cliente: Ana Souza\nCPF: 390.533.447-05\nCidade: Sao Paulo"))
+
+    def test_redacted_cpf_is_clean(self):
+        self.assertNotIn("PG05", rules_in("CPF: ***.***.***-** (redacted)"))
+
+    def test_labeled_tfn_with_checksum(self):
+        self.assertIn("PG05", rules_in("Name: Grace Tan\nTFN: 123 456 782\nOffice: Sydney"))
+
+    def test_labeled_personnummer(self):
+        self.assertIn("PG05", rules_in("Patient: Erik Lindqvist\nPersonnummer: 19840312-2391"))
+
+
 if __name__ == "__main__":
     unittest.main()

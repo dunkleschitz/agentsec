@@ -59,6 +59,7 @@ python3 toolpoison.py --list-rules
 | TP11 | annotation-deception | high | `readOnlyHint` / `destructiveHint` / `title` annotations that contradict a destructive name, description, or schema |
 | TP12 | hidden-schema-default | high | Hidden or unusual schema defaults on exfil-shaped parameters (bcc, webhook, callback, and similar) |
 | TP13 | preference-manipulation | high | Description steers the model to prefer this tool, levy an extra fee, or always invoke a follow-up tool |
+| TP14 | elicitation-credential-phish | high | Tool text or server-level `instructions` / `serverInstructions` tell the model to use MCP elicitation to harvest a password, token, or other secret |
 
 There is one finding per rule per scanned field. The message lists every phrase that matched (up to 5).
 

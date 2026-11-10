@@ -291,5 +291,20 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(ff._parse_args("not-json")["_"], "not-json")
 
 
+
+class TestV044Generalization(unittest.TestCase):
+    def rules(self, url):
+        return {f.rule for f in ff.classify_url(url, "t")}
+
+    def test_telegram_bot_api_exfil(self):
+        self.assertIn("FF14", self.rules("https://api.telegram.org/bot123456789:AAFfakeTokenForTests0000000000000/sendMessage"))
+
+    def test_discord_webhook_exfil(self):
+        self.assertIn("FF14", self.rules("https://discord.com/api/webhooks/123456789012345678/fakeWebhookTokenForTests"))
+
+    def test_cloudflare_doh_ip_is_not_ff08(self):
+        self.assertNotIn("FF08", self.rules("https://1.1.1.1/dns-query"))
+
+
 if __name__ == "__main__":
     unittest.main()

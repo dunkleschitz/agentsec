@@ -39,6 +39,7 @@ RULES = {
     "FF11": ("medium", "Secret-looking query parameter in fetched URL"),
     "FF12": ("medium", "Admin / data-store port on a non-public host"),
     "FF13": ("high", "Internal / corporate hostname suffix"),
+    "FF14": ("high", "Known public chat/webhook API used as an unauthenticated exfil drop"),
 }
 
 # Tool-name tokens that usually mean "agent is fetching a URL"
@@ -78,6 +79,27 @@ CALLBACK_HOST_RE = re.compile(
     r"evil(?:-)?(?:exfil|callback|collect)[.\w-]*|exfil[.\w-]+"
     r")$",
 )
+
+# Well-known public DNS / DoH/DoT resolvers. Fetching them by IP is normal
+# (especially on 443/853) and is not an allowlist-bypass trick.
+PUBLIC_DNS_IPS = {
+    "1.1.1.1", "1.0.0.1", "1.1.1.2", "1.0.0.2", "1.1.1.3", "1.0.0.3",
+    "8.8.8.8", "8.8.4.4", "9.9.9.9", "149.112.112.112",
+    "208.67.222.222", "208.67.220.220", "8.26.56.26", "8.20.247.20",
+    "64.6.64.6", "64.6.65.6",
+}
+
+# No-auth chat/webhook APIs commonly used as exfil drops (host + path).
+def is_exfil_drop(host: str, path: str) -> bool:
+    h = (host or '').lower().rstrip('.')
+    pth = path or ''
+    if h in ('api.telegram.org', 'telegram.org') and ('/bot' in pth or pth.startswith('/file/bot')):
+        return True
+    if h in ('discord.com', 'discordapp.com', 'discord.gg') and '/api/webhooks/' in pth:
+        return True
+    if h == 'hooks.slack.com' and '/services/' in pth:
+        return True
+    return False
 
 SHORTENER_HOSTS = {
     "bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff.ly",
@@ -505,7 +527,8 @@ def classify_url(url: str, source: str, tool: str = "", turn=None, allow_hosts=N
         ip = None
 
     if ip is not None:
-        add("FF08", "Raw IP-literal host %s" % ip, host_dec)
+        if str(ip) not in PUBLIC_DNS_IPS:
+            add("FF08", "Raw IP-literal host %s" % ip, host_dec)
         if ip.is_link_local or ip.is_reserved and str(ip).startswith("169.254."):
             add("FF01", "Link-local / metadata IP %s" % ip, host_dec)
         elif str(ip) == "169.254.169.254" or str(ip).startswith("169.254."):
@@ -541,6 +564,9 @@ def classify_url(url: str, source: str, tool: str = "", turn=None, allow_hosts=N
             add("FF09", "Punycode / IDN host %r" % host_dec, host_dec)
         if any(host_dec == suf.lstrip(".") or host_dec.endswith(suf) for suf in INTERNAL_SUFFIXES):
             add("FF13", "Internal/corporate hostname %r" % host_dec, host_dec)
+
+    if is_exfil_drop(host_dec, getattr(p, "path", "") or "") and "FF14" not in disabled:
+        add("FF14", "Known public chat/webhook API used as an exfil drop: %s" % host_dec, host_dec)
 
     if scheme == "http":
         add("FF07", "Cleartext http fetch", host_dec)

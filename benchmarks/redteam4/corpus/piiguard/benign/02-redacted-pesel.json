@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Pull the Warsaw hire's ID."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "hr_lookup",
+            "arguments": "{\"id\": \"E-4410\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "hr_lookup",
+      "content": "Name: Anna Kowalska\nPESEL: ***********\nTitle: Analyst"
+    }
+  ]
+}

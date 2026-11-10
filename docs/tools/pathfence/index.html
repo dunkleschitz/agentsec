@@ -72,7 +72,7 @@
 <table>
 <thead><tr><th>Rule</th><th>Severity</th><th>What it flags</th></tr></thead>
 <tbody>
-<tr><td>PF01</td><td>critical</td><td>Secret / credential files (<code>.env</code>, <code>*.pem</code>, <code>secrets.json</code>, tokens, netrc, …)</td></tr>
+<tr><td>PF01</td><td>critical</td><td>Secret / credential files (<code>.env</code>, <code>*.pem</code>, <code>secrets.json</code>, tokens, netrc, …). <code>.env.example</code> / <code>.sample</code> / <code>.template</code> / <code>.placeholder</code> are not flagged</td></tr>
 <tr><td>PF02</td><td>critical</td><td>SSH / GPG private key paths (<code>~/.ssh/id_*</code>, <code>~/.gnupg/</code>, …)</td></tr>
 <tr><td>PF03</td><td>critical</td><td>Cloud credential paths (<code>.aws/credentials</code>, <code>.kube/config</code>, gcloud ADC, <code>.azure/</code>, …)</td></tr>
 <tr><td>PF04</td><td>high</td><td>Browser cookie / password / autofill database paths</td></tr>
@@ -84,6 +84,8 @@
 <tr><td>PF10</td><td>high</td><td>Container / hypervisor escape paths (<code>docker.sock</code>, <code>/proc/self</code>, <code>/sys</code>, …)</td></tr>
 <tr><td>PF11</td><td>high</td><td>Windows sensitive system paths (<code>…\config\SAM</code>, <code>Unattend.xml</code>, <code>ntds.dit</code>, …)</td></tr>
 <tr><td>PF12</td><td>info</td><td>Inventory of every observed path (disable in CI with <code>--disable PF12</code>)</td></tr>
+<tr><td>PF13</td><td>high</td><td>UNC / remote share path (forced authentication / NTLM leak)</td></tr>
+<tr><td>PF14</td><td>high</td><td>Cryptocurrency wallet or keystore path (Bitcoin <code>wallet.dat</code>, Exodus, Solana <code>id.json</code>, MetaMask keystore, …)</td></tr>
 </tbody>
 </table>
 <h2 id="usage">Usage</h2>

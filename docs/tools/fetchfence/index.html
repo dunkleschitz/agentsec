@@ -79,12 +79,13 @@
 <tr><td>FF05</td><td>high</td><td>Credentials in URL userinfo (<code>https://user:pass@…</code>)</td></tr>
 <tr><td>FF06</td><td>high</td><td>Known OOB / callback hosts (<code>webhook.site</code>, <code>interact.sh</code>, <code>ngrok</code>, …)</td></tr>
 <tr><td>FF07</td><td>medium</td><td>Cleartext <code>http://</code> fetches</td></tr>
-<tr><td>FF08</td><td>medium</td><td>Raw IP-literal hosts (bypass name-based allowlists)</td></tr>
+<tr><td>FF08</td><td>medium</td><td>Raw IP-literal hosts (bypass name-based allowlists); well-known public resolvers such as <code>1.1.1.1</code> / <code>8.8.8.8</code> are skipped</td></tr>
 <tr><td>FF09</td><td>medium</td><td>Punycode / IDN hosts (<code>xn--…</code>)</td></tr>
 <tr><td>FF10</td><td>low</td><td>URL shortener hosts (<code>bit.ly</code>, <code>t.co</code>, …)</td></tr>
 <tr><td>FF11</td><td>medium</td><td>Secret-looking query parameters (<code>api_key=</code>, <code>token=</code>, …)</td></tr>
 <tr><td>FF12</td><td>medium</td><td>Admin / data-store ports (6379, 9200, 27017, 2375, …) on non-public hosts</td></tr>
 <tr><td>FF13</td><td>high</td><td>Internal / corporate hostname suffixes (<code>.internal</code>, <code>.corp</code>, <code>.lan</code>, <code>.cluster.local</code>, …)</td></tr>
+<tr><td>FF14</td><td>high</td><td>Known public chat/webhook API used as an unauthenticated exfil drop (Telegram Bot API <code>/bot</code>, Discord webhooks, Slack <code>hooks.slack.com</code>)</td></tr>
 </tbody>
 </table>
 <h2 id="usage">Usage</h2>

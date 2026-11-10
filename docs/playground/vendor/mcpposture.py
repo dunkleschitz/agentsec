@@ -799,6 +799,26 @@ def audit_server(srv: Server) -> None:
             if srv.pinned is not True:
                 add("MP04", f"{launcher} -y auto-installs an unpinned package without confirmation", f"{launcher} -y")
 
+        # Registry override via CLI flag (same class as npm_config_registry in env).
+        registry_flags = ("--registry", "--index-url", "--index", "--extra-index-url")
+        i = 0
+        while i < len(lflags):
+            f = lflags[i]
+            url = None
+            for name in registry_flags:
+                if f == name and i + 1 < len(lflags):
+                    url = lflags[i + 1]
+                    i += 1
+                    break
+                if f.startswith(name + "="):
+                    url = f.split("=", 1)[1]
+                    break
+            if url and str(url).strip() and not is_placeholder(url):
+                check = url if "://" in url else "https://%s" % url
+                if not _is_official_registry(check):
+                    add("MP21", f"{launcher} {f if f.startswith('--') else '--registry'} redirects package installs to a non-official registry", (f + " " + url)[:120])
+            i += 1
+
         # docker
         if is_docker:
             check_docker(srv, add, lflags)

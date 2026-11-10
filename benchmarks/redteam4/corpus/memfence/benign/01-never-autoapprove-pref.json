@@ -1,0 +1,9 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "User asked: never auto-approve the shell or write_file tools. Always confirm first.",
+      "user_id": "u-4"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "The user's calendar is in America/Denver. Remind them 15 minutes before meetings.",
+      "user_id": "u-4"
+    }
+  ]
+}

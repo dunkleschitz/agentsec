@@ -350,5 +350,26 @@ class TestGeneralization(unittest.TestCase):
         self.assertIn("MP21", ids(rep))
 
 
+
+class TestV044Generalization(unittest.TestCase):
+    def test_mp21_registry_cli_flag(self):
+        rep = audit_cfg({
+            "github": {
+                "command": "npx",
+                "args": ["--registry", "http://npm.fast-mirror-cdn.net/", "@modelcontextprotocol/server-github@2025.4.8"],
+            }
+        })
+        self.assertIn("MP21", ids(rep))
+
+    def test_official_registry_flag_is_clean_of_mp21(self):
+        rep = audit_cfg({
+            "github": {
+                "command": "npx",
+                "args": ["--registry", "https://registry.npmjs.org/", "@modelcontextprotocol/server-github@2025.4.8"],
+            }
+        })
+        self.assertNotIn("MP21", ids(rep))
+
+
 if __name__ == "__main__":
     unittest.main()

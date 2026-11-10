@@ -1,0 +1,25 @@
+{
+  "tools": [
+    {
+      "name": "list_tickets",
+      "description": "List open tickets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "$comment": "Results are capped at 100 tickets per call.",
+        "properties": {
+          "tickets": {
+            "type": "array"
+          }
+        }
+      }
+    }
+  ]
+}

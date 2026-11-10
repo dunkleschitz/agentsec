@@ -44,6 +44,8 @@ RULES = {
     "SF14": ("critical", "Destructive infra / data-plane command (terraform destroy -auto-approve, kubectl delete --force, DROP ... CASCADE)"),
     "SF15": ("high", "SSH authorized_keys or equivalent backdoor persistence"),
     "SF16": ("high", "Secret-harvest pipeline followed by a public exfil channel (scanner on / plus public repo/gist/upload)"),
+    "SF17": ("critical", "LOLBAS remote download or execute (certutil -urlcache, mshta, bitsadmin /transfer)"),
+    "SF18": ("critical", "Download-then-execute without a pipe (curl/wget -o, chmod +x, then run the file)"),
 }
 
 SHELL_TOKENS = {
@@ -260,7 +262,10 @@ PERSIST_RE = re.compile(
     r"~/Library/LaunchAgents/|"
     r"/Library/LaunchDaemons/|"
     r"schtasks\s+/create\b|"
-    r"New-Service\b"
+    r"New-Service\b|"
+    r"/etc/ld\.so\.preload\b|"
+    r"\bldconfig\b[^\n|;]{0,40}/etc/ld\.so\.preload|"
+    r"\bLD_PRELOAD\s*="
     r")"
 )
 
@@ -669,6 +674,124 @@ def _python_reverse_shell(cmd: str) -> bool:
     return bool(re.search(r"(?i)(?:pty|dup2|subprocess|connect\s*\(|/dev/tcp)", cmd))
 
 
+
+LOLBAS_RE = re.compile(
+    r"(?ix)"
+    r"("
+    r"\bcertutil\b[^\n|;]{0,200}(?:-urlcache|urlcache|\s+-f\b)[^\n|;]{0,200}https?://|"
+    r"\bcertutil\b[^\n|;]{0,80}(?:-urlcache|urlcache)\b|"
+    r"\bmshta\b\s+https?://|"
+    r"\bmshta\b[^\n|;]{0,160}https?://|"
+    r"\bbitsadmin\b[^\n|;]{0,200}/transfer\b|"
+    r"\bregsvr32\b[^\n|;]{0,160}(?:/i\s*:\s*)?https?://|"
+    r"\brundll32\b[^\n|;]{0,160}https?://|"
+    r"\bmsiexec\b[^\n|;]{0,160}/i\s+https?://|"
+    r"\bcmstp\b[^\n|;]{0,160}https?://"
+    r")"
+)
+
+_DOWNLOADER_RE = re.compile(r"(?i)\b(?:curl|wget|fetch|bitsadmin|certutil|invoke-webrequest|iwr)\b")
+_CHMOD_EXEC_RE = re.compile(r"(?i)\bchmod\b\s+(?:-[a-zA-Z]+\s+)*(?:\+x|[0-7]*[1357]|a\+x|u\+x|ug\+x)\b")
+_EXEC_INTERP_RE = re.compile(r"(?i)^(?:(?:\./)?(?:sh|bash|zsh|dash|ksh|fish|python(?:3)?|perl|ruby|node|powershell|pwsh|cmd|start|cmd\.exe)\b)")
+
+
+def _download_output_files(seg: str) -> list:
+    """Best-effort output paths from a downloader segment (curl -o, wget -O, certutil, bitsadmin)."""
+    toks = _tokens(seg)
+    if not toks:
+        return []
+    low0 = toks[0].lower().rsplit("/" , 1)[-1]
+    out = []
+    i = 0
+    while i < len(toks):
+        t = toks[i]
+        tl = t.lower()
+        if tl in ("-o", "--output", "-O") and i + 1 < len(toks):
+            out.append(toks[i + 1])
+            i += 2
+            continue
+        if tl.startswith("--output="):
+            out.append(t.split("=", 1)[1])
+            i += 1
+            continue
+        if tl.startswith("-o") and tl not in ("-o",) and len(t) > 2 and not tl.startswith(("-ossl", "-oauth", "--")):
+            rest = t[2:]
+            if rest and not rest.startswith("-"):
+                out.append(rest)
+        i += 1
+    # certutil / bitsadmin: last non-flag arg after a URL is typically the dest
+    if low0 in ("certutil", "certutil.exe", "bitsadmin", "bitsadmin.exe"):
+        args = [t for t in toks[1:] if not t.startswith("/") or "://" in t]
+        # keep positional dest: last arg that is not a URL and not a switch
+        positional = []
+        for t in toks[1:]:
+            tl = t.lower()
+            if tl.startswith("-") or tl.startswith("/"):
+                if "://" in t:
+                    positional.append(t)
+                continue
+            positional.append(t)
+        if positional and "://" not in positional[-1]:
+            out.append(positional[-1])
+    return [x for x in out if x and "://" not in x]
+
+
+def _is_execution_of(seg: str, path: str) -> bool:
+    if not path or not seg:
+        return False
+    toks = _tokens(seg)
+    if not toks:
+        return False
+    # exact / trailing-path match of the downloaded file as the command or its first arg
+    bases = {path, path.replace("\\", "/"), path.split("\\")[-1].split("/")[-1]}
+    bases = {b for b in bases if b}
+    first = toks[0]
+    if first in bases or first.replace("\\", "/").endswith("/" + path.replace("\\", "/").rsplit("/", 1)[-1]):
+        return True
+    # interpreter + file
+    if _EXEC_INTERP_RE.match(first) or first.lower() in ("sh", "bash", "zsh", "python", "python3", "node", "perl", "ruby", "start", "cmd", "cmd.exe", "powershell", "pwsh"):
+        for t in toks[1:]:
+            if t.startswith("-"):
+                continue
+            if t in bases or t.replace("\\", "/").endswith("/" + list(bases)[0].replace("\\", "/").rsplit("/", 1)[-1]):
+                return True
+    # Windows start / cmd /c
+    joined = " ".join(toks)
+    for b in bases:
+        if b in joined and re.search(r"(?i)\b(?:start|cmd(?:\.exe)?\s+/c)\b", joined):
+            return True
+    return False
+
+
+def _download_then_exec(cmd: str) -> bool:
+    """True when a downloader writes a file and a later segment chmods +x or runs it."""
+    segments = _split_segments(cmd)
+    saved = []
+    for seg in segments:
+        if _DOWNLOADER_RE.search(seg):
+            saved.extend(_download_output_files(seg))
+        # chmod +x of a previously downloaded (or same-segment) file
+        if saved and _CHMOD_EXEC_RE.search(seg):
+            for path in saved:
+                if path in seg or path.replace("\\", "/") in seg.replace("\\", "/"):
+                    # still need a later or same-pipeline execution? chmod +x alone after
+                    # a remote download is already enough intent, but the class is
+                    # download-then-exec. Require an execution segment too unless
+                    # chmod and a run appear together.
+                    pass
+        if saved and _is_execution_of(seg, saved[-1] if saved else ""):
+            return True
+        for path in list(saved):
+            if _is_execution_of(seg, path):
+                return True
+    # download + chmod +x + exec across the whole command (order-insensitive presence)
+    if not saved:
+        return False
+    has_chmod = any(_CHMOD_EXEC_RE.search(seg) and any(p in seg or p.replace("\\", "/") in seg.replace("\\", "/") for p in saved) for seg in segments)
+    has_exec = any(_is_execution_of(seg, p) for seg in segments for p in saved)
+    return has_chmod and has_exec
+
+
 def classify_command(command: str, source: str, tool: str = "", turn=None, disabled=None):
 
     """Return findings for one shell command."""
@@ -747,6 +870,16 @@ def classify_command(command: str, source: str, tool: str = "", turn=None, disab
             add("SF01", "Decoded PowerShell downloads and executes a remote script: %s" % _snippet(inner, 90))
         if REV_SHELL_RE.search(inner) or _python_reverse_shell(inner):
             add("SF04", "Decoded PowerShell reverse shell: %s" % _snippet(inner, 90))
+        if LOLBAS_RE.search(inner):
+            add("SF17", "Decoded PowerShell LOLBAS download/execute: %s" % _snippet(inner, 90))
+        if _download_then_exec(inner):
+            add("SF18", "Decoded PowerShell download-then-execute: %s" % _snippet(inner, 90))
+
+    if LOLBAS_RE.search(n):
+        add("SF17", "LOLBAS remote download or execute: %s" % _snippet(n, 90))
+
+    if _download_then_exec(n):
+        add("SF18", "Download-then-execute without a pipe: %s" % _snippet(n, 90))
 
     return findings
 

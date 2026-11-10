@@ -86,9 +86,10 @@ EXFIL_URL_RE = re.compile(
     r"%7B%7B|\{\{)"
     r"[^\s\"'<>]{0,60}"
     r"|"
-    r"(?:send|post|upload|exfiltrate|transmit|forward)\s+"
-    r"(?:(?:the|all|this)\s+)?(?:data|secrets?|keys?|credentials?|conversation|memory|context)\s+"
-    r"(?:to|via)\s+(?:https?://|webhook|this\s+url)"
+    r"(?:send|post|upload|exfiltrate|transmit|forward|email)\s+"
+    r"(?:(?:the|all|this|a|an)\s+)?(?:(?:full|entire|complete|current|whole|raw|prior)\s+)*"
+    r"(?:data|secrets?|keys?|credentials?|conversation|chat\s+history|memory|context|raw\s+text|notes?|transcript)\s+"
+    r"(?:to|via)\s+(?:https?://|webhook|this\s+url|\S+@\S+)"
     r"|"
     r"https?://[^\s\"'<>]+[?&][^\s\"'<>]*(?:conversation|chat[-_ ]?history|prior[-_ ]?conversation|summary|memory|secret|api[_-]?key|password|credential)"
     r"|"
@@ -174,7 +175,7 @@ PERSIST_RE = re.compile(
     r"(?:store|save|persist|write)\s+(?:this\s+)?(?:as\s+)?(?:a\s+)?"
     r"(?:permanent|long[- ]?term|core|system)\s+(?:memory|rule|instruction|fact)"
     r"|"
-    r"(?:add|append)\s+(?:this\s+)?to\s+(?:your\s+)?(?:system|core|permanent)\s+"
+    r"(?:add|append)\s+(?:this\s+)?(?:\w+\s+){0,4}to\s+(?:your\s+)?(?:the\s+)?(?:system|core|permanent)\s+"
     r"(?:prompt|instructions?|memory|rules?)"
     r"|"
     r"remember\s+(?:this|that)\s+(?:forever|permanently|for\s+all\s+future\s+sessions)"
@@ -634,6 +635,12 @@ TRIGGER_BACKDOOR_RE = re.compile(
     r"when\s+(?:the\s+)?user\s+(?:later\s+)?(?:says?|replies?|types?|mentions)\b"
     r".{0,80}?"
     r"(?:then\s+)?(?:you\s+)?(?:must|should|will|call|run|save_memory|delete|send)"
+    r"|"
+    r"after\s+(?:the\s+)?(?:user\s+(?:has\s+)?)?(?:sent\s+)?(?:a\s+|an\s+)?"
+    r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|n)\s+"
+    r"(?:user\s+)?(?:messages?|turns?|replies?|requests?)\b"
+    r".{0,200}?"
+    r"(?:must|should|will|then)\s+(?:POST|post|send|upload|forward|email|transmit|call|invoke)"
     r")"
 )
 
@@ -652,6 +659,36 @@ DESTRUCTIVE_ACTION_RE = re.compile(
 _NEGATION_RE = re.compile(
     r"(?is)(?:\bnever\b|\bdo\s+not\b|\bdon'?t\b|\bdoesn'?t\b|\bstop\b|\bavoid\b|"
     r"\bnot\s+to\b|\basked[:\s]+never\b|\bplease\s+never\b|\bmust\s+not\b|\bshouldn'?t\b)"
+)
+
+
+
+# Planted "official" login/payroll/HR portal pointing at an attacker URL,
+# especially when session cookies or credentials are forwarded to it.
+PLANTED_PORTAL_RE = re.compile(
+    r"(?is)"
+    r"("
+    r"(?:official|company|corporate|internal)?\s*"
+    r"(?:payroll|hr|benefits|sso|okta|login|employee|paystub|timesheet|portal)\s+"
+    r"(?:portal|site|url|page|login)?[^\n]{0,80}?"
+    r"https?://\S+"
+    r")"
+)
+COOKIE_FORWARD_RE = re.compile(
+    r"(?is)"
+    r"("
+    r"session\s+cookies?|auth(?:entication)?\s+cookies?|include\s+(?:their|the|your)\s+session|"
+    r"cookies?\s+as\s+(?:the\s+)?\S{0,16}\s+parameter|"
+    r"attach\s+(?:their|the|your)\s+(?:session\s+)?(?:cookies?|credentials?|tokens?)"
+    r")"
+)
+HTTP_PORTAL_RE = re.compile(
+    r"(?is)"
+    r"(?:official|payroll|hr|benefits|sso|okta|employee)\s+"
+    r"(?:payroll\s+)?(?:portal|login|site|url|page)[^\n]{0,120}?http://\S+"
+    r"|"
+    r"http://\S+[^\n]{0,120}?(?:official|payroll|hr|benefits|sso|okta)\s+"
+    r"(?:payroll\s+)?(?:portal|login|site)"
 )
 
 
@@ -756,6 +793,12 @@ def classify_entry(entry: MemoryEntry, disabled=None):
     elif PIPE_SHELL_RE.search(scan):
         m = PIPE_SHELL_RE.search(scan)
         add("MF12", "Remote installer / pipe-to-shell planted in memory entry %s" % label, m.group(0))
+    elif COOKIE_FORWARD_RE.search(scan) and (PLANTED_PORTAL_RE.search(scan) or re.search(r"https?://", scan)):
+        m = COOKIE_FORWARD_RE.search(scan)
+        add("MF12", "Planted portal / login URL forwards session cookies in memory entry %s" % label, m.group(0) if m else scan)
+    elif HTTP_PORTAL_RE.search(scan) and re.search(r"(?is)send\s+them\s+there|redirect|when\s+they\s+ask", scan):
+        m = HTTP_PORTAL_RE.search(scan)
+        add("MF12", "Planted official-looking cleartext login portal in memory entry %s" % label, m.group(0) if m else scan)
 
     # MF08 encoded blobs
     if "MF08" not in disabled:

@@ -399,5 +399,24 @@ class TestRedact(unittest.TestCase):
             self.assertNotIn(AWS_SECRET, txt)
 
 
+
+class TestV044Generalization(unittest.TestCase):
+    def rules(self, text):
+        return {h["rule"].id if hasattr(h["rule"], "id") else h["rule"] for h in ts.scan_text(text)}
+
+    def test_sendgrid_key(self):
+        # Synthetic SendGrid-shaped key (not a live credential)
+        key = "SG." + ("A" * 22) + "." + ("B" * 43)
+        self.assertIn("TS-SENDGRID", self.rules("api_key = %s" % key))
+
+    def test_azure_account_key(self):
+        text = "DefaultEndpointsProtocol=https;AccountName=exfiltest;AccountKey=abcdefghij0123456789+/ABCDEF==;EndpointSuffix=core.windows.net"
+        self.assertIn("TS-AZURE-CONN", self.rules(text))
+
+    def test_telegram_bot_token_in_url(self):
+        url = "https://api.telegram.org/bot123456789:AAFfakeTokenForTests0000000000000/sendMessage"
+        self.assertIn("TS-TELEGRAM", self.rules(url))
+
+
 if __name__ == "__main__":
     unittest.main()

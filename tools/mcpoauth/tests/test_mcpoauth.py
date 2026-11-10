@@ -134,9 +134,9 @@ class TestAuthorizationServer(unittest.TestCase):
         f = [x for x in audit(with_(GOOD_AS, token_endpoint="https://10.0.0.5/token")) if x.rule == "MO12"]
         self.assertEqual(f[0].severity, "high")
 
-    def test_open_registration_is_low(self):
+    def test_open_registration_is_info(self):
         f = [x for x in audit(with_(GOOD_AS, registration_endpoint="https://auth.example.com/reg"))]
-        self.assertEqual([(x.rule, x.severity) for x in f], [("MO13", "low")])
+        self.assertEqual([(x.rule, x.severity) for x in f], [("MO13", "info")])
 
     def test_disable(self):
         self.assertEqual(rules(with_(GOOD_AS, code_challenge_methods_supported=None), disabled={"MO01"}), [])
@@ -237,6 +237,55 @@ class TestDiscoveryAndCli(unittest.TestCase):
         code, out, _ = run(["--list-rules"])
         self.assertEqual(code, 0)
         self.assertIn("MO14", out)
+
+
+
+class TestV044Generalization(unittest.TestCase):
+    def test_http_redirect_uri_on_public_host(self):
+        doc = {
+            "issuer": "https://auth.docs-search.test",
+            "authorization_endpoint": "https://auth.docs-search.test/authorize",
+            "token_endpoint": "https://auth.docs-search.test/token",
+            "response_types_supported": ["code"],
+            "code_challenge_methods_supported": ["S256"],
+            "redirect_uris": ["http://app.docs-search.test/callback"],
+        }
+        text = json.dumps(doc)
+        findings = []
+        mcpoauth.audit_as(findings, "t", text, "", doc, set())
+        self.assertTrue(any(f.rule == "MO05" for f in findings))
+
+    def test_file_scheme_authorization_endpoint(self):
+        doc = {
+            "issuer": "https://auth.docs-search.test",
+            "authorization_endpoint": "file:///usr/local/bin/mcp-helper",
+            "token_endpoint": "https://auth.docs-search.test/token",
+            "code_challenge_methods_supported": ["S256"],
+        }
+        findings = []
+        mcpoauth.audit_as(findings, "t", json.dumps(doc), "", doc, set())
+        self.assertTrue(any(f.rule == "MO05" for f in findings))
+
+    def test_github_style_admin_scope(self):
+        self.assertTrue(mcpoauth.is_broad_scope("admin:org"))
+        self.assertTrue(mcpoauth.is_broad_scope("delete_repo"))
+        self.assertFalse(mcpoauth.is_broad_scope("read:org"))
+
+    def test_cluster_svc_hostname_is_private(self):
+        self.assertEqual(mcpoauth.host_class("auth.prod.svc"), "private")
+        self.assertEqual(mcpoauth.host_class("auth.prod.svc.cluster.local"), "private")
+
+    def test_localhost_redirect_is_clean_of_mo05(self):
+        doc = {
+            "issuer": "https://auth.docs-search.test",
+            "authorization_endpoint": "https://auth.docs-search.test/authorize",
+            "token_endpoint": "https://auth.docs-search.test/token",
+            "code_challenge_methods_supported": ["S256"],
+            "redirect_uris": ["http://localhost:8787/callback"],
+        }
+        findings = []
+        mcpoauth.audit_as(findings, "t", json.dumps(doc), "", doc, set())
+        self.assertFalse(any(f.rule == "MO05" for f in findings))
 
 
 if __name__ == "__main__":

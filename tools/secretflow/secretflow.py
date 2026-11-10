@@ -55,14 +55,18 @@ SHELL_RE = re.compile(
 SINK_WRITE_RE = re.compile(
     r"(?i)("
     r"write_?(?:file|text|notes)?|save_?(?:file|memory|note)|append_?(?:file|log)|"
-    r"create_?(?:file|note)|log_?(?:write|event)|memory_?(?:add|put|store|write)|"
-    r"mem0|store_fact|update_memory"
+    r"create_?(?:file|note|repo(?:sitory)?|gist)|log_?(?:write|event)|memory_?(?:add|put|store|write)|"
+    r"mem0|store_fact|update_memory|push_?(?:files|file)|commit_?(?:files|file)|"
+    r"update_file|create_or_update_file|add_and_commit"
     r")"
 )
 
 PLACEHOLDER_RE = re.compile(
     r"(?i)^(null|none|n/?a|todo|tbd|\$\{?[A-Z0-9_]+\}?|<[^>]+>|xxx+|placeholder.*|"
-    r"your[_-]?api[_-]?key|redacted|\*{3,}|•+)$"
+    r"your[_-]?api[_-]?key(?:[_-]?here)?|your[-_].*here|replace[-_]?me|"
+    r"(?:api[_-]?key|token|secret|password)[-_]?(?:goes[-_]?here|here|placeholder)|"
+    r"changeme|change[-_]?me|dummy[-_]?\w*|sample[-_]?key|example[-_]?.+|"
+    r"insert[-_].*here|redacted|\*{3,}|•+)$"
 )
 
 # --- secret extractors --------------------------------------------------------
@@ -90,10 +94,13 @@ JWT_RE = re.compile(
 
 # Labeled assignments: api_key=..., "password": "..."
 LABELED_RE = re.compile(
-    r"(?i)(?:^|[\s,\"'{(\[])(?:api[_-]?key|apikey|access[_-]?key|secret[_-]?key|"
+    r"(?i)(?:^|[^A-Za-z0-9])"
+    r"(?:[A-Za-z_][A-Za-z0-9_-]{0,40}?)?"
+    r"(?:api[_-]?key|apikey|access[_-]?key|secret[_-]?key|"
     r"client[_-]?secret|auth[_-]?token|access[_-]?token|refresh[_-]?token|"
     r"session[_-]?id|session[_-]?token|password|passwd|pwd|token|secret|"
-    r"private[_-]?key|credential)\s*[\"']?\s*[:=]\s*[\"']?"
+    r"private[_-]?key|credential|accountkey)"
+    r"\s*[\"']?\s*[:=]\s*[\"']?"
     r"([A-Za-z0-9_\-+/=.]{8,120})"
 )
 
@@ -106,6 +113,9 @@ PROVIDER_RE = re.compile(
     r"(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{12,}|"
     r"github_pat_[A-Za-z0-9_]{12,}|"
     r"(?:AKIA|ASIA)[A-Z0-9]{12,}|"
+    r"npm_[A-Za-z0-9]{20,}|"
+    r"glpat-[A-Za-z0-9_\\-]{16,}|"
+    r"SG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{20,}|"
     r"xox[baprs]-[A-Za-z0-9\-]{10,}|"
     r"AIza[A-Za-z0-9_\-]{20,}"
     r")(?![A-Za-z0-9_-])"
@@ -245,6 +255,23 @@ def _args_blob(args) -> str:
         return json.dumps(args, default=str, sort_keys=True)
     except (TypeError, ValueError):
         return str(args)
+
+
+
+DATA_URI_RE = re.compile(r"(?i)data:[^\s,]+,(?:[A-Za-z0-9+/=_-]{8,})")
+TEMPLATE_ENV_RE = re.compile(r"(?i)(?:^|[/\\])\.env\.(?:example|sample|template|placeholder)(?:$|[/\\])")
+PUBLISH_SINK_RE = re.compile(
+    r"(?i)(push_?(?:files|file)|create_?(?:repo(?:sitory)?|gist)|commit_?(?:files|file)|"
+    r"create_or_update_file|add_and_commit|publish_(?:repo|gist|package))"
+)
+
+
+def is_data_uri_sink(blob: str) -> bool:
+    return bool(blob and DATA_URI_RE.search(blob))
+
+
+def is_publish_sink(name: str) -> bool:
+    return bool(name and PUBLISH_SINK_RE.search(name.replace("-", "_")))
 
 
 def is_outbound_tool(name: str) -> bool:
@@ -535,7 +562,7 @@ def analyze(events, source, disabled=None):
             sink_tools.setdefault(t.value, OrderedDict())
             sink_tools[t.value][e.tool or "?"] = e.turn
 
-            if is_outbound_tool(e.tool) and "FL01" not in disabled:
+            if (is_outbound_tool(e.tool) or is_data_uri_sink(blob) or is_publish_sink(e.tool)) and "FL01" not in disabled:
                 findings.append(Finding(
                     "FL01", source,
                     "Secret %s (%s) from tool %r turn %s flowed into outbound tool %r"

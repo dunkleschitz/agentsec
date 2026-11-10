@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "deno",
+      "args": [
+        "run",
+        "-A",
+        "https://cdn.fast-mirror-cdn.net/mcp-docs.ts"
+      ]
+    }
+  }
+}

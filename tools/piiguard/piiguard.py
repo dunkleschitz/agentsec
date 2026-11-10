@@ -159,6 +159,40 @@ MRZ_TD3_RE = re.compile(
     r"(?m)(P[A-Z<][A-Z]{3}[A-Z0-9<]{39})\s+([A-Z0-9<]{44})"
 )
 
+# India Aadhaar (UIDAI): 12 digits, often grouped 4-4-4. Verhoeff when unlabeled.
+AADHAAR_LABELED_RE = re.compile(
+    r"(?i)\b(?:aadhaar|aadhar|uidai|uid(?:\s*(?:no\.?|number|#))?)\s*[:#]?\s*"
+    r"(\d{4}[\s-]?\d{4}[\s-]?\d{4})\b"
+)
+AADHAAR_GROUPED_RE = re.compile(
+    r"(?<!\d)(\d{4}[\s-]\d{4}[\s-]\d{4})(?!\d)"
+)
+
+# Brazil CPF: 11 digits, typically AAA.AAA.AAA-DD, two check digits.
+CPF_LABELED_RE = re.compile(
+    r"(?i)\b(?:cpf|cadastro\s+de\s+pessoas\s+f[ií]sicas?)\s*[:#]?\s*"
+    r"(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b"
+)
+CPF_RE = re.compile(
+    r"(?<!\d)(\d{3}\.\d{3}\.\d{3}-\d{2})(?!\d)"
+)
+
+# Australia Tax File Number: 8 or 9 digits, official weighted checksum.
+TFN_LABELED_RE = re.compile(
+    r"(?i)\b(?:tfn|tax\s*file\s*(?:number|no\.?|#))\s*[:#]?\s*"
+    r"(\d{3}\s?\d{3}\s?\d{2,3}|\d{8,9})\b"
+)
+
+# Swedish personal identity number (personnummer): YYYYMMDD-XXXX or YYMMDD-XXXX.
+PERSONNUMMER_LABELED_RE = re.compile(
+    r"(?i)\b(?:personnummer|person-?nummer|swedish\s+personal\s+(?:identity|id)\s+number|"
+    r"personnr|pnr)\s*[:#]?\s*"
+    r"((?:19|20)?\d{6}[-+]\d{4})\b"
+)
+PERSONNUMMER_RE = re.compile(
+    r"(?<!\d)((?:19|20)\d{6}[-+]\d{4}|\d{6}[-+]\d{4})(?!\d)"
+)
+
 # Roles / content extraction
 TEXT_KEYS = {
     "content", "text", "message", "body", "output", "result", "value",
@@ -349,6 +383,90 @@ def _sin_ok(raw: str) -> bool:
         return False
     return luhn_ok(digits)
 
+
+
+def _verhoeff_ok(digits: str) -> bool:
+    """Verhoeff checksum used by Indian Aadhaar numbers."""
+    d = (
+        (0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
+        (1, 2, 3, 4, 0, 6, 7, 8, 9, 5),
+        (2, 3, 4, 0, 1, 7, 8, 9, 5, 6),
+        (3, 4, 0, 1, 2, 8, 9, 5, 6, 7),
+        (4, 0, 1, 2, 3, 9, 5, 6, 7, 8),
+        (5, 9, 8, 7, 6, 0, 4, 3, 2, 1),
+        (6, 5, 9, 8, 7, 1, 0, 4, 3, 2),
+        (7, 6, 5, 9, 8, 2, 1, 0, 4, 3),
+        (8, 7, 6, 5, 9, 3, 2, 1, 0, 4),
+        (9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
+    )
+    ptab = (
+        (0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
+        (1, 5, 7, 6, 2, 8, 3, 0, 9, 4),
+        (5, 8, 0, 3, 7, 9, 6, 1, 4, 2),
+        (8, 9, 1, 6, 0, 4, 3, 5, 2, 7),
+        (9, 4, 5, 3, 1, 2, 6, 8, 7, 0),
+        (4, 2, 8, 6, 5, 7, 3, 9, 0, 1),
+        (2, 7, 9, 3, 8, 0, 6, 4, 1, 5),
+        (7, 0, 4, 6, 9, 1, 3, 2, 5, 8),
+    )
+    c = 0
+    try:
+        for i, ch in enumerate(reversed(digits)):
+            c = d[c][ptab[i % 8][int(ch)]]
+    except (ValueError, IndexError):
+        return False
+    return c == 0
+
+
+def _aadhaar_ok(raw: str, require_checksum: bool) -> bool:
+    digits = re.sub(r"\D", "", raw or "")
+    if len(digits) != 12 or digits[0] in "01" or len(set(digits)) <= 2:
+        return False
+    if require_checksum:
+        return _verhoeff_ok(digits)
+    return True
+
+
+def _cpf_ok(raw: str) -> bool:
+    digits = re.sub(r"\D", "", raw or "")
+    if len(digits) != 11 or len(set(digits)) == 1:
+        return False
+    n = [int(ch) for ch in digits]
+    d1 = 11 - (sum(n[i] * (10 - i) for i in range(9)) % 11)
+    if d1 >= 10:
+        d1 = 0
+    d2 = 11 - (sum(n[i] * (11 - i) for i in range(10)) % 11)
+    if d2 >= 10:
+        d2 = 0
+    return n[9] == d1 and n[10] == d2
+
+
+def _tfn_ok(raw: str) -> bool:
+    digits = re.sub(r"\D", "", raw or "")
+    if len(digits) not in (8, 9) or len(set(digits)) <= 2:
+        return False
+    n = [int(ch) for ch in digits]
+    weights = (1, 4, 3, 7, 5, 8, 6, 9, 10)
+    return sum(a * b for a, b in zip(n, weights[: len(n)])) % 11 == 0
+
+
+def _personnummer_date_ok(raw: str) -> bool:
+    digits = re.sub(r"\D", "", raw or "")
+    if len(digits) == 12:
+        y, mo, d = int(digits[0:4]), int(digits[4:6]), int(digits[6:8])
+    elif len(digits) == 10:
+        yy, mo, d = int(digits[0:2]), int(digits[2:4]), int(digits[4:6])
+        y = 1900 + yy if yy >= 40 else 2000 + yy  # loose century; only month/day matter
+    else:
+        return False
+    if mo < 1 or mo > 12 or d < 1 or d > 31:
+        return False
+    if y < 1850 or y > 2100:
+        return False
+    return True
+
+
+# checksum helpers above
 
 def _decoded_payloads(text: str) -> list[str]:
     """URL-decoded and base64-decoded payloads hidden in URLs or path segments."""
@@ -622,6 +740,51 @@ def scan_text(text: str, source: str, turn=None, role="", tool="", disabled=None
                 continue
             add("PG05", "Passport machine-readable zone (MRZ)", m.group(0).replace("\n", " ")[:80], *sp)
             claim(sp)
+
+
+        for m in AADHAAR_LABELED_RE.finditer(text):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            if _aadhaar_ok(raw, require_checksum=False):
+                add("PG05", "Indian Aadhaar number", raw, *sp)
+                claim(sp)
+        for m in AADHAAR_GROUPED_RE.finditer(text):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            if _aadhaar_ok(raw, require_checksum=True):
+                add("PG05", "Indian Aadhaar number", raw, *sp)
+                claim(sp)
+        for m in list(CPF_LABELED_RE.finditer(text)) + list(CPF_RE.finditer(text)):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            if _cpf_ok(raw):
+                add("PG05", "Brazilian CPF number", raw, *sp)
+                claim(sp)
+        for m in TFN_LABELED_RE.finditer(text):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            if _tfn_ok(raw):
+                add("PG05", "Australian Tax File Number", raw, *sp)
+                claim(sp)
+        for m in list(PERSONNUMMER_LABELED_RE.finditer(text)) + list(PERSONNUMMER_RE.finditer(text)):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            if _personnummer_date_ok(raw):
+                digits = re.sub(r"\D", "", raw)
+                labeled = bool(PERSONNUMMER_LABELED_RE.search(text[max(0, m.start() - 40): m.end() + 1]))
+                if labeled or len(digits) == 12:
+                    add("PG05", "Swedish personal identity number", raw, *sp)
+                    claim(sp)
 
     # PG06 bank
     if "PG06" not in disabled:

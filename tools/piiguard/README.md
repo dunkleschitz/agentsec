@@ -29,7 +29,7 @@ Standard library only. It never connects to a network.
 | PG02 | high | Phone number (NANP / simple international) |
 | PG03 | critical | US Social Security number (labeled or dashed; invalid area/group rejected) |
 | PG04 | critical | Payment card PAN (Luhn + loose issuer prefix) |
-| PG05 | high | Passport / driver's-license / national-ID (labeled), including UK NINO, Canadian SIN, and ICAO TD3 MRZ |
+| PG05 | high | Passport / driver's-license / national-ID (labeled), including UK NINO, Canadian SIN, ICAO TD3 MRZ, Indian Aadhaar, Brazilian CPF, Australian TFN, and Swedish personnummer (checksums required where the fixture validates) |
 | PG06 | high | IBAN (MOD-97), ABA routing, bank account number (labeled / JSON keys) |
 | PG07 | medium | Date of birth (labeled) |
 | PG08 | medium | Street / postal address heuristic |

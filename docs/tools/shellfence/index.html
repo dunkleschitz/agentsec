@@ -82,12 +82,14 @@
 <tr><td>SF08</td><td>high</td><td>Publish / release / registry push (<code>npm publish</code>, <code>twine upload</code>, <code>docker push</code>)</td></tr>
 <tr><td>SF09</td><td>high</td><td>Firewall / network defense change (<code>iptables -F</code>, <code>ufw disable</code>, <code>nft flush</code>)</td></tr>
 <tr><td>SF10</td><td>medium</td><td>Environment / secret dump piped outbound (`printenv\</td></tr>
-<tr><td>SF11</td><td>medium</td><td>Persistence install (<code>crontab</code>, systemd unit drop, LaunchAgent)</td></tr>
+<tr><td>SF11</td><td>medium</td><td>Persistence install (<code>crontab</code>, systemd unit drop, LaunchAgent, <code>/etc/ld.so.preload</code>, <code>LD_PRELOAD=</code>)</td></tr>
 <tr><td>SF12</td><td>info</td><td>Inventory of every observed shell command (disable in CI with <code>--disable SF12</code>)</td></tr>
 <tr><td>SF13</td><td>high</td><td>AI-CLI bypass / YOLO-mode flags that disable confirmation</td></tr>
 <tr><td>SF14</td><td>high</td><td>Destructive infra commands (<code>terraform destroy -auto-approve</code>, <code>kubectl delete --force</code>, <code>DROP … CASCADE</code>)</td></tr>
 <tr><td>SF15</td><td>high</td><td>Authorized-keys / SSH backdoor writes</td></tr>
 <tr><td>SF16</td><td>high</td><td>Secret-scanner run against a broad root plus a public exfil sink (gist, public repo)</td></tr>
+<tr><td>SF17</td><td>critical</td><td>LOLBAS remote download or execute (<code>certutil -urlcache</code>, <code>mshta https://…</code>, <code>bitsadmin /transfer</code>, and similar)</td></tr>
+<tr><td>SF18</td><td>critical</td><td>Download-then-execute without a pipe (<code>curl -o</code> / <code>wget -O</code>, <code>chmod +x</code>, then run the file)</td></tr>
 </tbody>
 </table>
 <h2 id="usage">Usage</h2>

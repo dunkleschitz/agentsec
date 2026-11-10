@@ -199,6 +199,18 @@ RULES = [
          r"(?i)\b[a-z][a-z0-9+.\-]{1,20}://(?P<user>[^\s:/@\"'<>]{1,128}):"
          r"(?P<secret>[^\s@/\"'<>]{3,256})@[A-Za-z0-9.\-\[\]]+",
          priority=70),
+    Rule("TS-SENDGRID", "SendGrid API key", "critical",
+         r"(?<![A-Za-z0-9._-])(?P<secret>SG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{20,})(?![A-Za-z0-9._-])",
+         priority=90),
+    Rule("TS-AZURE-CONN", "Azure Storage connection string AccountKey", "critical",
+         r"(?i)(?:accountkey|sharedaccesssignature)\s*=\s*(?P<secret>[A-Za-z0-9+/=]{20,})",
+         priority=90),
+    Rule("TS-TELEGRAM", "Telegram bot token", "high",
+         r"(?<![A-Za-z0-9_])(?P<secret>(?:bot)?\d{8,12}:[A-Za-z0-9_-]{30,})(?![A-Za-z0-9_-])",
+         priority=90),
+    Rule("TS-NPM", "npm access token", "high",
+         r"(?<![A-Za-z0-9_])(?P<secret>npm_[A-Za-z0-9]{20,})(?![A-Za-z0-9_])",
+         priority=90),
     Rule("TS-GENERIC", "Generic secret assignment", "medium",
          r"(?i)(?P<key>[A-Za-z0-9_.\-]*" + GENERIC_KEYS + r"[A-Za-z0-9_\-]*)[\"']?"
          r"[ \t]*(?::|=|=>|:=)[ \t]*[\"']?(?P<secret>[^\s\"',;`{}()\[\]]{6,})",
@@ -218,7 +230,7 @@ GENERIC_KEY_NAME_RE = re.compile(r"(?i)" + GENERIC_KEYS)
 _CONCAT_PREFIX = (
     r"sk-proj-|sk-svcacct-|sk-admin-|sk-ant-|sk-|"
     r"github_pat_|gh[pousr]_|xox[baprs]-|"
-    r"AKIA|ASIA|AIza|sk_live_|rk_live_"
+    r"AKIA|ASIA|AIza|sk_live_|rk_live_|SG\.|npm_"
 )
 _CONCAT_SECRET_RE = re.compile(
     r"(?P<q1>['\"])"
@@ -397,10 +409,12 @@ def scan_text(text, entropy=False, entropy_threshold=4.0, rules=None, decode=Tru
             hits.append({"rule": rule, "secret": secret,
                          "start": m.start("secret"), "end": m.end("secret")})
     if decode and text:
+        # decode=True means up to two encoding layers (double-base64 etc.).
+        remaining = 2 if decode is True else (int(decode) if isinstance(decode, int) else 0)
         for start, end, decoded in iter_decoded_blobs(text):
             inner = scan_text(decoded, entropy=entropy,
                               entropy_threshold=entropy_threshold,
-                              rules=rules, decode=False)
+                              rules=rules, decode=(remaining - 1) if remaining > 1 else False)
             for h in inner:
                 # Attribute the hit to the encoded blob in the original text.
                 hits.append({"rule": h["rule"], "secret": h["secret"],

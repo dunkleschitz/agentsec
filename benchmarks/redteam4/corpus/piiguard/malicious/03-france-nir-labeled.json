@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Fetch the benefits record."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "benefits_get",
+            "arguments": "{\"id\": \"B-4\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "benefits_get",
+      "content": "Usager: Camille Moreau\nNIR: 2 84 03 75 115 149 83\nNote: follow-up in May"
+    }
+  ]
+}

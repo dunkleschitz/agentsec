@@ -76,15 +76,15 @@
 <tr><td>MO02</td><td>high</td><td>PKCE <code>plain</code> method advertised</td></tr>
 <tr><td>MO03</td><td>high</td><td>Implicit flow (<code>response_type</code> containing <code>token</code>, or <code>implicit</code> grant)</td></tr>
 <tr><td>MO04</td><td>high</td><td>Resource-owner <code>password</code> grant</td></tr>
-<tr><td>MO05</td><td>high</td><td><code>http://</code> endpoint or identifier on a non-loopback host</td></tr>
+<tr><td>MO05</td><td>high</td><td><code>http://</code> endpoint or identifier on a non-loopback host, including <code>redirect_uris</code> / <code>post_logout_redirect_uris</code>; <code>file:</code> / <code>data:</code> / <code>javascript:</code> schemes are flagged as critical</td></tr>
 <tr><td>MO06</td><td>medium</td><td>Issuer not https, or has a query or fragment</td></tr>
 <tr><td>MO07</td><td>high</td><td><code>bearer_methods_supported</code> includes <code>query</code> (tokens in URLs)</td></tr>
 <tr><td>MO08</td><td>high / medium</td><td>Protected resource metadata missing <code>authorization_servers</code> (high) or <code>resource</code> (medium)</td></tr>
 <tr><td>MO09</td><td>high</td><td><code>resource</code> does not match <code>--resource-url</code> (medium: has a fragment)</td></tr>
-<tr><td>MO10</td><td>medium</td><td>Broad scope advertised (<code>*</code>, <code>all</code>, <code>admin</code>, <code>root</code>, <code>full_access</code>, ...)</td></tr>
+<tr><td>MO10</td><td>medium</td><td>Broad scope advertised (<code>*</code>, <code>all</code>, <code>admin</code>, <code>root</code>, <code>full_access</code>, <code>admin:org</code>, <code>delete_repo</code>, <code>write:packages</code>, ...)</td></tr>
 <tr><td>MO11</td><td>critical</td><td>Secret or private key material in metadata (<code>client_secret</code>, private JWK members <code>d</code>/<code>k</code>/...)</td></tr>
 <tr><td>MO12</td><td>critical / high</td><td>Endpoint on a cloud-metadata or link-local address (critical) or private IP / internal hostname (high)</td></tr>
-<tr><td>MO13</td><td>low</td><td>Open dynamic client registration endpoint (review confused-deputy risk for proxy servers)</td></tr>
+<tr><td>MO13</td><td>info</td><td>Open dynamic client registration endpoint (MCP SHOULD support DCR; review confused-deputy risk for proxy servers)</td></tr>
 <tr><td>MO14</td><td>info</td><td>Inventory of metadata documents found</td></tr>
 </tbody>
 </table>

@@ -31,12 +31,13 @@ Standard library only. It never runs an agent and never contacts the network.
 | FF05 | high | Credentials in URL userinfo (`https://user:pass@…`) |
 | FF06 | high | Known OOB / callback hosts (`webhook.site`, `interact.sh`, `ngrok`, …) |
 | FF07 | medium | Cleartext `http://` fetches |
-| FF08 | medium | Raw IP-literal hosts (bypass name-based allowlists) |
+| FF08 | medium | Raw IP-literal hosts (bypass name-based allowlists); well-known public resolvers such as `1.1.1.1` / `8.8.8.8` are skipped |
 | FF09 | medium | Punycode / IDN hosts (`xn--…`) |
 | FF10 | low | URL shortener hosts (`bit.ly`, `t.co`, …) |
 | FF11 | medium | Secret-looking query parameters (`api_key=`, `token=`, …) |
 | FF12 | medium | Admin / data-store ports (6379, 9200, 27017, 2375, …) on non-public hosts |
 | FF13 | high | Internal / corporate hostname suffixes (`.internal`, `.corp`, `.lan`, `.cluster.local`, …) |
+| FF14 | high | Known public chat/webhook API used as an unauthenticated exfil drop (Telegram Bot API `/bot`, Discord webhooks, Slack `hooks.slack.com`) |
 
 ## Usage
 

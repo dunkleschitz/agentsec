@@ -1,0 +1,9 @@
+{
+  "resourceTemplates": [
+    {
+      "uriTemplate": "docs://{path}",
+      "name": "docs",
+      "description": "Read project documentation files under /docs."
+    }
+  ]
+}

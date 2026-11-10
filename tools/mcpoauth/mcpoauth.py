@@ -38,7 +38,7 @@ RULES = {
     "MO10": ("medium", "Overly broad scope advertised (*, all, admin, root, full access)"),
     "MO11": ("critical", "Secret or private key material published in metadata"),
     "MO12": ("high", "Endpoint points at a private, link-local, or cloud-metadata address"),
-    "MO13": ("low", "Open dynamic client registration endpoint (review confused-deputy risk)"),
+    "MO13": ("info", "Open dynamic client registration endpoint (review confused-deputy risk)"),
     "MO14": ("info", "Inventory of metadata documents found"),
 }
 
@@ -53,11 +53,27 @@ AS_KEYS = {"issuer", "authorization_endpoint", "token_endpoint", "code_challenge
 PR_KEYS = {"resource", "authorization_servers", "bearer_methods_supported",
            "resource_signing_alg_values_supported"}
 BROAD_SCOPES = {"*", "all", "admin", "root", "superuser", "full_access", "full-access",
-                "fullaccess", "god", "any", "everything", "write:*", "read:*", "*:*"}
+                "fullaccess", "god", "any", "everything", "write:*", "read:*", "*:*",
+                "delete_repo", "delete:repo", "repo:delete", "admin:org", "admin:enterprise",
+                "admin:repo", "write:packages", "administration"}
 SECRET_KEYS = {"client_secret", "secret", "password", "private_key", "api_key", "apikey",
-               "access_token", "refresh_token"}
+               "access_token", "refresh_token", "initial_access_token",
+               "registration_access_token", "dcr_access_token", "registration_token"}
 PRIVATE_JWK_MEMBERS = ("d", "p", "q", "dp", "dq", "qi", "k")
 
+
+
+def is_broad_scope(scope: str) -> bool:
+    s = (scope or "").strip().lower()
+    if not s:
+        return False
+    if s in BROAD_SCOPES:
+        return True
+    if s.startswith("admin:") or s.endswith(":admin") or s.startswith("delete:"):
+        return True
+    if "delete_repo" in s or s.endswith(":delete"):
+        return True
+    return False
 
 def mask(value) -> str:
     s = str(value)
@@ -100,7 +116,8 @@ def host_class(host: str) -> str:
     try:
         ip = ipaddress.ip_address(h)
     except ValueError:
-        if h.endswith((".internal", ".local", ".lan", ".corp", ".intranet")):
+        if h.endswith((".internal", ".local", ".lan", ".corp", ".intranet",
+                        ".svc", ".cluster.local")) or ".svc." in h:
             return "private"
         return "public"
     if ip.is_loopback:
@@ -149,6 +166,14 @@ def norm_url(u: str) -> str:
     return "%s://%s%s" % (p.scheme.lower(), p.netloc.lower(), path)
 
 
+def check_url_list(findings, file, text, ptr, field, value, disabled):
+    if isinstance(value, list):
+        for i, item in enumerate(value):
+            check_url(findings, file, text, ptr, "%s/%d" % (field, i), item, disabled)
+    else:
+        check_url(findings, file, text, ptr, field, value, disabled)
+
+
 def check_url(findings, file, text, ptr, field, url, disabled):
     if not isinstance(url, str) or not url:
         return
@@ -159,9 +184,14 @@ def check_url(findings, file, text, ptr, field, url, disabled):
         return
     hc = host_class(host)
     line = find_line(text, url)
+    unsafe = {"file", "data", "javascript", "vbscript", "about"}
     if p.scheme == "http" and hc != "loopback" and "MO05" not in disabled:
         findings.append(Finding("MO05", file, "%s/%s" % (ptr, field),
                                 "%s uses cleartext http: %s" % (field, url), line=line))
+    elif p.scheme in unsafe and "MO05" not in disabled:
+        findings.append(Finding("MO05", file, "%s/%s" % (ptr, field),
+                                "%s uses unsafe URI scheme %s: %s" % (field, p.scheme, url),
+                                severity="critical", line=line))
     if hc in ("metadata", "private") and "MO12" not in disabled:
         sev = "critical" if hc == "metadata" else "high"
         findings.append(Finding("MO12", file, "%s/%s" % (ptr, field),
@@ -248,7 +278,7 @@ def audit_as(findings, file, text, ptr, doc, disabled):
         add("MO06", "issuer is empty or not a string", '"issuer"', field="issuer")
 
     for s in as_list(doc.get("scopes_supported")):
-        if s.lower() in BROAD_SCOPES:
+        if is_broad_scope(s):
             add("MO10", "broad scope %r advertised; prefer narrow per-tool scopes" % s,
                 '"%s"' % s, field="scopes_supported")
 
@@ -258,7 +288,10 @@ def audit_as(findings, file, text, ptr, doc, disabled):
             % doc["registration_endpoint"], "registration_endpoint", field="registration_endpoint")
 
     for field in URL_FIELDS:
-        check_url(findings, file, text, ptr, field, doc.get(field), disabled)
+        check_url_list(findings, file, text, ptr, field, doc.get(field), disabled)
+    for field in ("redirect_uris", "post_logout_redirect_uris", "redirect_uri"):
+        if field in doc:
+            check_url_list(findings, file, text, ptr, field, doc.get(field), disabled)
     scan_secrets(findings, file, text, ptr, doc, disabled)
 
 
@@ -295,12 +328,15 @@ def audit_pr(findings, file, text, ptr, doc, disabled, expected):
             "history, and Referer headers", '"query"', field="bearer_methods_supported")
 
     for s in as_list(doc.get("scopes_supported")):
-        if s.lower() in BROAD_SCOPES:
+        if is_broad_scope(s):
             add("MO10", "broad scope %r advertised; prefer narrow per-tool scopes" % s,
                 '"%s"' % s, field="scopes_supported")
 
     for field in URL_FIELDS:
-        check_url(findings, file, text, ptr, field, doc.get(field), disabled)
+        check_url_list(findings, file, text, ptr, field, doc.get(field), disabled)
+    for field in ("redirect_uris", "post_logout_redirect_uris", "redirect_uri"):
+        if field in doc:
+            check_url_list(findings, file, text, ptr, field, doc.get(field), disabled)
     for i, srv in enumerate(servers):
         check_url(findings, file, text, ptr, "authorization_servers/%d" % i, srv, disabled)
     scan_secrets(findings, file, text, ptr, doc, disabled)

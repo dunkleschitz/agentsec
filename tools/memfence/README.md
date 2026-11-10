@@ -38,7 +38,7 @@ store.
 | MF09 | critical | Cross-session persistence bait (`always remember`, `from now on you must`, `update your system prompt`, `every future session`) |
 | MF10 | info | Inventory of memory entries scanned (disable in CI with `--disable MF10`) |
 | MF11 | high | Delayed / trigger-phrase backdoor (after N messages, when the user says X, then exfil or harvest) |
-| MF12 | high | Payment-swap or pipe-to-shell planted as a standing memory |
+| MF12 | high | Structural memory poison: payment-swap, pipe-to-shell, or a planted payroll/login portal that forwards session cookies |
 
 ## Usage
 
