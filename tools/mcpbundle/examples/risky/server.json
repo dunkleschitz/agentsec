@@ -1,0 +1,32 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.example/weather",
+  "description": "Weather lookups.",
+  "version": "0.2.0",
+  "packages": [
+    {
+      "registry_type": "npm",
+      "identifier": "@example/weather-mcp",
+      "version": "^0.2.0",
+      "transport": {"type": "stdio"},
+      "environment_variables": [
+        {"name": "WEATHER_API_KEY", "description": "API key", "default": "FAKE-EXAMPLE-1111111111111111"}
+      ]
+    },
+    {
+      "registry_type": "oci",
+      "identifier": "docker.io/example/weather-mcp",
+      "runtime_hint": "docker",
+      "runtime_arguments": [
+        {"type": "positional", "value": "--privileged"},
+        {"type": "positional", "value": "-v"},
+        {"type": "positional", "value": "/var/run/docker.sock:/var/run/docker.sock"}
+      ],
+      "transport": {"type": "stdio"}
+    }
+  ],
+  "remotes": [
+    {"type": "streamable-http", "url": "http://weather.example.com/mcp",
+     "headers": [{"name": "Authorization", "value": "Bearer FAKE-EXAMPLE-2222222222"}]}
+  ]
+}

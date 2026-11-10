@@ -63,6 +63,7 @@ RISK_PHRASE = {
     "piiguard": "PII in agent transcripts",
     "secretflow": "secrets flowing into later tool arguments",
     "mcpoauth": "weak OAuth settings in MCP server metadata",
+    "mcpbundle": "risky install manifests for MCP servers",
 }
 
 # Tools that currently emit SARIF 2.1.0 (--sarif). Keep in sync with the README.
@@ -74,6 +75,7 @@ SARIF_TOOLS = frozenset(
         "fetchfence",
         "hitlguard",
         "loopguard",
+        "mcpbundle",
         "mcpoauth",
         "mcpposture",
         "mcpsink",

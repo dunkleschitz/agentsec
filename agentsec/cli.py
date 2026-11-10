@@ -1,4 +1,4 @@
-"""Unified CLI: `agentsec <tool> [args...]` dispatches to one of the 36 stdlib tools.
+"""Unified CLI: `agentsec <tool> [args...]` dispatches to one of the 37 stdlib tools.
 
 Runtime depends only on the Python standard library. The tools themselves stay
 single-file scripts under tools/ (or tools_data/ when installed from a wheel).
@@ -49,6 +49,7 @@ TOOLS = (
     ("piiguard", "Scan transcripts and logs for PII, with optional redaction"),
     ("secretflow", "Track secret-shaped values flowing from tool results into later args"),
     ("mcpoauth", "Audit MCP server OAuth metadata (PKCE, grants, resource, tokens in URLs)"),
+    ("mcpbundle", "Audit MCP Bundle manifest.json and MCP Registry server.json before install"),
 )
 
 TOOL_NAMES = tuple(name for name, _ in TOOLS)
@@ -112,7 +113,7 @@ def dispatch(name: str, argv) -> int:
 
 def _help_text() -> str:
     lines = [
-        "agentsec %s — 36 offline, stdlib-only AI-agent security tools" % __version__,
+        "agentsec %s — 37 offline, stdlib-only AI-agent security tools" % __version__,
         "",
         "usage: agentsec <tool> [args...]",
         "       agentsec --list",

@@ -1,6 +1,6 @@
 # agentsec
 
-**36 offline, zero-dependency Python tools that scan AI agents for prompt injection, MCP tool poisoning, secret leaks, and other agentic risks.**
+**37 offline, zero-dependency Python tools that scan AI agents for prompt injection, MCP tool poisoning, secret leaks, and other agentic risks.**
 
 [![CI](https://github.com/dunkleschitz/agentsec/actions/workflows/ci.yml/badge.svg)](https://github.com/dunkleschitz/agentsec/actions/workflows/ci.yml)
 [![Python 3.10–3.13](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](.github/workflows/ci.yml)
@@ -39,7 +39,7 @@ When you are ready, point `mcpposture` at your own Cursor, Claude Desktop, or VS
 
 ```sh
 cd agentsec
-python3 run_tests.py            # all 36 tool suites plus the unified CLI (or: make test)
+python3 run_tests.py            # all 37 tool suites plus the unified CLI (or: make test)
 python3 run_tests.py toolgate   # one tool
 ```
 
@@ -83,10 +83,11 @@ python3 run_tests.py toolgate   # one tool
 | [piiguard](tools/piiguard/) | Scans transcripts and logs for PII (emails, phones, SSNs, Luhn cards, and more), with `--redact` | `python3 examples/make_examples.py && python3 piiguard.py examples/risky_openai.json --disable PG10` |
 | [secretflow](tools/secretflow/) | Tracks secret propagation: a secret-shaped value from a tool result later appearing in another tool's args | `python3 secretflow.py examples/risky_openai.json --disable FL10` |
 | [mcpoauth](tools/mcpoauth/) | Audits MCP server OAuth metadata (RFC 9728 / RFC 8414): PKCE S256, implicit/password grants, http endpoints, tokens in URLs, published secrets | `python3 mcpoauth.py examples/risky --resource-url https://mcp.example.com/mcp` |
+| [mcpbundle](tools/mcpbundle/) | Audits MCP Bundle (`.mcpb`/`.dxt` manifest.json) and MCP Registry server.json files: inline secrets, non-sensitive credential prompts, pipe-to-shell launches, unpinned packages, privileged containers | `python3 mcpbundle.py examples/risky` |
 
 Run the "Try it" commands from inside the tool's folder (`cd tools/<name>`). Every tool
-supports `--help` and `--json`. Twenty-eight tools emit SARIF (`--sarif`): agentcard, agentci, ctxbudget, fetchfence,
-hitlguard, loopguard, mcpoauth, mcpposture, mcpsink, memfence, modelpin, outfence, pathfence,
+supports `--help` and `--json`. Twenty-nine tools emit SARIF (`--sarif`): agentcard, agentci, ctxbudget, fetchfence,
+hitlguard, loopguard, mcpbundle, mcpoauth, mcpposture, mcpsink, memfence, modelpin, outfence, pathfence,
 pickleprobe, piiguard, promptleak, ragsieve, rulesguard, schemafence, secretflow, shellfence,
 slopcheck, tmplfence, toolpin, tracesweep, trifecta, vibeaudit, and yolocheck.
 `--sarif` for resultguard and toolpoison is reserved as a good first issue. Most tools have a `--fail-on` / `--min-severity` switch for CI. Exit codes are
@@ -106,7 +107,7 @@ Sources: [OWASP Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-to
 |---|---|
 | LLM01 Prompt Injection | toolpoison, canarytrap, ragsieve, rulesguard, resultguard, tmplfence, agentci |
 | LLM02 Sensitive Information Disclosure | tracesweep, piiguard, secretflow, pathfence, promptleak |
-| LLM03 Supply Chain | slopcheck, aibom, pickleprobe, mcpposture, toolpin, modelpin |
+| LLM03 Supply Chain | slopcheck, aibom, pickleprobe, mcpposture, mcpbundle, toolpin, modelpin |
 | LLM04 Data and Model Poisoning | ragsieve, memfence |
 | LLM05 Improper Output Handling | outfence, vibeaudit, fetchfence, mcpsink |
 | LLM06 Excessive Agency | mcpposture, mcpoauth, yolocheck, toolgate, trifecta, scopefit, schemafence, hitlguard |
@@ -122,7 +123,7 @@ Sources: [OWASP Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-to
 | ASI01 Agent Goal Hijack | rulesguard, resultguard, canarytrap, agentci |
 | ASI02 Tool Misuse and Exploitation | toolgate, trifecta, yolocheck, schemafence, shellfence, pathfence, fetchfence, secretflow |
 | ASI03 Identity and Privilege Abuse | scopefit, mcpposture, mcpoauth, pathfence |
-| ASI04 Agentic Supply Chain Vulnerabilities | toolpoison, toolpin, mcpposture, aibom, slopcheck |
+| ASI04 Agentic Supply Chain Vulnerabilities | toolpoison, toolpin, mcpposture, mcpbundle, aibom, slopcheck |
 | ASI05 Unexpected Code Execution (RCE) | shellfence, pickleprobe, vibeaudit, mcpsink, agentci |
 | ASI06 Memory and Context Poisoning | memfence, ragsieve, resultguard, ctxbudget |
 | ASI07 Insecure Inter-Agent Communication | agentcard |
@@ -162,7 +163,7 @@ such as `scopefit_mapping.json`, `slopcheck_known.json` or `prices.json`) onto y
 ### Run the tests
 
 ```sh
-python3 run_tests.py            # all 36 tool suites plus the unified CLI (or: make test)
+python3 run_tests.py            # all 37 tool suites plus the unified CLI (or: make test)
 python3 run_tests.py toolgate   # one tool
 ```
 
@@ -280,7 +281,7 @@ MCP client configs are handed to `mcpposture` directly. Every secret in the fixt
   through a series of build sessions, one tool at a time. A human chose the direction and
   reviewed the result before release. Treat the code as you would any new, lightly reviewed
   open-source project: read it before relying on it.
-- **What it was tested against.** Each tool ships with a unittest suite (1810 tests in total)
+- **What it was tested against.** Each tool ships with a unittest suite (1855 tests in total)
   and with example inputs built from **synthetic, fake data**: fake keys, fake transcripts,
   fake configs and fake documents. The tests check rule behavior, output formats and CLI exit
   codes against those fixtures. A small labeled corpus in [`benchmarks/`](benchmarks/)

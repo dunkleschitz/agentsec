@@ -1,0 +1,23 @@
+{
+  "manifest_version": "0.3",
+  "name": "notes-helper",
+  "version": "1.2.0",
+  "description": "Search your local notes folder.",
+  "author": {"name": "Example Author"},
+  "repository": {"type": "git", "url": "https://github.com/example/notes-helper"},
+  "license": "MIT",
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js", "${user_config.notes_dir}"],
+      "env": {"NOTES_API_TOKEN": "${user_config.api_token}"}
+    }
+  },
+  "user_config": {
+    "api_token": {"type": "string", "title": "API token", "sensitive": true, "required": true},
+    "notes_dir": {"type": "directory", "title": "Notes folder", "default": "${HOME}/Notes"}
+  },
+  "tools": [{"name": "search_notes", "description": "Full-text search over the notes folder."}]
+}
