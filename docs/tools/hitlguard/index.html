@@ -92,35 +92,9 @@
   --fail-on S          exit 1 if any finding &gt;= S (default high; any, none)
   --list-rules</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec hitlguard …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
 <h2 id="example">Example output</h2>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 hitlguard.py examples/risky_openai.json --fail-on none
-examples/risky_openai.json: 10 events, 3 tool calls, 1 user turns
-
-RULE   SEV      TOOL                   MESSAGE
-------------------------------------------------------------------------------------------------
-HG01   critical pay_invoice            Critical tool pay_invoice called with no confirm-shaped user turn or approval in the last 
-       at: examples/risky_openai.json turn=2
-       detail: args={&quot;amount&quot;: 1500, &quot;memo&quot;: &quot;invoice-4421&quot;, &quot;to_account&quot;: &quot;FAKE-EXAMPLE-ACCT-99&quot;}
-HG01   critical delete_account         Critical tool delete_account called with no confirm-shaped user turn or approval in the la
-       at: examples/risky_openai.json turn=4
-       detail: args={&quot;account_id&quot;: &quot;FAKE-EXAMPLE-USER-7&quot;, &quot;force&quot;: true}
-HG02   high     send_email             High-risk tool send_email called with no confirm-shaped user turn or approval in the last 
-       at: examples/risky_openai.json turn=4
-       detail: args={&quot;body&quot;: &quot;Paid FAKE-EXAMPLE-ACCT-99&quot;, &quot;subject&quot;: &quot;Paid&quot;, &quot;to&quot;: &quot;finance@example.com&quot;}
-HG03   high     delete_account         3 consequential tools without intervening confirmation: pay_invoice@t2, send_email@t4, del
-       at: examples/risky_openai.json turn=4
-HG04   high     pay_invoice            After announcing it would skip confirmation (turn 2), agent called pay_invoice
-       at: examples/risky_openai.json turn=2
-HG08   info     pay_invoice            pay_invoice tier=critical UNCONFIRMED
-       at: examples/risky_openai.json turn=2
-       detail: {&quot;amount&quot;: 1500, &quot;memo&quot;: &quot;invoice-4421&quot;, &quot;to_account&quot;: &quot;FAKE-EXAMPLE-ACCT-99&quot;}
-HG08   info     send_email             send_email tier=high UNCONFIRMED
-       at: examples/risky_openai.json turn=4
-       detail: {&quot;body&quot;: &quot;Paid FAKE-EXAMPLE-ACCT-99&quot;, &quot;subject&quot;: &quot;Paid&quot;, &quot;to&quot;: &quot;finance@example.com&quot;}
-HG08   info     delete_account         delete_account tier=critical UNCONFIRMED
-       at: examples/risky_openai.json turn=4
-       detail: {&quot;account_id&quot;: &quot;FAKE-EXAMPLE-USER-7&quot;, &quot;force&quot;: true}
-Note: hitlguard is heuristic. Coding-agent write/read loops are usually medium/ignored; tune --require/--safe/--window. A clean result does not prove a human approved the action.</code></pre>
+<pre><code>python3 hitlguard.py examples/risky_openai.json --disable HG08
+python3 hitlguard.py examples/clean_confirmed.json --disable HG08
+python3 hitlguard.py examples/clean_approval_tool.jsonl --json</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec hitlguard path/to/input --sarif &gt; hitlguard.sarif
 

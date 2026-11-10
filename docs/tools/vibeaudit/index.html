@@ -80,17 +80,7 @@ python3 vibeaudit.py --list-rules</code></pre><p>After <code>pip install</code> 
 <h2 id="example">Example output</h2>
 <p>The full sample set (<code>python3 vibeaudit.py examples --shell</code>) triggers all 17 rules:</p>
 <p>The safe counterparts produce nothing:</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 vibeaudit.py examples/vulnerable_app.py
-examples/vulnerable_app.py:16:1: HIGH VA11 flask-cors with supports_credentials=True and wildcard/default origins (CWE-942)
-    &gt; CORS(app, supports_credentials=True)
-    fix: Use an explicit allow-list of trusted origins when credentials are allowed.
-examples/vulnerable_app.py:18:1: HIGH VA09 Hardcoded secret / credential literal (CWE-798)
-    &gt; API_KEY = &quot;a9f3c2e17b4d4e6f8a0b1c2d3e4f5a6b&quot;   # fake value for the demo
-    fix: Load secrets from environment variables or a secret manager; rotate any secret that was committed.
-examples/vulnerable_app.py:19:1: HIGH VA09 Hardcoded secret / credential literal (CWE-798)
-    &gt; DB_PASSWORD = &quot;Sup3rS3cret!2024&quot;
-    fix: Load secrets from environment variables or a secret manager; rotate any secret that was committed.
+<pre><code>$ python3 vibeaudit.py examples/vulnerable_app.py --select VA02,VA05,VA14
 examples/vulnerable_app.py:25:5: HIGH VA05 SQL passed to .execute() is built with string formatting/concatenation (CWE-89)
     &gt; cur.execute(f&quot;SELECT * FROM users WHERE name = &#x27;{name}&#x27;&quot;)
     fix: Use parameterized queries (cursor.execute(sql, params), db.query(sql, [values]), ORM bind parameters).
@@ -103,26 +93,17 @@ examples/vulnerable_app.py:35:12: HIGH VA02 subprocess.check_output(shell=True) 
 examples/vulnerable_app.py:39:5: HIGH VA02 os.system() with a non-literal command string (CWE-78)
     &gt; os.system(&quot;tar czf /tmp/backup.tgz &quot; + path)
     fix: Pass an argument list without a shell (subprocess.run([...], shell=False)); use shlex.quote only as a last resort.
-examples/vulnerable_app.py:43:12: HIGH VA01 eval() called on a non-literal expression (CWE-95)
-    &gt; return eval(expr)
-    fix: Never evaluate untrusted data. Use json / ast.literal_eval / JSON.parse, a dispatch table, or a real parser.
-examples/vulnerable_app.py:47:30: HIGH VA04 TLS certificate verification disabled (verify=False) (CWE-295)
-    &gt; return requests.get(url, verify=False).text
-    fix: Keep verification on. Fix the trust store or pass a CA bundle (verify=&#x27;/path/ca.pem&#x27;, ca: [...]) instead.
-examples/vulnerable_app.py:51:12: MEDIUM VA06 pickle.loads() deserializes arbitrary objects - only safe on trusted, authenticated data (CWE-502)
-    &gt; return pickle.loads(blob)
-    fix: Use json or yaml.safe_load; only unpickle data you created and authenticated.
-examples/vulnerable_app.py:55:12: HIGH VA06 yaml.load() without SafeLoader can construct arbitrary Python objects (CWE-502)
-    &gt; return yaml.load(text)
-    fix: Use json or yaml.safe_load; only unpickle data you created and authenticated.
-examples/vulnerable_app.py:59:12: MEDIUM VA07 Weak or fast hash used for passwords (md5/sha1/unsalted sha2) (CWE-916)
-    &gt; return hashlib.md5(password.encode()).hexdigest()
-    fix: Use a password KDF: argon2, bcrypt, scrypt, or hashlib.pbkdf2_hmac with a per-user salt.
-examples/vulnerable_app.py:63:20: MEDIUM VA08 Non-cryptographic randomness used for a token/secret/password (CWE-338)
-    &gt; return &quot;&quot;.join(random.choice(&quot;abcdef0123456789&quot;) for _ in range(32))
-    fix: Use secrets.token_urlsafe()/secrets.choice() in Python or crypto.randomBytes()/crypto.randomUUID() in Node.
-examples/vulnerable_app.py:67:39: HIGH VA12 JWT decoded without signature verification / &#x27;none&#x27; algorithm allowed (CWE-347)
-… (truncated)</code></pre>
+examples/vulnerable_app.py:70:1: HIGH VA14 Auth/permission function &#x27;is_admin&#x27; unconditionally returns True (CWE-287)
+    &gt; def is_admin(user):
+    fix: Implement the check (or fail closed) before shipping; remove &#x27;return True&#x27; stubs and bypass flags.
+examples/vulnerable_app.py:71:7: MEDIUM VA14 TODO left in place of an authentication/authorization/validation check (CWE-287)
+    &gt; # TODO: add authentication and role checks
+    fix: Implement the check (or fail closed) before shipping; remove &#x27;return True&#x27; stubs and bypass flags.
+
+vibeaudit: 6 finding(s) (5 high, 1 medium, 0 low) in 1 file(s) scanned.
+Heuristic pattern scan only - review each finding; absence of findings is not proof of safety.
+$ echo $?
+1</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec vibeaudit path/to/input --sarif &gt; vibeaudit.sarif
 

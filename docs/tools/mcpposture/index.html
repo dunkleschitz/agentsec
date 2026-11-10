@@ -102,9 +102,7 @@ python3 mcpposture.py --list-rules</code></pre><p>After <code>pip install</code>
 <p><code>examples/vscode-project</code> (exit code 1):</p>
 <p><code>examples/risky_claude_desktop_config.json</code> triggers MP01–MP15 (34 findings, grade F; all secrets in it are fake). Excerpt with <code>--select MP01,MP05,MP06,MP08</code>:</p>
 <p><code>examples/clean_mcp.json</code> (pinned versions, digest-pinned image, <code>${VAR}</code> references, narrow filesystem root, https remote) → no findings, grade A, exit 0. Scanning the whole <code>examples/</code> dir at <code>--min-severity info</code> also shows MP17/MP18 duplicate notices.</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 mcpposture.py examples/vscode-project
-mcpposture 0.1.0 - static MCP config posture review (offline; heuristics, not runtime analysis)
+<pre><code>mcpposture 0.1.0 - static MCP config posture review (offline; heuristics, not runtime analysis)
 
 == examples/vscode-project/.vscode/mcp.json
    MEDIUM   MP03 L13   [perplexity] package &#x27;server-perplexity-ask&#x27; launched via npx with no exact version

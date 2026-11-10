@@ -100,9 +100,7 @@ python3 toolpoison.py --list-rules</code></pre><p>After <code>pip install</code>
 <p><code>python3 toolpoison.py clean.json</code> (exit code 0):</p>
 <p><code>python3 toolpoison.py poisoned.json --min-severity high</code> (exit code 1):</p>
 <p><code>python3 toolpoison.py --diff clean.json clean_v2_rugpull.json</code> (exit code 1):</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 toolpoison.py examples/clean.json
-Scanned 2 tool(s) in 1 file(s): no findings (min severity: low).
+<pre><code>Scanned 2 tool(s) in 1 file(s): no findings (min severity: low).
 Note: toolpoison is heuristic pattern matching. A clean result does not prove a server is safe; it cannot see runtime behaviour or descriptions that change after approval (rug pulls) unless you diff snapshots (--diff).</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec toolpoison path/to/input --json &gt; toolpoison.json

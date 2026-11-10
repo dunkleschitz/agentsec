@@ -89,49 +89,7 @@ python3 agentci.py                              # defaults to ./.github/workflow
 python3 agentci.py .github/workflows --sarif &gt; agentci.sarif
 python3 agentci.py . --ai-action &#x27;acme/review-bot*&#x27; --json --min-severity medium</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec agentci …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
 <h2 id="example">Example output</h2>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 agentci.py examples/risky --fail-on none
-CRITICAL AC05 examples/risky/codex-autofix.yml:12 job=fix step=openai/codex-action@v1
-         safety-strategy: unsafe; combined with untrusted trigger(s) this is remote code execution by prompt
-CRITICAL AC05 examples/risky/codex-autofix.yml:12 job=fix step=openai/codex-action@v1
-         sandbox: danger-full-access; combined with untrusted trigger(s) this is remote code execution by prompt
-HIGH     AC04 examples/risky/codex-autofix.yml:5 job=fix step=-
-         write access to contents (job level) with untrusted trigger(s) issue_comment
-MEDIUM   AC02 examples/risky/codex-autofix.yml:12 job=fix step=openai/codex-action@v1
-         triggered by issue_comment with no author_association/actor/label gate in job or step &#x27;if:&#x27;; anyone who can open an issue/comment can drive it
-LOW      AC08 examples/risky/codex-autofix.yml:11 job=fix step=actions/checkout@v4
-         actions/checkout leaves GITHUB_TOKEN in .git/config where the agent&#x27;s shell can read it; set persist-credentials: false
-LOW      AC07 examples/risky/codex-autofix.yml:12 job=fix step=openai/codex-action@v1
-         openai/codex-action@v1 is a movable ref; pin to a full commit SHA
-CRITICAL AC01 examples/risky/issue-triage.yml:16 job=triage step=Ask the model
-         ${{ github.event.issue.title }} in the agent step field &#x27;with.prompt&#x27;; pass it via env and treat as data, or let the agent fetch it with read-only tools
-CRITICAL AC01 examples/risky/issue-triage.yml:16 job=triage step=Ask the model
-         ${{ github.event.issue.body }} in the agent step field &#x27;with.prompt&#x27;; pass it via env and treat as data, or let the agent fetch it with read-only tools
-CRITICAL AC01 examples/risky/issue-triage.yml:23 job=triage step=Run Gemini CLI with YOLO
-         ${{ github.event.comment.body }} in the agent step field &#x27;run&#x27;; pass it via env and treat as data, or let the agent fetch it with read-only tools
-CRITICAL AC05 examples/risky/issue-triage.yml:23 job=triage step=Run Gemini CLI with YOLO
-         Gemini YOLO mode; combined with untrusted trigger(s) this is remote code execution by prompt
-HIGH     AC04 examples/risky/issue-triage.yml:12 job=triage step=-
-         permissions: write-all (workflow level)
-HIGH     AC06 examples/risky/issue-triage.yml:12 job=triage step=Run Gemini CLI with YOLO
-         secret NPM_PUBLISH_TOKEN is not a model/API key but is reachable by the agent (prompt injection can exfiltrate it)
-HIGH     AC06 examples/risky/issue-triage.yml:12 job=triage step=workflow env
-         secret PROD_DEPLOY_KEY is not a model/API key but is reachable by the agent (prompt injection can exfiltrate it)
-MEDIUM   AC02 examples/risky/issue-triage.yml:16 job=triage step=Ask the model
-         triggered by issue_comment, issues with no author_association/actor/label gate in job or step &#x27;if:&#x27;; anyone who can open an issue/comment can drive it
-MEDIUM   AC02 examples/risky/issue-triage.yml:23 job=triage step=Run Gemini CLI with YOLO
-         triggered by issue_comment, issues with no author_association/actor/label gate in job or step &#x27;if:&#x27;; anyone who can open an issue/comment can drive it
-LOW      AC08 examples/risky/issue-triage.yml:15 job=triage step=actions/checkout@v4
-         actions/checkout leaves GITHUB_TOKEN in .git/config where the agent&#x27;s shell can read it; set persist-credentials: false
-LOW      AC07 examples/risky/issue-triage.yml:16 job=triage step=Ask the model
-         actions/ai-inference@v1 is a movable ref; pin to a full commit SHA
-CRITICAL AC06 examples/risky/pr-review-target.yml:7 job=review step=Review
-         toJSON(secrets) hands every repository secret to the agent
-CRITICAL AC03 examples/risky/pr-review-target.yml:14 job=review step=actions/checkout@v4
-         pull_request_target + checkout of &#x27;${{ github.event.pull_request.head.sha }}&#x27;: the agent reads (and may run) attacker-controlled files such as CLAUDE.md/AGENTS.md, scripts and configs with secrets in scope
-CRITICAL AC01 examples/risky/pr-review-target.yml:17 job=review step=Review
-         ${{ github.event.pull_request.title }} in the agent step field &#x27;with.prompt&#x27;; pass it via env and treat as data, or let the agent fetch it with read-only tools
-… (truncated)</code></pre>
+<p>See the examples under <code>tools/agentci/examples/</code> in the <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/agentci">repository</a>.</p>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec agentci path/to/input --sarif &gt; agentci.sarif
 

@@ -91,9 +91,7 @@
 <h2 id="example">Example output</h2>
 <p><code>python3 loopguard.py examples/runaway_openai.json</code> (exit code 1):</p>
 <p><code>examples/healthy_anthropic.json</code> is clean; <code>examples/truncated_generic.jsonl</code> shows stalled search results and a run that stops mid-tool-call.</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 loopguard.py examples/runaway_openai.json --fail-on none
-examples/runaway_openai.json: 15 tool calls, 4 errors
+<pre><code>examples/runaway_openai.json: 15 tool calls, 4 errors
 [CRITICAL] LG08 examples/runaway_openai.json  send_email called 4 times in a row with identical args {&quot;subject&quot;: &quot;Weekly report&quot;, &quot;to&quot;: &quot;team@example.com&quot;} (calls #2-#5)
 [HIGH] LG02 examples/runaway_openai.json  cycle [list_files,read_file] repeated 3 times (calls #6-#11)
 [HIGH] LG03 examples/runaway_openai.json  send_email failed 4 times in a row (calls #2-#5); last error: Error: SMTP timeout

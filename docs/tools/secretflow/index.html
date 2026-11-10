@@ -92,32 +92,7 @@
 <h2 id="example">Example output</h2>
 <p>Flags the staging <code>API_KEY</code> flowing into <code>http_post</code> (FL01), the session token into <code>bash</code> (FL02/FL04), assistant echo then tool use (FL05), labeled env reuse (FL07), stripe key into <code>write_file</code> (FL09), and multi-tool hops (FL06). Exit 1.</p>
 <p><code>examples/clean_openai.json</code> is clean under <code>--fail-on high</code> (exit 0).</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 secretflow.py examples/risky_openai.json --fail-on none
-secretflow 0.1.0 — 1 file(s), 12 event(s), 10 finding(s)
-
-RULE   SEV      TOOL             MESSAGE
-----------------------------------------------------------------------------------------------------
-FL01   critical http_post        Secret FAKE…9c2e (env_secret) from tool &#x27;read_file&#x27; turn 3 flowed into outbound tool &#x27;ht
-       at: examples/risky_openai.json turn=4  ← read_file turn=3  secret=FAKE…9c2e
-FL02   critical bash             Secret FAKE…ccdd (env_secret) from tool &#x27;read_file&#x27; turn 3 flowed into shell tool &#x27;bash&#x27;
-       at: examples/risky_openai.json turn=4  ← read_file turn=3  secret=FAKE…ccdd
-FL05   high     http_post        Secret FAKE…9c2e echoed by assistant (turn 4) then passed to tool &#x27;http_post&#x27;
-       at: examples/risky_openai.json turn=4  ← read_file turn=3  secret=FAKE…9c2e
-FL07   high     bash             Labeled secret FAKE…ccdd from &#x27;read_file&#x27; reused in tool &#x27;bash&#x27;
-       at: examples/risky_openai.json turn=4  ← read_file turn=3  secret=FAKE…ccdd
-FL07   high     http_post        Labeled secret FAKE…9c2e from &#x27;read_file&#x27; reused in tool &#x27;http_post&#x27;
-       at: examples/risky_openai.json turn=4  ← read_file turn=3  secret=FAKE…9c2e
-FL07   high     write_file       Labeled secret sk_t…0001 from &#x27;read_file&#x27; reused in tool &#x27;write_file&#x27;
-       at: examples/risky_openai.json turn=7  ← read_file turn=3  secret=sk_t…0001
-FL09   medium   write_file       Secret sk_t…0001 (env_secret) from tool &#x27;read_file&#x27; turn 3 written via sink tool &#x27;write_
-       at: examples/risky_openai.json turn=7  ← read_file turn=3  secret=sk_t…0001
-FL10   info     read_file        Taint source FAKE…9c2e (env_secret) from tool_result &#x27;read_file&#x27; turn 3 → sinks: http_po
-       at: examples/risky_openai.json turn=3  secret=FAKE…9c2e
-FL10   info     read_file        Taint source FAKE…ccdd (env_secret) from tool_result &#x27;read_file&#x27; turn 3 → sinks: bash
-       at: examples/risky_openai.json turn=3  secret=FAKE…ccdd
-FL10   info     read_file        Taint source sk_t…0001 (env_secret) from tool_result &#x27;read_file&#x27; turn 3 → sinks: write_f
-       at: examples/risky_openai.json turn=3  secret=sk_t…0001</code></pre>
+<pre><code>python3 secretflow.py examples/risky_openai.json --disable FL10</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec secretflow path/to/input --sarif &gt; secretflow.sarif
 

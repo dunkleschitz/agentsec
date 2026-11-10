@@ -85,31 +85,15 @@ python3 trifecta.py examples/safe --tags examples/tags.json --fail-on any   # ex
 python3 trifecta.py tools/ --json
 python3 trifecta.py tools/ --ignore &#x27;github/get_me&#x27; --min-severity medium</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec trifecta …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
 <h2 id="example">Example output</h2>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 trifecta.py examples/agent --fail-on none
-trifecta 0.1.0: 8 tools (P=private U=untrusted E=exfil A=action)
-
-  -UE- fetch/fetch                U: fetches caller-chosen URL &#x27;url&#x27;; E: arbitrary URL parameter &#x27;url&#x27; (data can leave in the URL)
-  ---- fetch/get_weather          (unclassified)
+<pre><code>$ python3 trifecta.py examples/agent
+  -UE- fetch/fetch                U: fetches caller-chosen URL &#x27;url&#x27;; E: arbitrary URL parameter &#x27;url&#x27; ...
   P--- filesystem/read_file       P: name reads file
-  ---A filesystem/write_file      A: name verb write
-  P--- filesystem/list_directory  P: name reads directory
   PU-- mail/search_inbox          P: name reads inbox; U: name ingests inbox
   --E- mail/send_email            E: name verb send
-  PUEA mail/run_shell             P: general command/code execution (name: run/shell); U: general command/code execution (name: run/shell); E: general command/code execution (name: run/shell); A: general command/code execution (name: run/shell)
-
+  PUEA mail/run_shell             P: general command/code execution (name: run/shell); ...
 [CRITICAL] TF01 Lethal trifecta: private data + untrusted content + exfiltration channel
-    4 private / 3 untrusted / 3 exfil tools are available to the same agent across servers fetch, filesystem, mail. Break it by removing or human-gating the untrusted leg: fetch/fetch, mail/search_inbox, mail/run_shell
-[HIGH] TF02 Single tool both ingests untrusted content and can send data out
-    fetch/fetch [-UE-]: untrusted: fetches caller-chosen URL &#x27;url&#x27;; description: &#x27;the internet&#x27;; exfil: arbitrary URL parameter &#x27;url&#x27; (data can leave in the URL)
-[HIGH] TF02 Single tool both ingests untrusted content and can send data out
-    mail/run_shell [PUEA]: untrusted: general command/code execution (name: run/shell); exfil: general command/code execution (name: run/shell)
-[HIGH] TF03 Untrusted content + consequential action (injection-to-action)
-    untrusted: fetch/fetch, mail/search_inbox, mail/run_shell; action: filesystem/write_file, mail/run_shell. Require human approval for the action tools
-[INFO] TF06 Tool could not be classified; tag it with --tags
-    fetch/get_weather: no capability matched; review and tag it
-
-Heuristic tags from names, schemas and descriptions; verify and fix with --tags.</code></pre>
+    4 private / 3 untrusted / 3 exfil tools are available to the same agent across servers
+    fetch, filesystem, mail. Break it by removing or human-gating the untrusted leg: ...</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec trifecta path/to/input --sarif &gt; trifecta.sarif
 

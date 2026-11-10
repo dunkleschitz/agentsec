@@ -14,9 +14,7 @@ from __future__ import annotations
 import argparse
 import html
 import io
-import os
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -100,21 +98,6 @@ SARIF_TOOLS = frozenset(
 )
 
 # Prefer these example inputs (relative to the tool folder) when capturing output.
-EXAMPLE_COMMANDS = {
-    "toolpin": [
-        "toolpin.py",
-        "check",
-        "examples/drifted.json",
-        "-l",
-        "examples/toolpin.lock.json",
-        "--fail-on",
-        "none",
-    ],
-    "trifecta": ["trifecta.py", "examples/agent", "--fail-on", "none"],
-    "rundiff": None,  # filled in if two examples exist
-}
-
-
 def discover_tools() -> list[str]:
     names = []
     for path in sorted(TOOLS_DIR.iterdir()):
@@ -601,118 +584,6 @@ def html_page(
 """
 
 
-# ---------------------------------------------------------------------------
-# Example output capture
-# ---------------------------------------------------------------------------
-
-def first_readme_example(tool_dir: Path) -> str | None:
-    """First examples/... path mentioned in the tool README, if it exists."""
-    readme = tool_dir / "README.md"
-    if not readme.is_file():
-        return None
-    text = readme.read_text(encoding="utf-8", errors="replace")
-    for m in re.finditer(r"examples/[\w./-]+", text):
-        rel = m.group(0).rstrip(").,'\"` ")
-        if (tool_dir / rel).exists():
-            return rel
-    return None
-
-
-def pick_example(tool_dir: Path, name: str) -> list[str] | None:
-    preset = EXAMPLE_COMMANDS.get(name)
-    if isinstance(preset, list):
-        # verify files exist
-        files_ok = True
-        for a in preset:
-            if a.startswith("examples/") and not (tool_dir / a).exists():
-                files_ok = False
-                break
-        if files_ok:
-            return preset
-    preferred = first_readme_example(tool_dir)
-    if preferred and preferred != "examples" and (tool_dir / preferred).exists():
-        args = [f"{name}.py", preferred]
-        help_text = ""
-        try:
-            help_text = (tool_dir / f"{name}.py").read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            pass
-        if "--fail-on" in help_text:
-            args.extend(["--fail-on", "none"])
-        return args
-    examples = tool_dir / "examples"
-    if not examples.is_dir():
-        return None
-    candidates = []
-    for p in examples.rglob("*"):
-        if not p.is_file():
-            continue
-        if p.suffix.lower() not in {".json", ".jsonl", ".txt", ".md", ".html", ".log", ".j2", ".yml", ".yaml"}:
-            continue
-        if p.name.startswith("."):
-            continue
-        score = 0
-        n = p.name.lower()
-        if any(k in n for k in ("risky", "poison", "drift", "bad", "fail", "insecure")):
-            score += 10
-        if "clean" in n or "baseline" in n or "lock" in n or n in {"tags.json"}:
-            score -= 5
-        rel = p.relative_to(tool_dir).as_posix()
-        candidates.append((score, rel, p))
-    if not candidates:
-        return None
-    # Sort by score, then a path relative to the tool dir (stable across hosts).
-    candidates.sort(key=lambda t: (-t[0], t[1]))
-    chosen = candidates[0][2]
-    rel = chosen.relative_to(tool_dir).as_posix()
-    args = [f"{name}.py"]
-    if name == "toolpin":
-        return None
-    args.append(rel)
-    # Prefer not failing the capture on findings
-    help_text = ""
-    try:
-        help_text = (tool_dir / f"{name}.py").read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        pass
-    if "--fail-on" in help_text:
-        args.extend(["--fail-on", "none"])
-    return args
-
-
-def capture_output(tool_dir: Path, name: str, timeout: int = 15) -> tuple[str, str]:
-    """Return (command_display, output) or ('', '')."""
-    args = pick_example(tool_dir, name)
-    if not args:
-        return "", ""
-    cmd = [sys.executable] + args
-    try:
-        proc = subprocess.run(
-            cmd,
-            cwd=str(tool_dir),
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1", NO_COLOR="1"),
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return "", ""
-    out = (proc.stdout or "") + (("\n" + proc.stderr) if proc.stderr and proc.stderr not in (proc.stdout or "") else "")
-    out = out.strip("\n")
-    if not out:
-        return "", ""
-    # cap length
-    lines = out.splitlines()
-    if len(lines) > 40:
-        out = "\n".join(lines[:40]) + "\n… (truncated)"
-    display = "python3 " + " ".join(args)
-    return display, out
-
-
-# ---------------------------------------------------------------------------
-# CI / SARIF snippet
-# ---------------------------------------------------------------------------
-
 def ci_snippet(name: str) -> str:
     lines = []
     if name in SARIF_TOOLS:
@@ -767,15 +638,10 @@ def build_tool_page(name: str, owasp: dict[str, list[tuple[str, str]]]) -> str:
     )
 
     prose, fenced = example_block(sections)
-    cmd, captured = capture_output(tool_dir, name)
     example_parts = []
     if prose:
         example_parts.append(md_blocks(prose, max_paras=6))
-    if captured:
-        label = cmd or f"python3 {name}.py"
-        example_parts.append(f"<p>Captured against the bundled fixtures (fake data only):</p>")
-        example_parts.append(f"<pre><code>{esc('$ ' + label + chr(10) + captured)}</code></pre>")
-    elif fenced:
+    if fenced:
         example_parts.append(f"<pre><code>{esc(fenced)}</code></pre>")
     if not example_parts:
         example_parts.append(

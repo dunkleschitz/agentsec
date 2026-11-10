@@ -96,13 +96,29 @@ python3 tracesweep.py --list-rules</code></pre><p>After <code>pip install</code>
 <h2 id="example">Example output</h2>
 <p>The examples in <code>examples/</code> contain <strong>synthetic, fake</strong> keys that only match the token shapes. They are <strong>not committed</strong> (so secret scanners don&#x27;t flag shape-valid fakes); generate them with <code>python3 examples/make_examples.py</code> before running the commands below. The test suite generates them automatically.</p>
 <p>Line 6 of <code>claude_session.jsonl</code> mentions <code>AKIAIOSFODNN7EXAMPLE</code> and <code>your_api_key</code>, and <code>clean.json</code> contains <code>OPENAI_API_KEY=your_api_key_here</code> and <code>max_tokens: 4096</code>. Both are correctly ignored.</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 tracesweep.py examples/make_examples.py
-SEV     RULE        FILE:LINE                     REC  TURN  ROLE     TOOL  WHERE  PREVIEW    ECHO
-------  ----------  ----------------------------  ---  ----  -------  ----  -----  ---------  ----
-MEDIUM  TS-GENERIC  examples/make_examples.py:13  13   -     unknown  -     text   wJal...G/
+<pre><code>$ python3 tracesweep.py examples
+SEV       RULE           FILE:LINE                        REC  TURN  ROLE       TOOL        WHERE        PREVIEW                ECHO
+--------  -------------  -------------------------------  ---  ----  ---------  ----------  -----------  ---------------------  ----
+MEDIUM    TS-GENERIC     examples/agent_run.log:3         3    3     tool       bash        text         hunt...ss              x2
+HIGH      TS-URL-CREDS   examples/agent_run.log:4         4    4     tool       bash        text         Fak3...d!
+MEDIUM    TS-GENERIC     examples/agent_run.log:5         5    5     assistant  -           text         hunt...ss              x2
+HIGH      TS-AWS-AKID    examples/claude_session.jsonl:3  3    3     tool       Bash        tool_output  AKIA...L3
+CRITICAL  TS-AWS-SECRET  examples/claude_session.jsonl:3  3    3     tool       Bash        tool_output  wJal...23
+CRITICAL  TS-OPENAI      examples/claude_session.jsonl:3  3    3     tool       Bash        tool_output  sk-p...GH              x2
+HIGH      TS-URL-CREDS   examples/claude_session.jsonl:3  3    3     tool       Bash        tool_output  Fak3...d!
+CRITICAL  TS-OPENAI      examples/claude_session.jsonl:4  4    4     assistant  -           message      sk-p...GH              x2
+HIGH      TS-GITHUB      examples/claude_session.jsonl:5  5    5     assistant  WebFetch    tool_args    ghp_...01
+HIGH      TS-SLACK       examples/openai_chat.json:19     3    3     assistant  slack_post  tool_args    xoxb...01
+MEDIUM    TS-JWT         examples/openai_chat.json:27     4    4     tool       slack_post  tool_output  eyJh...89
+CRITICAL  TS-PRIVKEY     examples/openai_chat.json:31     5    5     assistant  -           message      [PEM RSA PRIVATE KEY]
+CRITICAL  TS-STRIPE      examples/openai_chat.json:35     6    6     user       -           message      sk_l...ST
+HIGH      TS-GOOGLE-API  examples/openai_chat.json:35     6    6     user       -           message      AIza...de
+CRITICAL  TS-ANTHROPIC   examples/openai_chat.json:39     7    7     assistant  -           message      sk-a...xw
 
-1 finding(s) (1 medium) in 1 file(s); 0 secret(s) echoed across turns.
+15 finding(s) (6 critical, 6 high, 3 medium) in 4 file(s); 2 secret(s) echoed across turns.
+Propagation:
+  examples/agent_run.log TS-GENERIC hunt...ss: text(turn 3) -&gt; text(turn 5)
+  examples/claude_session.jsonl TS-OPENAI sk-p...GH: tool_output(turn 3) -&gt; message(turn 4)
 Note: pattern-based; may miss secrets or flag false positives; keys are not verified as live.</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec tracesweep path/to/input --sarif &gt; tracesweep.sarif

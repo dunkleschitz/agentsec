@@ -96,49 +96,7 @@
   --list-rules</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec pathfence …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
 <h2 id="example">Example output</h2>
 <p>Flags PF03 on <code>.aws/credentials</code>, PF01+PF06 on <code>../../.env</code>, PF02 on <code>~/.ssh/id_rsa</code> (via Bash), and PF05+PF09 on the write to <code>/etc/shadow</code> (exit 1). <code>examples/clean_openai.json</code> is clean (exit 0). See also <code>risky_anthropic.json</code>, <code>generic_paths.jsonl</code> and <code>paths.txt</code>. All example secrets are <code>FAKE-EXAMPLE-*</code>.</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 pathfence.py examples/risky_openai.json --fail-on none
-pathfence 0.1.0 — 4 path event(s), 4 unique path(s), 14 finding(s)
-
-RULE   SEV      TOOL               OP     MESSAGE
-------------------------------------------------------------------------------------------------
-PF01   critical read_file          read   Secret/credential file path &#x27;../../.env&#x27;
-       path: ../../.env
-       at:   examples/risky_openai.json turn=1
-PF01   critical write_file         write  Secret/credential file path &#x27;/etc/shadow&#x27;
-       path: /etc/shadow
-       at:   examples/risky_openai.json turn=1
-PF01   critical read_file          read   Secret/credential file path &#x27;/home/app/.aws/credentials&#x27;
-       path: /home/app/.aws/credentials
-       at:   examples/risky_openai.json turn=1
-PF02   critical Bash               shell  SSH/GPG key path &#x27;~/.ssh/id_rsa&#x27;
-       path: ~/.ssh/id_rsa
-       at:   examples/risky_openai.json turn=1
-PF03   critical read_file          read   Cloud credential path &#x27;/home/app/.aws/credentials&#x27;
-       path: /home/app/.aws/credentials
-       at:   examples/risky_openai.json turn=1
-PF05   critical write_file         write  OS identity / shadow path &#x27;/etc/shadow&#x27;
-       path: /etc/shadow
-       at:   examples/risky_openai.json turn=1
-PF04   high     read_file          read   Browser cookie/password database path &#x27;/home/app/.aws/credentials&#x27;
-       path: /home/app/.aws/credentials
-       at:   examples/risky_openai.json turn=1
-PF06   high     read_file          read   Path traversal segment in &#x27;../../.env&#x27;
-       path: ../../.env
-       at:   examples/risky_openai.json turn=1
-PF09   high     write_file         write  Write/shell targeting sensitive path &#x27;/etc/shadow&#x27;
-       path: /etc/shadow
-       at:   examples/risky_openai.json turn=1
-PF09   high     Bash               shell  Write/shell targeting sensitive path &#x27;~/.ssh/id_rsa&#x27;
-       path: ~/.ssh/id_rsa
-       at:   examples/risky_openai.json turn=1
-PF12   info     read_file          read   Observed path &#x27;../../.env&#x27;
-       path: ../../.env
-       at:   examples/risky_openai.json turn=1
-PF12   info     write_file         write  Observed path &#x27;/etc/shadow&#x27;
-       path: /etc/shadow
-       at:   examples/risky_openai.json turn=1
-… (truncated)</code></pre>
+<pre><code>python3 pathfence.py examples/risky_openai.json --disable PF12</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec pathfence path/to/input --sarif &gt; pathfence.sarif
 

@@ -91,49 +91,7 @@
   --list-rules</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec schemafence …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
 <h2 id="example">Example output</h2>
 <p>Flags SK01/SK03/SK05/SK07 on <code>run_shell</code>, SK02/SK06/SK07 on <code>fetch_url</code>, SK03/SK07 on <code>write_file</code>, SK04 on <code>send_email</code>, SK07/SK08 on <code>delete_record</code> / <code>deploy_service</code>, SK09 on <code>run_sql</code> (exit 1). <code>examples/clean_openai.json</code> is clean under <code>--fail-on high</code> (exit 0): cities/URLs/note ids are enum- or pattern-constrained. See also <code>risky_anthropic.json</code>, <code>multi_server.json</code> and <code>generic_tools.jsonl</code>.</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 schemafence.py examples/risky_mcp.json --fail-on none
-schemafence 0.1.0 — 7 tool(s), 24 finding(s)
-
-RULE   SEV      TOOL                         MESSAGE
-----------------------------------------------------------------------------------------------------
-SK01   critical run_shell                    Tool run_shell accepts unconstrained command parameter &#x27;command&#x27; (comm
-       param: command
-       at:    examples/risky_mcp.json
-SK02   high     fetch_url                    Tool fetch_url accepts unconstrained URL parameter &#x27;url&#x27; (SSRF / open-
-       param: url
-       at:    examples/risky_mcp.json
-SK03   high     run_shell                    Tool run_shell accepts unconstrained path parameter &#x27;cwd&#x27; (traversal /
-       param: cwd
-       at:    examples/risky_mcp.json
-SK03   high     write_file                   Tool write_file accepts unconstrained path parameter &#x27;path&#x27; (traversal
-       param: path
-       at:    examples/risky_mcp.json
-SK04   high     send_email                   Tool send_email accepts unconstrained recipient parameter &#x27;to&#x27; (send/e
-       param: to
-       at:    examples/risky_mcp.json
-SK06   high     fetch_url                    Tool fetch_url accepts model-supplied secret/credential parameter &#x27;api
-       param: api_key
-       at:    examples/risky_mcp.json
-SK07   high     delete_record                Tool delete_record has destructiveHint=false but name implies destruct
-       param: destructiveHint
-       at:    examples/risky_mcp.json
-SK07   high     fetch_url                    Tool fetch_url has openWorldHint=false but accepts unconstrained-looki
-       param: openWorldHint
-       at:    examples/risky_mcp.json
-SK07   high     run_shell                    Tool run_shell has destructiveHint=false but accepts command/code para
-       param: destructiveHint
-       at:    examples/risky_mcp.json
-SK07   high     run_shell                    Tool run_shell has readOnlyHint=true but accepts command/code paramete
-       param: readOnlyHint
-       at:    examples/risky_mcp.json
-SK07   high     write_file                   Tool write_file has readOnlyHint=true but looks like a write (path + c
-       param: readOnlyHint
-       at:    examples/risky_mcp.json
-SK07   high     write_file                   Tool write_file has readOnlyHint=true but name implies mutation
-       param: readOnlyHint
-       at:    examples/risky_mcp.json
-… (truncated)</code></pre>
+<pre><code>python3 schemafence.py examples/risky_mcp.json --disable SK10</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec schemafence path/to/input --sarif &gt; schemafence.sarif
 

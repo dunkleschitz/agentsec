@@ -96,40 +96,7 @@
   --list-rules</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec fetchfence …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
 <h2 id="example">Example output</h2>
 <p>Flags FF01/FF07/FF08 on the metadata IP, FF06 on <code>webhook.site</code>, FF03/FF05/FF08/FF12 on the private Redis URL, and FF11 on the <code>api_key</code> query (exit 1). <code>examples/clean_openai.json</code> is clean (exit 0). See also <code>risky_anthropic.json</code>, <code>generic_fetches.jsonl</code> and <code>urls.txt</code>. All secrets and callback IDs in examples are <code>FAKE-EXAMPLE-*</code>.</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 fetchfence.py examples/risky_openai.json --fail-on none
-fetchfence 0.1.0 — 4 fetch(es), 4 unique host(s), 9 finding(s)
-hosts: 10.0.0.5, 169.254.169.254, docs.example.com, webhook.site
-
-RULE   SEV      TOOL               HOST             MESSAGE
-------------------------------------------------------------------------------------------
-FF01   critical WebFetch           169.254.169.254  Link-local / metadata IP 169.254.169.254
-       url: http://169.254.169.254/latest/meta-data/
-       at:  examples/risky_openai.json turn=1
-FF03   high     http_get           10.0.0.5         Private/reserved IP 10.0.0.5
-       url: https://***:***@10.0.0.5:6379/info
-       at:  examples/risky_openai.json turn=1
-FF05   high     http_get           10.0.0.5         URL contains embedded userinfo credentials
-       url: https://***:***@10.0.0.5:6379/info
-       at:  examples/risky_openai.json turn=1
-FF06   high     browse_page        webhook.site     Known OOB/callback host &#x27;webhook.site&#x27;
-       url: https://webhook.site/FAKE-EXAMPLE-callback-001
-       at:  examples/risky_openai.json turn=1
-FF07   medium   WebFetch           169.254.169.254  Cleartext http fetch
-       url: http://169.254.169.254/latest/meta-data/
-       at:  examples/risky_openai.json turn=1
-FF08   medium   http_get           10.0.0.5         Raw IP-literal host 10.0.0.5
-       url: https://***:***@10.0.0.5:6379/info
-       at:  examples/risky_openai.json turn=1
-FF08   medium   WebFetch           169.254.169.254  Raw IP-literal host 169.254.169.254
-       url: http://169.254.169.254/latest/meta-data/
-       at:  examples/risky_openai.json turn=1
-FF11   medium   fetch_url          docs.example.com Secret-looking query parameter &#x27;api_key&#x27;
-       url: https://docs.example.com/guide?api_key=FAKE-EXAMPLE-REDACTED
-       at:  examples/risky_openai.json turn=1
-FF12   medium   http_get           10.0.0.5         Admin/data-store port 6379 on non-public host
-       url: https://***:***@10.0.0.5:6379/info
-       at:  examples/risky_openai.json turn=1</code></pre>
+<pre><code>python3 fetchfence.py examples/risky_openai.json</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec fetchfence path/to/input --sarif &gt; fetchfence.sarif
 

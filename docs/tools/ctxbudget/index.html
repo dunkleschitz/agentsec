@@ -101,34 +101,7 @@
   --list-rules</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec ctxbudget …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
 <h2 id="example">Example output</h2>
 <p>Flags CB02 on the half-megabyte dump, CB01 on the 120 KB dump, CB04/CB05/CB06/CB07/CB09 on the blob, long line, binary, flood and deep tree, and CB08 when the run total crosses 1 MB (exit 1). <code>examples/clean_openai.json</code> stays clean at default budgets (exit 0 aside from the CB10 info inventory — use <code>--min-severity low</code> or <code>--disable CB10</code> in CI). See also <code>risky_anthropic.json</code> and <code>generic_results.jsonl</code>. All payloads are synthetic (<code>FAKE-EXAMPLE-*</code> / repeated filler bytes); nothing is a real secret.</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 ctxbudget.py examples/risky_openai.json --fail-on none
-ctxbudget 0.1.0 — 12 tool result(s), 842437 total bytes, 11 finding(s)
-
-RULE   SEV      TOOL                    BYTES  MESSAGE
-------------------------------------------------------------------------------------------------
-CB02   critical dump_all               520000  Tool result is 520000 bytes (critical budget 500000)
-       at:  examples/risky_openai.json turn=7
-CB01   high     dump_db                120000  Tool result is 120000 bytes (budget 100000)
-       at:  examples/risky_openai.json turn=2
-CB03   high     dump_all               520000  Tool result is 62% of all tool-result bytes (520000 / 842437)
-       at:  examples/risky_openai.json turn=7
-CB05   high     cat_minified            40000  Longest line is 40000 bytes (budget 32768)
-       at:  examples/risky_openai.json turn=4
-CB05   high     dump_all               520000  Longest line is 520000 bytes (budget 32768)
-       at:  examples/risky_openai.json turn=7
-CB05   high     dump_db                120000  Longest line is 120000 bytes (budget 32768)
-       at:  examples/risky_openai.json turn=2
-CB07   high     read_log                25011  Tool &#x27;read_log&#x27; produced 6 oversized results (&gt;= 20000 bytes each)
-       at:  examples/risky_openai.json turn=13
-CB04   medium   get_artifact            12026  Large base64 blob (12000 bytes) inside tool result
-       at:  examples/risky_openai.json turn=3
-CB06   medium   read_binary                36  Null byte(s) present in tool result text
-       at:  examples/risky_openai.json turn=6
-CB09   low      get_tree                  309  JSON nesting depth 37 exceeds 32
-       at:  examples/risky_openai.json turn=5
-CB10   info     dump_all               520000  Largest tool results: dump_all=520000B, dump_db=120000B, cat_minified=40000B, 
-       at:  examples/risky_openai.json turn=7</code></pre>
+<pre><code>python3 ctxbudget.py examples/risky_openai.json</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec ctxbudget path/to/input --sarif &gt; ctxbudget.sarif
 

@@ -88,9 +88,7 @@ python3 pickleprobe.py examples/clean       # info only, exit 0
 python3 pickleprobe.py ~/models --json --min-severity medium
 python3 pickleprobe.py model.pt --allow &#x27;mylib.models.*&#x27; --sarif &gt; pickleprobe.sarif</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec pickleprobe …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
 <h2 id="example">Example output</h2>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 pickleprobe.py examples/make_examples.py --fail-on none
-1 file(s) scanned, 0 finding(s)</code></pre>
+<p>See the examples under <code>tools/pickleprobe/examples/</code> in the <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/pickleprobe">repository</a>.</p>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec pickleprobe path/to/input --sarif &gt; pickleprobe.sarif
 

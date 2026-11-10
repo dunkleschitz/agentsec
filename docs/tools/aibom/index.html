@@ -84,49 +84,26 @@ python3 aibom.py . --baseline aibom.json --fail-on new  # CI: fail when new AI c
 python3 aibom.py . --fail-on high                   # CI: fail on pickle model files</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec aibom …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
 <h2 id="example">Example output</h2>
 <p><code>examples/sample_app</code> is a fake multi-language app (Python, TypeScript, a notebook, YAML, an MCP config, placeholder model files) with fake values only.</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 aibom.py examples/sample_app --fail-on none
-AI-BOM for /workspace/agentsec-release/agentsec/tools/aibom/examples/sample_app
+<pre><code>$ python3 aibom.py examples/sample_app --baseline examples/baseline.json
+AI-BOM for .../examples/sample_app
 
 AI SDKs / frameworks (11)
   - @ai-sdk/openai (Vercel AI SDK provider, 1.0.5, declared)
       web/chat.ts:2, web/package.json:6
-  - @modelcontextprotocol/sdk (Model Context Protocol, ^1.0.0, declared)
-      web/chat.ts:3, web/package.json:7
-  - ai (Vercel AI SDK, ^4.0.0, declared)
-      web/chat.ts:1, web/package.json:5
-  - anthropic (Anthropic, &gt;=0.34, declared)
-      app.py:4, requirements.txt:2
-  - chromadb (Chroma (vector DB), ==0.5.5, declared)
-      rag.py:2, requirements.txt:4
-  - langchain-openai (LangChain, declared)
-      app.py:5, requirements.txt:3
-  - litellm (LiteLLM, import only)
+  ...
+  - litellm (LiteLLM, import only)  [NEW]
       app.py:6
-  - openai (OpenAI, ==1.51.0, declared)
-      app.py:3, requirements.txt:1
-  - sentence-transformers (Sentence Transformers, import only)
-      rag.py:1
-  - torch (PyTorch, import only)
-      notebooks/explore.ipynb:3
-  - transformers (Hugging Face Transformers, import only)
-      notebooks/explore.ipynb:1
+...
+MCP servers (2)
+  - docs-search (remote, https://mcp.docs.example/sse)  [NEW]
+  - github (stdio, npx -y @modelcontextprotocol/server-github)
 
-Models referenced (6)
-  - claude-sonnet-4-20250514 (identifier)
-      app.py:11
-  - gemini-2.5-flash (identifier)
-      config.yaml:3
-  - gpt-4.1-mini-2025-04-14 (identifier)
-      web/chat.ts:6
-  - gpt-4o (identifier)
-      app.py:10
-  - sentence-transformers/all-MiniLM-L6-v2 (huggingface-hub)
-      rag.py:4
-  - text-embedding-3-small (identifier)
-      app.py:12
-
-… (truncated)</code></pre>
+Governance notes (11)
+  HIGH   AB01 models/intent_classifier.pkl  model file uses a pickle-based format (pickle); ...
+  MEDIUM AB04 app.py:14  plaintext http:// endpoint for OpenAI (api.openai.com)
+  MEDIUM AB05 app.py:6  AI SDK &#x27;litellm&#x27; is imported but not declared in any dependency manifest
+  ...
+2 component(s) new since baseline: mcp-server:docs-search, sdk:litellm</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec aibom path/to/input --json &gt; aibom.json
 # aibom does not yet emit SARIF; use --json and keep --fail-on for CI.

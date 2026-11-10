@@ -92,14 +92,56 @@ python3 scopefit.py -g examples/fine_grained_tight.json -c examples/endpoints.tx
 <h2 id="example">Example output</h2>
 <p>The over-privileged classic token in <code>examples/</code> checked against a fake triage-agent transcript (exit code 1):</p>
 <p>The same transcript checked against <code>examples/fine_grained_tight.json</code>: 0 over-granted, 0 missing, exit 0.</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 scopefit.py examples/classic_overprivileged_scopes.json --fail-on none
-usage: scopefit [-h] --grants GRANTS --calls CALLS
-                [--grant-type {auto,fine,classic}]
-                [--calls-format {auto,transcript,endpoints}]
-                [--mapping MAPPING] [--public-repos] [--json]
-                [--fail-on {over,missing,any,none}] [--version]
-scopefit: error: the following arguments are required: --grants/-g, --calls/-c</code></pre>
+<pre><code>scopefit 0.1.0 - grant type: classic OAuth scopes
+Observed calls: 8 (mapped 6, unmapped 1, graphql 1)
+
+ENDPOINTS USED (deduplicated):
+  METHOD  ENDPOINT                                              FINE-GRAINED                       CLASSIC  N
+  ------  ----------------------------------------------------  ---------------------------------  -------  -
+  GET     /repos/{owner}/{repo}/issues                          issues:read, metadata:read         repo     1
+  POST    /repos/{owner}/{repo}/issues/{issue_number}/labels    issues:write, metadata:read        repo     1
+  GET     /repos/{owner}/{repo}/pulls/{pull_number}             metadata:read, pull_requests:read  repo     1
+  GET     /repos/{owner}/{repo}/commits/{ref}/status            metadata:read, statuses:read       repo     1
+  POST    /repos/{owner}/{repo}/issues/{issue_number}/comments  issues:write, metadata:read        repo     1
+  GET     /repos/{owner}/{repo}/contents/{path+}                contents:read, metadata:read       repo     1
+
+OVER-GRANTED:
+  SCOPE            WHY
+  ---------------  ------------------------------
+  admin:org        never needed by observed calls
+  admin:repo_hook  never needed by observed calls
+  delete_repo      never needed by observed calls
+  gist             never needed by observed calls
+  user             never needed by observed calls
+  workflow         never needed by observed calls
+
+MISSING (needed but not granted):
+  (none)
+
+HIGH-RISK GRANTS:
+  GRANT            USED  RISK
+  ---------------  ----  ----------------------------------------------------------------------
+  admin:org        NO    full control of organizations, teams and memberships
+  admin:repo_hook  NO    can create/delete repo webhooks (exfiltration channel)
+  delete_repo      NO    can permanently delete repositories
+  repo             yes   full read/write to ALL private repositories the user can access
+  user             NO    can modify the user profile
+  workflow         NO    can modify GitHub Actions workflows (CI code execution, secret access)
+
+UNMAPPED ENDPOINTS (unknown to scopefit; permissions NOT guessed - check GitHub docs):
+  METHOD  ENDPOINT                             N
+  ------  -----------------------------------  -
+  GET     /repos/{owner}/{repo}/traffic/views  1
+  note: 1 GraphQL call(s) seen; GraphQL is NOT analyzed.
+
+SUGGESTED MINIMAL GRANT (observed usage only):
+  [&quot;repo&quot;]
+  (fine-grained alternative, preferred: {&quot;contents&quot;: &quot;read&quot;, &quot;issues&quot;: &quot;write&quot;, &quot;metadata&quot;: &quot;read&quot;, &quot;pull_requests&quot;: &quot;read&quot;, &quot;statuses&quot;: &quot;read&quot;})
+  WARNING: unmapped/GraphQL calls may need more than this suggestion.
+
+Summary: 6 over-granted, 0 missing, 6 high-risk, 1 unmapped.
+Mapping is a best-effort SUBSET from GitHub docs and may be out of date; future runs may need more.
+Policy --fail-on any: FAIL</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec scopefit path/to/input --json &gt; scopefit.json
 # scopefit does not yet emit SARIF; use --json and keep --fail-on for CI.

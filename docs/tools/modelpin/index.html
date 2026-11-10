@@ -99,22 +99,7 @@
 <h2 id="example">Example output</h2>
 <p>Flags MD02 on <code>gpt-4o-mini</code>, MD03 on the mid-run switch, MD05/MD08 against the pin, MD07 on <code>gpt-3.5-turbo</code>, and MD01 for anything outside the allowlist (exit 1). <code>examples/clean_openai.json</code> with the same policy stays clean aside from the MD09 inventory (use <code>--min-severity low</code> or <code>--disable MD09</code> in CI).</p>
 <p>See also <code>risky_aliases.json</code>, <code>risky_provider.json</code>, <code>risky_missing.json</code> and <code>clean_anthropic.json</code>. All model IDs and payloads are synthetic.</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 modelpin.py examples/risky_switch.jsonl --fail-on none
-modelpin 0.1.0 — 3 model event(s), 3 distinct model(s), 5 finding(s)
-
-RULE   SEV      MODEL                        PROVIDER    MESSAGE
-----------------------------------------------------------------------------------------------------
-MD02   high     gpt-3.5-turbo                openai      Floating alias &#x27;gpt-3.5-turbo&#x27; — pin a dated snapshot for reproducible b
-       at:  examples/risky_switch.jsonl:3 turn=3
-MD02   high     gpt-4o-mini                  openai      Floating alias &#x27;gpt-4o-mini&#x27; — pin a dated snapshot for reproducible beh
-       at:  examples/risky_switch.jsonl:2 turn=2
-MD03   high     gpt-4o-mini                  openai      Mid-run model switch: gpt-4o-2024-08-06 → gpt-4o-mini → gpt-3.5-turbo
-       at:  examples/risky_switch.jsonl:2 turn=2
-MD07   low      gpt-3.5-turbo                openai      Soft-deprecated / retired model family: &#x27;gpt-3.5-turbo&#x27;
-       at:  examples/risky_switch.jsonl:3 turn=3
-MD09   info     gpt-4o-2024-08-06            openai      Models observed: gpt-4o-2024-08-06×1, gpt-4o-mini×1, gpt-3.5-turbo×1 (3 
-       at:  examples/risky_switch.jsonl</code></pre>
+<pre><code>python3 modelpin.py examples/risky_switch.jsonl -p examples/policy_strict.json</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec modelpin path/to/input --sarif &gt; modelpin.sarif
 

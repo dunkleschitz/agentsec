@@ -91,8 +91,7 @@
 <h2 id="example">Example output</h2>
 <p>The full <code>examples/risky/</code> directory (requirements.txt + package.json + app.py + index.js, all <strong>fake</strong> names, do not install) produces 41 findings (7 high) and exits 1; <code>examples/clean/</code> produces no findings and exits 0.</p>
 <p>CI example:</p>
-<p>Captured against the bundled fixtures (fake data only):</p>
-<pre><code>$ python3 slopcheck.py examples/risky/requirements.txt --fail-on none
+<pre><code>$ python3 slopcheck.py examples/risky/requirements.txt --no-usage
 SEV     RULE  ECO   NAME                  LOCATION                           MESSAGE
 HIGH    SC02  pypi  reqeusts              examples/risky/requirements.txt:2  &#x27;reqeusts&#x27; is a near-miss of well-known &#x27;requests&#x27; (edit distance 1); possible typo or slopsquat
 HIGH    SC02  pypi  beautifulsoup         examples/risky/requirements.txt:7  &#x27;beautifulsoup&#x27; is a near-miss of well-known &#x27;beautifulsoup4&#x27; (edit distance 1); possible typo or slopsquat
@@ -107,7 +106,9 @@ LOW     SC05  pypi  beautifulsoup         examples/risky/requirements.txt:7  no 
 INFO    SC01  pypi  somepkg               examples/risky/requirements.txt:9  &#x27;somepkg&#x27; is not in the bundled snapshot or allowlist: unverified, check the registry yourself
 
 11 finding(s): 2 high, 4 medium, 4 low, 1 info  (1 file(s) scanned)
-note: snapshot-based offline heuristics; cannot confirm a package exists or is safe. Verify flagged names on pypi.org / npmjs.com yourself.</code></pre>
+note: snapshot-based offline heuristics; cannot confirm a package exists or is safe. Verify flagged names on pypi.org / npmjs.com yourself.
+$ echo $?
+1</code></pre>
 <h2 id="sarif-ci">SARIF and CI</h2>
 <pre><code>agentsec slopcheck path/to/input --sarif &gt; slopcheck.sarif
 
