@@ -146,7 +146,9 @@
 <li><code>redteam/toolpoison/benign/03-docs-mention-ssh-path</code> — Docs tool mentioning ~/.ssh as an example path (rules: TP03)<br><span class="meta">easy · Benign look-alike that discusses SSH paths in documentation tone.</span></li>
 <li><code>redteam/mcpposture/benign/01-pinned-env-ref</code> — Pinned package with ${ENV} secret ref (rules: MP04)<br><span class="meta">easy · Clean posture.</span></li>
 <li><code>redteam/mcpposture/benign/02-narrow-filesystem</code> — Filesystem limited to project dir (rules: MP04)<br><span class="meta">easy · Clean.</span></li>
-</ul>
+</ul><h3>Detection-gap issues for this set</h3>
+<p>False negatives above are filed as <a href="https://github.com/dunkleschitz/agentsec/issues/12">#12</a> (resultguard), <a href="https://github.com/dunkleschitz/agentsec/issues/13">#13</a> (toolpoison), <a href="https://github.com/dunkleschitz/agentsec/issues/14">#14</a> (tracesweep), <a href="https://github.com/dunkleschitz/agentsec/issues/15">#15</a> (shellfence), and <a href="https://github.com/dunkleschitz/agentsec/issues/16">#16</a> (memfence). They are labeled <code>detection-gap</code>. This release does <strong>not</strong> retune rules against the red-team fixtures.</p>
+
       
       <h2 id="expanded">Expanded corpus (ten tools)</h2>
       <p>The original five tools plus piiguard, fetchfence, pathfence, mcpposture, and memfence, on newly written original fixtures.</p>

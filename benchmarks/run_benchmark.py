@@ -400,6 +400,17 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
         redteam_html += list_items(redteam.get("false_negatives") or [], "false negative")
         redteam_html += "<h3>Red-team false positives</h3>\n"
         redteam_html += list_items(redteam.get("false_positives") or [], "false positive")
+        redteam_html += (
+            "<h3>Detection-gap issues for this set</h3>\n"
+            "<p>False negatives above are filed as "
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/12">#12</a> (resultguard), '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/13">#13</a> (toolpoison), '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/14">#14</a> (tracesweep), '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/15">#15</a> (shellfence), and '
+            '<a href="https://github.com/dunkleschitz/agentsec/issues/16">#16</a> (memfence). '
+            "They are labeled <code>detection-gap</code>. This release does <strong>not</strong> "
+            "retune rules against the red-team fixtures.</p>\n"
+        )
 
     closed = """
       <h2 id="gaps">Detection-gap issues #7–#11</h2>
