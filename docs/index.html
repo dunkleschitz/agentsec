@@ -47,6 +47,8 @@
     <nav class="top" aria-label="Site">
       <a href="./" aria-current="page">Home</a>
       <a href="tools/">Tools</a>
+      <a href="playground/">Playground</a>
+      <a href="benchmarks/">Benchmark</a>
       <a href="guides/">Guides</a>
       <a href="why/">Why agentsec</a>
       <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
@@ -59,6 +61,8 @@
       <a class="btn" href="https://github.com/dunkleschitz/agentsec">View on GitHub</a>
       <a class="btn ghost" href="https://github.com/dunkleschitz/agentsec#quick-start">Quick start</a>
       <a class="btn ghost" href="https://github.com/dunkleschitz/agentsec/releases">Releases</a>
+      <a class="btn ghost" href="playground/">Playground</a>
+      <a class="btn ghost" href="benchmarks/">Benchmark</a>
       <a class="btn ghost" href="tools/">Tools</a>
       <a class="btn ghost" href="guides/">Guides</a>
       <a class="btn ghost" href="why/">Why agentsec</a>
@@ -71,6 +75,7 @@ agentsec mcpposture ~/.cursor/mcp.json</code></pre>
     <pre><code>git clone https://github.com/dunkleschitz/agentsec.git
 cd agentsec/tools/mcpposture
 python3 mcpposture.py examples/risky_claude_desktop_config.json</code></pre>
+    <p>You can also <a href="playground/">run five of the scanners in your browser</a>. They execute locally with Pyodide; nothing you paste is uploaded. A labeled <a href="benchmarks/">detection benchmark</a> reports precision and recall on a small synthetic corpus and lists the misses.</p>
 
     <h2>The tools</h2>
     <div class="tools">
@@ -121,7 +126,7 @@ python3 mcpposture.py examples/risky_claude_desktop_config.json</code></pre>
     <p class="note">Heuristic scanners, not a security boundary. A clean result does not mean something is safe. Mappings to the OWASP Top 10 for LLM Applications (2025) and the OWASP Top 10 for Agentic Applications (2026) are in the <a href="https://github.com/dunkleschitz/agentsec#mapping-to-owasp">README</a>. All example secrets in the repository are fake.</p>
 
     <footer>
-      <p>MIT License · Python 3.10–3.13 · 1628 tests · no third-party dependencies · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+      <p>MIT License · Python 3.10–3.13 · 1652 tests · no third-party dependencies · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
     </footer>
   </main>
 </body>

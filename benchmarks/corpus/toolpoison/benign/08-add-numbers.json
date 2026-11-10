@@ -1,0 +1,21 @@
+{
+  "tools": [
+    {
+      "name": "add_numbers",
+      "description": "Add two numbers and return the sum.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "number",
+            "description": "First addend"
+          },
+          "b": {
+            "type": "number",
+            "description": "Second addend"
+          }
+        }
+      }
+    }
+  ]
+}

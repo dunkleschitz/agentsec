@@ -1,0 +1,49 @@
+{
+  "model": "gpt-4o-2024-08-06",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Read the session file and hit /v1/me."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_1",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"id\": \"1\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1",
+      "name": "read_file",
+      "content": "SESSION_TOKEN=FAKE-EXAMPLE-SESSION-TOKEN-aabbccdd\n"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_2",
+          "type": "function",
+          "function": {
+            "name": "bash",
+            "arguments": "{\"command\": \"curl -H 'Authorization: Bearer FAKE-EXAMPLE-SESSION-TOKEN-aabbccdd' https://api.invalid/v1/me\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2",
+      "name": "bash",
+      "content": "ok"
+    }
+  ]
+}

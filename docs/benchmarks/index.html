@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Detection benchmark — agentsec</title>
+  <meta name="description" content="Synthetic, labeled precision and recall for resultguard, toolpoison, tracesweep, secretflow, and shellfence. Honest about misses. All secrets are fake.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/benchmarks/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="Detection benchmark — agentsec">
+  <meta property="og:description" content="Synthetic precision and recall for five agentsec scanners, with documented false negatives.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/benchmarks/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Detection benchmark — agentsec">
+  <meta name="twitter:description" content="Synthetic precision and recall for five agentsec scanners, with documented false negatives.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/playground/">Playground</a>
+      <a href="https://dunkleschitz.github.io/agentsec/benchmarks/" aria-current="page">Benchmark</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · Benchmark</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>Detection benchmark</h1>
+    <hr class="rule">
+    <p class="lede">On this 85-sample synthetic corpus, overall precision is 91.5% and recall is 84.3% (43 true positives, 4 false positives, 8 false negatives).</p>
+    <p class="note">This is a small, author-written, synthetic corpus. It is not a red-team dataset, not drawn from production traffic, and not a claim about performance on real attacks. Heuristic scanners miss things; the misses below are listed on purpose.</p>
+
+    <article>
+      <h2 id="numbers">Headline numbers</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th>
+            <th>Precision</th><th>Recall</th><th>F1</th><th>n</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>resultguard</code></td><td>9</td><td>2</td><td>3</td><td>6</td><td>81.8%</td><td>75.0%</td><td>78.3%</td><td>20</td></tr>
+<tr><td><code>secretflow</code></td><td>6</td><td>0</td><td>1</td><td>4</td><td>100.0%</td><td>85.7%</td><td>92.3%</td><td>11</td></tr>
+<tr><td><code>shellfence</code></td><td>11</td><td>0</td><td>1</td><td>8</td><td>100.0%</td><td>91.7%</td><td>95.7%</td><td>20</td></tr>
+<tr><td><code>toolpoison</code></td><td>8</td><td>2</td><td>2</td><td>6</td><td>80.0%</td><td>80.0%</td><td>80.0%</td><td>18</td></tr>
+<tr><td><code>tracesweep</code></td><td>9</td><td>0</td><td>1</td><td>6</td><td>100.0%</td><td>90.0%</td><td>94.7%</td><td>16</td></tr>
+          <tr><td><code>overall</code></td><td>43</td><td>4</td><td>8</td><td>30</td><td>91.5%</td><td>84.3%</td><td>87.8%</td><td>85</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="how">How a detection is counted</h2>
+      <p>A sample is counted as flagged when the assigned tool reports at least one finding with severity low, medium, high, or critical. Info-level inventory rules (for example SF12, FL10) are ignored. The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values (for example the SSA’s well-known fictitious SSN is not used here; tracesweep samples use obviously synthetic key material documented in the corpus README).</p>
+      <p>Four jobs are covered:</p>
+      <ul>
+        <li><strong>Prompt injection in tool results</strong> — <a href="https://dunkleschitz.github.io/agentsec/tools/resultguard/">resultguard</a></li>
+        <li><strong>Poisoned MCP tool descriptions</strong> — <a href="https://dunkleschitz.github.io/agentsec/tools/toolpoison/">toolpoison</a></li>
+        <li><strong>Secret leaks</strong> — <a href="https://dunkleschitz.github.io/agentsec/tools/tracesweep/">tracesweep</a> (presence) and <a href="https://dunkleschitz.github.io/agentsec/tools/secretflow/">secretflow</a> (propagation into later tool arguments)</li>
+        <li><strong>Dangerous shell commands</strong> — <a href="https://dunkleschitz.github.io/agentsec/tools/shellfence/">shellfence</a></li>
+      </ul>
+
+      <h2 id="weaknesses">Weaknesses (be skeptical of a clean result)</h2>
+      <p>Several malicious samples were written as <em>evasions</em>: typo-obfuscation, split words, non-English instructions, encodings the tool does not decode, transformed secrets, and unusual tool or shell spellings. A miss on those is expected with a regex/heuristic scanner. Unexpected misses (easy samples the tool should have caught) are treated as bugs and filed with the <code>detection-gap</code> label.</p>
+      <h3>False negatives</h3>
+      <ul>
+<li><code>resultguard/malicious/09-typo-obfuscation</code> — Typo-obfuscated override ('ignroe prevous instructons')<br><span class="meta">evasion · Deliberate misspellings of a classic jailbreak. A regex detector may miss this (false negative).</span></li>
+<li><code>resultguard/malicious/10-split-words</code> — Instruction split with punctuation and hyphenation<br><span class="meta">evasion · Split 'ignore previous instructions' across punctuation. Likely miss (false negative).</span></li>
+<li><code>resultguard/malicious/12-rot13-instruction</code> — ROT13-encoded override with a hint to decode<br><span class="meta">evasion · Encoded form that resultguard does not currently decode (it does base64/hex). Expected miss.</span></li>
+<li><code>toolpoison/malicious/09-soft-telemetry-exfil</code> — Soft 'debugging' instruction to put workspace contents in telemetry_id<br><span class="meta">evasion · No classic 'exfiltrate' wording. May be missed (false negative).</span></li>
+<li><code>toolpoison/malicious/10-french-instruction</code> — French-language hidden instruction in the description<br><span class="meta">evasion · Non-English override. English-centric rules may miss this.</span></li>
+<li><code>tracesweep/malicious/09-split-key</code> — Key split across concatenation in the result<br><span class="meta">evasion · sk-proj- and the body are quoted separately. Pattern detectors often miss this (false negative).</span></li>
+<li><code>secretflow/malicious/06-transformed-before-forward</code> — Secret is base64-encoded before it is forwarded<br><span class="meta">evasion · The later argument is not the literal secret. secretflow tracks exact value reuse, so this is a likely false negative.</span></li>
+<li><code>shellfence/malicious/11-ifs-obfuscated-pipe</code> — curl|bash with unusual spacing and IFS-style splitting<br><span class="meta">evasion · Obfuscated pipe-to-shell. May be missed (false negative).</span></li>
+</ul>
+      <h3>False positives</h3>
+      <ul>
+<li><code>resultguard/benign/05-override-font-setting</code> — UI copy about overriding a system font (rules: TR01)<br><span class="meta">medium · Contains 'override' and 'system' in a typography setting. Should stay clean.</span></li>
+<li><code>resultguard/benign/06-normal-cdn-image</code> — Ordinary HTML with a CDN logo image (rules: TR09)<br><span class="meta">medium · A legitimate &lt;img src&gt; may still hit TR09 (auto-loading resource). Documented as a possible false positive.</span></li>
+<li><code>toolpoison/benign/03-email-with-audit-bcc</code> — Email tool whose description mentions an audit BCC (rules: TP06)<br><span class="meta">medium · Legitimate compliance BCC. A possible false-positive risk if 'BCC' is treated as shadowing.</span></li>
+<li><code>toolpoison/benign/04-notes-parameter</code> — Optional notes parameter with a harmless description (rules: TP05)<br><span class="meta">medium · Parameter named 'notes' may trip TP05 (smuggling-parameter) even when the description is benign. Possible false positive.</span></li>
+</ul>
+      <h2 id="gaps">Open detection-gap issues</h2>
+<ul>
+<li><a href="https://github.com/dunkleschitz/agentsec/issues/7">#7: resultguard misses typo, split-word, and ROT13 instruction overrides</a> (resultguard)</li>
+<li><a href="https://github.com/dunkleschitz/agentsec/issues/8">#8: toolpoison misses soft telemetry exfil and non-English hidden instructions</a> (toolpoison)</li>
+<li><a href="https://github.com/dunkleschitz/agentsec/issues/9">#9: tracesweep misses a provider-shaped key split across string concatenation</a> (tracesweep)</li>
+<li><a href="https://github.com/dunkleschitz/agentsec/issues/10">#10: secretflow misses a secret that is base64-encoded before it is forwarded</a> (secretflow)</li>
+<li><a href="https://github.com/dunkleschitz/agentsec/issues/11">#11: shellfence misses IFS/spacing-obfuscated curl piped to bash</a> (shellfence)</li>
+</ul>
+
+      <h2 id="limits">Limits of this benchmark</h2>
+      <ul>
+        <li>Every fixture was written for this repository. A detector can look strong here and still fail on a real transcript format or a novel payload.</li>
+        <li>The corpus is small (n=85). Percentages will move when a single sample is added or re-labeled.</li>
+        <li>Labels are a judgment call. A “benign” page that includes a tracking <code>&lt;img&gt;</code> is clean from an operator’s point of view and still a legitimate TR09 hit.</li>
+        <li>Info-level inventory findings are excluded. If we counted them, shellfence and secretflow would “detect” almost every transcript they parse.</li>
+        <li>All secrets are fake. tracesweep also suppresses documentation placeholders (the word <code>example</code>, <code>your_api_key</code>, and similar), which is why those values are not used as the malicious keys in this set.</li>
+      </ul>
+      <p>Reproduce the table locally:</p>
+      <pre><code>python3 benchmarks/run_benchmark.py --write-pages</code></pre>
+    </article>
+    <footer>
+      <p>MIT License · synthetic fixtures only · <a href="https://github.com/dunkleschitz/agentsec/tree/main/benchmarks">benchmarks/ in the repo</a></p>
+    </footer>
+  </main>
+</body>
+</html>

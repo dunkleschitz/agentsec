@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Playground — run agentsec in your browser</title>
+  <meta name="description" content="Run resultguard, secretflow, piiguard, mcpposture, and shellfence entirely in your browser with Pyodide. Nothing you paste is uploaded; no data leaves the browser.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/playground/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="playground.css">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="Playground — run agentsec in your browser">
+  <meta property="og:description" content="Scan pasted transcripts or sample fixtures with five stdlib agentsec tools, entirely client-side. No data leaves the browser.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/playground/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Playground — run agentsec in your browser">
+  <meta name="twitter:description" content="Five agentsec scanners run in your browser with Pyodide. Nothing you paste is uploaded.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="../">Home</a>
+      <a href="../tools/">Tools</a>
+      <a href="../playground/" aria-current="page">Playground</a>
+      <a href="../benchmarks/">Benchmark</a>
+      <a href="../guides/">Guides</a>
+      <a href="../why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>Playground</h1>
+    <hr class="rule">
+    <p class="lede">Try five agentsec scanners on pasted text or a sample fixture. The tools run in your browser via Pyodide, the same standard-library Python as the CLI.</p>
+
+    <div class="privacy" role="note">
+      <p><strong>No data leaves the browser.</strong> Whatever you paste is written only into a WebAssembly filesystem in this tab and scanned locally. This page never posts your input to a server. The only network requests are for the Pyodide runtime (CDN) and the tool scripts already hosted on this site.</p>
+    </div>
+
+    <noscript><p class="note">The playground needs JavaScript to load Pyodide and run the scanners in your browser.</p></noscript>
+
+    <div class="play-layout">
+      <div class="play-controls">
+        <div class="play-row">
+          <div>
+            <label for="tool">Tool</label>
+            <select id="tool">
+              <option value="resultguard">resultguard — injection in tool results</option>
+              <option value="secretflow">secretflow — secrets flowing into later tool args</option>
+              <option value="piiguard">piiguard — PII, with --redact</option>
+              <option value="mcpposture">mcpposture — MCP client config grade</option>
+              <option value="shellfence">shellfence — dangerous shell commands</option>
+            </select>
+          </div>
+          <div>
+            <label for="sample">Sample fixture</label>
+            <select id="sample">
+              <option value="">— paste your own —</option>
+            </select>
+          </div>
+          <label class="raw-toggle">
+            <input type="checkbox" id="as-raw">
+            <span>Treat paste as raw text / commands</span>
+          </label>
+        </div>
+        <p class="tool-help" id="tool-help"></p>
+        <label for="input">Input</label>
+        <textarea id="input" spellcheck="false" placeholder="Paste a transcript, MCP config, or plain text here."></textarea>
+        <div class="play-row">
+          <button class="run" id="run" type="button">Scan in this browser</button>
+        </div>
+      </div>
+      <p class="status" id="status" aria-live="polite">Loading the Python runtime…</p>
+      <section id="output" aria-labelledby="output-heading">
+        <h2 id="output-heading">Results</h2>
+        <div id="results"><p class="results-empty">Run a scan to see findings here. Nothing is sent anywhere.</p></div>
+      </section>
+    </div>
+
+    <p class="note">Heuristic scanners, not a security boundary. A clean result does not mean something is safe. All bundled sample secrets and personal-data values are fake. Source: <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a>.</p>
+    <footer>
+      <p>MIT License · runs entirely client-side with <a href="https://pyodide.org/">Pyodide</a> · <a href="../benchmarks/">Detection benchmark</a></p>
+    </footer>
+  </main>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
+  <script src="playground.js"></script>
+</body>
+</html>

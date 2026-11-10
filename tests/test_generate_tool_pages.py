@@ -64,6 +64,8 @@ class GenerateTests(unittest.TestCase):
         sitemap = (self.out / "sitemap.xml").read_text(encoding="utf-8")
         self.assertIn("https://dunkleschitz.github.io/agentsec/tools/", sitemap)
         self.assertIn("https://dunkleschitz.github.io/agentsec/why/", sitemap)
+        self.assertIn("https://dunkleschitz.github.io/agentsec/playground/", sitemap)
+        self.assertIn("https://dunkleschitz.github.io/agentsec/benchmarks/", sitemap)
         for name in self.names:
             self.assertIn(f"/tools/{name}/", sitemap)
 

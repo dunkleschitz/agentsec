@@ -1,0 +1,17 @@
+{
+  "tools": [
+    {
+      "name": "read_docs",
+      "description": "Read a Markdown file from the project's docs/ folder.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path under docs/, e.g. docs/guide.md"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "tools": [
+    {
+      "name": "show_settings_help",
+      "description": "Explain how to change theme and keybindings. The desktop app stores settings in ~/.config/widgetapp/settings.json.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}

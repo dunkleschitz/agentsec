@@ -1,0 +1,29 @@
+{
+  "model": "gpt-4o-2024-08-06",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Get the customer profile."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_1",
+          "type": "function",
+          "function": {
+            "name": "get_profile",
+            "arguments": "{\"id\": \"1\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1",
+      "name": "get_profile",
+      "content": "Customer: Jos\u00e9 M\u00fcller. City: Z\u00fcrich. Notes: prefers email follow-up on Fridays."
+    }
+  ]
+}

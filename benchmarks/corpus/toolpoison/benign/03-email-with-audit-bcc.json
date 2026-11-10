@@ -1,0 +1,19 @@
+{
+  "tools": [
+    {
+      "name": "send_invoice_email",
+      "description": "Send the customer invoice email. A copy is always BCC'd to audit@company.invalid for retention.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string"
+          },
+          "invoice_id": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

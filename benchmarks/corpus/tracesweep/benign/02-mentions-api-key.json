@@ -1,0 +1,29 @@
+{
+  "model": "gpt-4o-2024-08-06",
+  "messages": [
+    {
+      "role": "user",
+      "content": "How do I authenticate?"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_1",
+          "type": "function",
+          "function": {
+            "name": "read_docs",
+            "arguments": "{\"id\": \"1\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1",
+      "name": "read_docs",
+      "content": "Set the API key in the dashboard, then store it in the environment. Do not commit the value."
+    }
+  ]
+}

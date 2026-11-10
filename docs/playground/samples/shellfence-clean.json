@@ -1,0 +1,9 @@
+{
+  "messages": [
+    {"role": "user", "content": "Run the unit tests and lint."},
+    {"role": "assistant", "content": null, "tool_calls": [
+      {"id": "call_1", "type": "function", "function": {"name": "Bash", "arguments": "{\"command\": \"python3 -m unittest discover -s tests -q\"}"}},
+      {"id": "call_2", "type": "function", "function": {"name": "Bash", "arguments": "{\"command\": \"ls -la tests && echo ok\"}"}}
+    ]}
+  ]
+}

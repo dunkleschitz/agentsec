@@ -195,20 +195,22 @@ jobs:
 
 Inputs and outputs are documented in [action.yml](action.yml). Per-tool reports land in
 `agentsec-sarif/` (SARIF when the tool supports `--sarif`, otherwise JSON). Pin a release
-tag (`@v0` or `@v0.37.0`) once you rely on it; `@main` always tracks the latest commit.
+tag (`@v0` or `@v0.38.0`) once you rely on it; `@main` always tracks the latest commit.
 
 To also gate MCP tool-definition drift, set `mcp-snapshot` and `mcp-lock` and include
 `toolpin` in `tools`. The action will run `toolpin check` against those files.
 
 ## Guides
 
-Three short writeups live on the site, plus a per-tool reference and a comparison page:
+Three short writeups live on the site, plus a per-tool reference, a comparison page, an in-browser playground, and a detection benchmark:
 
 - [Prompt injection through tool results](https://dunkleschitz.github.io/agentsec/guides/prompt-injection-through-tool-results/)
 - [Pinning MCP tools against drift](https://dunkleschitz.github.io/agentsec/guides/pinning-mcp-tools-against-drift/)
 - [A 10-minute security audit for your AI agent](https://dunkleschitz.github.io/agentsec/guides/ten-minute-agent-security-audit/)
 - [Tool reference](https://dunkleschitz.github.io/agentsec/tools/) — one page per tool (what it detects, usage, example output, SARIF/CI, OWASP mapping). Regenerated from each tool README by `scripts/generate_tool_pages.py`.
 - [Why agentsec](https://dunkleschitz.github.io/agentsec/why/) — a factual comparison with other open-source agent-security scanners.
+- [Playground](https://dunkleschitz.github.io/agentsec/playground/) — run resultguard, secretflow, piiguard (`--redact`), mcpposture, and shellfence in the browser with Pyodide. Scanning stays in your tab; no data leaves the browser.
+- [Detection benchmark](https://dunkleschitz.github.io/agentsec/benchmarks/) — labeled precision and recall on a small synthetic corpus, with the misses listed on purpose.
 
 ## Use with pre-commit
 
@@ -217,7 +219,7 @@ The repository ships [`.pre-commit-hooks.yaml`](.pre-commit-hooks.yaml) so other
 ```yaml
 repos:
   - repo: https://github.com/dunkleschitz/agentsec
-    rev: v0.37.0
+    rev: v0.38.0
     hooks:
       - id: agentsec-secretflow
         files: '(transcripts|agent-runs)/.*\.(json|jsonl)$'
@@ -242,6 +244,23 @@ Default `files:` filters are conservative but still worth narrowing to the direc
 
 These are the same heuristic scanners as the CLI. A clean hook is not a security boundary.
 
+## Run with Docker
+
+A non-root `python:3.12-slim` image is published to the GitHub Container Registry on pushes to `main` and on version tags:
+
+```sh
+# Scan a local file. Mount the directory read-only; the process runs as uid 1000.
+docker run --rm -v "$PWD:/work:ro" ghcr.io/dunkleschitz/agentsec:v0.38.0 \
+  mcpposture /work/mcp.json
+
+docker run --rm -v "$PWD:/work:ro" ghcr.io/dunkleschitz/agentsec:v0.38.0 \
+  resultguard /work/transcript.json --json --fail-on high
+```
+
+Tags: `v0.38.0` (this release), `v0` (floating major, follows the latest `v0.x` tag), and `latest` (the tip of `main`). The image `ENTRYPOINT` is `agentsec`; arguments after the image name are passed to the CLI. The first pull from `ghcr.io` on a public repository may require the package to be set public in GitHub → Packages if a fresh publish created it as private.
+
+Build a local copy from a clone with `docker build -t ghcr.io/dunkleschitz/agentsec:local .`. The workflow at [`.github/workflows/docker.yml`](.github/workflows/docker.yml) authenticates to `ghcr.io` with `GITHUB_TOKEN`.
+
 ## Framework examples
 
 [`examples/frameworks/`](examples/frameworks/) has short, stdlib-only demos that run agentsec on fake exports from LangChain, the OpenAI Agents SDK, CrewAI, and Cursor / Claude Desktop MCP configs. No framework packages are installed. Transcript-style dumps are rewritten into the OpenAI-shaped messages the tools already parse:
@@ -260,11 +279,14 @@ MCP client configs are handed to `mcpposture` directly. Every secret in the fixt
   through a series of build sessions, one tool at a time. A human chose the direction and
   reviewed the result before release. Treat the code as you would any new, lightly reviewed
   open-source project: read it before relying on it.
-- **What it was tested against.** Each tool ships with a unittest suite (1628 tests in total)
+- **What it was tested against.** Each tool ships with a unittest suite (1652 tests in total)
   and with example inputs built from **synthetic, fake data**: fake keys, fake transcripts,
   fake configs and fake documents. The tests check rule behavior, output formats and CLI exit
-  codes against those fixtures. The tools have **not** been benchmarked against real-world
-  corpora, real attack datasets, or the live schemas of every agent or MCP client they parse.
+  codes against those fixtures. A small labeled corpus in [`benchmarks/`](benchmarks/)
+  reports per-tool precision and recall for four detection jobs; the results page lists
+  every false negative and false positive. The tools have **not** been benchmarked against
+  real-world corpora, real attack datasets, or the live schemas of every agent or MCP client
+  they parse.
 - **Known limits.**
   - *Observed versus inferred.* Tools that read transcripts (tracesweep, runledger, rundiff,
     scopefit, toolgate, promptleak) only see what was logged. They cannot see runtime side effects, real
@@ -288,16 +310,18 @@ MCP client configs are handed to `mcpposture` directly. Every secret in the fixt
 agentsec/
 ├── agentsec/            unified CLI package (`pip install .` → `agentsec <tool>`)
 ├── tools/<name>/        one folder per tool: <name>.py, README.md, tests/, examples/
-├── docs/                GitHub Pages site (/tools/, /guides/, /why/)
+├── docs/                GitHub Pages site (/tools/, /guides/, /why/, /playground/, /benchmarks/)
 ├── examples/frameworks/ stdlib-only demos for LangChain, OpenAI Agents, CrewAI, MCP clients
+├── benchmarks/          labeled synthetic corpus and precision/recall runner
 ├── tests/               tests for the unified CLI, Action, pages generator, hooks, and examples
-├── scripts/             Action runner and generate_tool_pages.py
+├── scripts/             Action runner, generate_tool_pages.py, sync_playground.py
 ├── action.yml           reusable composite Action (`uses: dunkleschitz/agentsec@v0`)
+├── Dockerfile           non-root python:3.12-slim image (ghcr.io/dunkleschitz/agentsec)
 ├── .pre-commit-hooks.yaml
 ├── pyproject.toml       packaging (stdlib-only; no publish until you follow PUBLISHING.md)
 ├── run_tests.py         runs every suite, enforces the zero-test rule
-├── Makefile             `make test` and `make pages`
-├── .github/workflows/   CI, Action self-test, and a manual-only PyPI publish workflow
+├── Makefile             `make test`, `make pages`, `make playground`, `make benchmark`
+├── .github/workflows/   CI, Action self-test, GHCR publish, and a manual-only PyPI publish workflow
 ├── CODE_OF_CONDUCT.md   CONTRIBUTING.md   SECURITY.md   LICENSE   PUBLISHING.md
 ```
 

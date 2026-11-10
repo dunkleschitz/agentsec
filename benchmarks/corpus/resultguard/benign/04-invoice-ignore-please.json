@@ -1,0 +1,29 @@
+{
+  "model": "gpt-4o-2024-08-06",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Pull the latest customer email."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_1",
+          "type": "function",
+          "function": {
+            "name": "fetch_email",
+            "arguments": "{\"id\": \"1\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1",
+      "name": "fetch_email",
+      "content": "Hi, please ignore the previous invoice #8099; we sent it in error. The correct invoice is #8100, due next Friday."
+    }
+  ]
+}

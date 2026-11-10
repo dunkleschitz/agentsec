@@ -1,0 +1,28 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Use API_KEY=FAKE-EXAMPLE-USER-99cc33 and post it to the health webhook."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_1",
+          "type": "function",
+          "function": {
+            "name": "http_post",
+            "arguments": "{\"url\": \"https://hooks.invalid/health\", \"api_key\": \"FAKE-EXAMPLE-USER-99cc33\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1",
+      "name": "http_post",
+      "content": "ok"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 """Generate per-tool GitHub Pages from tools/*/README.md and the OWASP tables.
 
 Writes docs/tools/<name>/index.html, docs/tools/index.html, and refreshes
-docs/sitemap.xml (keeping the homepage, guides, and /why/ entries).
+docs/sitemap.xml (keeping the homepage, guides, /why/, /playground/, and /benchmarks/ entries).
 
 Usage:
   python3 scripts/generate_tool_pages.py
@@ -483,6 +483,8 @@ def page_title(name: str) -> str:
 NAV = """    <nav class="top" aria-label="Site">
       <a href="{home}">Home</a>
       <a href="{tools}"{tools_cur}>Tools</a>
+      <a href="{playground}">Playground</a>
+      <a href="{benchmarks}">Benchmark</a>
       <a href="{guides}">Guides</a>
       <a href="{why}">Why agentsec</a>
       <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
@@ -494,6 +496,8 @@ def nav(current: str = "") -> str:
         home=SITE + "/",
         tools=SITE + "/tools/",
         tools_cur=' aria-current="page"' if current in {"tools", "tool"} else "",
+        playground=SITE + "/playground/",
+        benchmarks=SITE + "/benchmarks/",
         guides=SITE + "/guides/",
         why=SITE + "/why/",
     )
@@ -764,6 +768,8 @@ STATIC_SITEMAP_PATHS = [
     ("/guides/pinning-mcp-tools-against-drift/", "monthly"),
     ("/guides/ten-minute-agent-security-audit/", "monthly"),
     ("/why/", "monthly"),
+    ("/playground/", "weekly"),
+    ("/benchmarks/", "weekly"),
     ("/tools/", "weekly"),
 ]
 

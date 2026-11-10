@@ -1,0 +1,28 @@
+{
+  "tools": [
+    {
+      "name": "read_file",
+      "description": "Read one UTF-8 file from the workspace.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "read_files",
+      "description": "Read several UTF-8 files from the workspace.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "paths": {
+            "type": "array"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "tools": [
+    {
+      "name": "create_task",
+      "description": "Create a task in the project board.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Task title"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional comment for the assignee"
+          }
+        }
+      }
+    }
+  ]
+}

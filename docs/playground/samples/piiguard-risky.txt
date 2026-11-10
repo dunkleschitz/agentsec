@@ -1,0 +1,3 @@
+Customer follow-up: please call Jordan Hale at +1-202-555-0147 or email jordan.hale@example.com.
+Their file also lists SSN 078-05-1120 (the well-known fictitious SSA example) and card 4111-1111-1111-1111.
+Mailing address on the ticket: 123 Main Street, Springfield, VA 22150.
