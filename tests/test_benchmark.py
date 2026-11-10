@@ -160,6 +160,50 @@ class ResultsTests(unittest.TestCase):
             self.assertTrue(path.is_file(), sample["path"])
             self.assertTrue(path.read_text(encoding="utf-8").strip(), sample["path"])
 
+    def test_redteam2_is_separate_unseen_and_frozen(self):
+        import sys
+
+        sys.path.insert(0, str(BENCH))
+        import run_benchmark
+
+        run_benchmark.ensure_redteam2_fixtures()
+        r2_dir = BENCH / "redteam2"
+        r2_manifest = json.loads((r2_dir / "manifest.json").read_text(encoding="utf-8"))
+        samples = r2_manifest["samples"]
+        self.assertGreaterEqual(len(samples), 110)
+        ids = [s["id"] for s in samples]
+        self.assertEqual(len(ids), len(set(ids)))
+        tools = {s["tool"] for s in samples}
+        for name in (
+            "resultguard", "toolpoison", "tracesweep", "secretflow", "shellfence",
+            "piiguard", "fetchfence", "pathfence", "mcpposture", "memfence", "mcpoauth",
+        ):
+            self.assertIn(name, tools)
+        self.assertEqual({s["label"] for s in samples}, {"malicious", "benign"})
+        r1_ids = {s["id"] for s in json.loads((BENCH / "redteam" / "manifest.json").read_text(encoding="utf-8"))["samples"]}
+        main_ids = {s["id"] for s in json.loads(MANIFEST.read_text(encoding="utf-8"))["samples"]}
+        self.assertTrue(set(ids).isdisjoint(r1_ids | main_ids))
+        for sample in samples:
+            path = r2_dir / sample["path"]
+            self.assertTrue(path.is_file(), sample["path"])
+            self.assertTrue(path.read_text(encoding="utf-8").strip(), sample["path"])
+            self.assertTrue(sample.get("source"), sample["id"])
+        sources = (r2_dir / "SOURCES.md").read_text(encoding="utf-8")
+        self.assertIn("ShadowLeak", sources)
+        self.assertIn("without reading", sources.lower())
+        results = json.loads(RESULTS.read_text(encoding="utf-8"))
+        r2 = results["redteam2"]
+        self.assertEqual(r2["sample_count"], len(samples))
+        self.assertFalse(r2["seen"])
+        self.assertTrue(r2["independent"])
+        frozen = json.loads((BENCH / "baseline_redteam2_v0.41.0.json").read_text(encoding="utf-8"))
+        self.assertEqual(frozen["version"], "v0.41.0")
+        self.assertEqual(frozen["sample_count"], len(samples))
+        page = (ROOT / "docs" / "benchmarks" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("Independent red-team round 2", page)
+        # Round 1 stays visible next to round 2.
+        self.assertIn("v0.40.0, unseen", page)
+
     def test_baseline_is_the_v038_snapshot(self):
         baseline = json.loads((BENCH / "baseline_v0.38.0.json").read_text(encoding="utf-8"))
         self.assertEqual(baseline["version"], "v0.38.0")

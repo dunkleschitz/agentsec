@@ -1,0 +1,49 @@
+{
+  "oauth_protected_resource": {
+    "resource": "https://mcp.files-app.io/mcp",
+    "authorization_servers": [
+      "https://auth.files-app.io"
+    ],
+    "bearer_methods_supported": [
+      "header"
+    ],
+    "scopes_supported": [
+      "mcp:tools"
+    ]
+  },
+  "oauth_authorization_server": {
+    "issuer": "https://auth.files-app.io",
+    "authorization_endpoint": "https://auth.files-app.io/authorize",
+    "token_endpoint": "https://auth.files-app.io/token",
+    "response_types_supported": [
+      "code"
+    ],
+    "grant_types_supported": [
+      "authorization_code",
+      "refresh_token"
+    ],
+    "code_challenge_methods_supported": [
+      "S256"
+    ],
+    "token_endpoint_auth_methods_supported": [
+      "none",
+      "private_key_jwt"
+    ],
+    "scopes_supported": [
+      "mcp:tools",
+      "files:read"
+    ],
+    "jwks": {
+      "keys": [
+        {
+          "kty": "RSA",
+          "kid": "k1",
+          "use": "sig",
+          "alg": "RS256",
+          "n": "HtlhDQcCP4Vcd3qgsuMhmIgWR4gLZtHt9Haz-7ZyOJ9cTmclbu_2YUBGuaHTAm2Qv1AXp5i3wD2--6_j7Dpqr9817_jolNuqU42FC4Qm254GgaSPWqjIMTnCmn784peJlPm8d21jIk-WtSf6rpOnxFMdCjXr-AxEIROhwO79hs7T2MrJHo3UfVZxHGtLbLEWhAk0L2IFz7l5a0dbc4xDed2_OkQ6uGA65p40jOxFIN7jty-2zeO7qLG5y5Rc6bJHtg1aJUg4UKuAcPedsbcY8X66-TUq_TJUccDB2dE-w58GDShd2t_ggHuAFCuPmkLqCQASkrPDUzV-tfLq14RLj-",
+          "e": "AQAB"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Summarize ticket 4412."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "get_ticket",
+            "arguments": "{\"id\": 4412}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "get_ticket",
+      "content": "Customer: [REDACTED]\nEmail: [REDACTED]\nSSN: ***-**-7731\nCard: **** **** **** 4242\nIssue: refund not received"
+    }
+  ]
+}

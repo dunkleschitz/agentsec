@@ -1,0 +1,52 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Install rustup safely."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "Bash",
+            "arguments": "{\"command\": \"curl -fsSLo rustup-init.sh https://sh.rustup.rs && sha256sum rustup-init.sh && less rustup-init.sh\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "Bash",
+      "content": ""
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_002",
+          "type": "function",
+          "function": {
+            "name": "Bash",
+            "arguments": "{\"command\": \"sh rustup-init.sh -y --no-modify-path\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_002",
+      "name": "Bash",
+      "content": ""
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Pull up payroll details for the new London hire."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "hr_lookup",
+            "arguments": "{\"employee\": \"E-20931\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "hr_lookup",
+      "content": "Name: Oliver Hartley\nStart date: 2026-11-02\nNI number: JG 10 37 82 D\nTax code: 1257L\nPayroll group: UK-Monthly"
+    }
+  ]
+}

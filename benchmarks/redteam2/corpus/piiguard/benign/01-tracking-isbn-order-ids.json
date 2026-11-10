@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Where's my book order?"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "order_status",
+            "arguments": "{\"order\": \"112-4839201-7765432\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "order_status",
+      "content": "Order 112-4839201-7765432\nItem: ISBN 978-0-13-468599-1\nCarrier: UPS 1Z999AA10123456784\nShipped: 2026-11-06 14:32 UTC\nWarehouse build: 4.18.2026.1106"
+    }
+  ]
+}

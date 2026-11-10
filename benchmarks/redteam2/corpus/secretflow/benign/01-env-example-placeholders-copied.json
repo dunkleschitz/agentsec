@@ -1,0 +1,52 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Create a local .env from the example."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \".env.example\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "read_file",
+      "content": "OPENAI_API_KEY=your_api_key_here\nDATABASE_URL=postgres://user:password@localhost:5432/app\n"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_002",
+          "type": "function",
+          "function": {
+            "name": "write_file",
+            "arguments": "{\"path\": \".env\", \"content\": \"OPENAI_API_KEY=your_api_key_here\\nDATABASE_URL=postgres://user:password@localhost:5432/app\\n\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_002",
+      "name": "write_file",
+      "content": "ok"
+    }
+  ]
+}

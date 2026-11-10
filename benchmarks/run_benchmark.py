@@ -37,6 +37,8 @@ REDTEAM_DIR = BENCH / "redteam"
 REDTEAM_MANIFEST_PATH = REDTEAM_DIR / "manifest.json"
 BASELINE_PATH = BENCH / "baseline_v0.38.0.json"
 REDTEAM_BASELINE_PATH = BENCH / "baseline_redteam_v0.40.0.json"
+REDTEAM2_DIR = BENCH / "redteam2"
+REDTEAM2_MANIFEST_PATH = REDTEAM2_DIR / "manifest.json"
 SITE = "https://dunkleschitz.github.io/agentsec"
 
 SEVERITY_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
@@ -50,6 +52,7 @@ IGNORE_RULES = frozenset(
         "MF10",  # memfence entry inventory
         "MP17",  # mcpposture duplicate-server-name (info)
         "MP18",  # mcpposture duplicate-package (info)
+        "MO14",  # mcpoauth metadata-document inventory (info)
     }
 )
 
@@ -94,6 +97,7 @@ def tool_argv(tool: str, path: Path) -> list[str]:
         "fetchfence",
         "pathfence",
         "memfence",
+        "mcpoauth",
     }:
         argv += ["--fail-on", "none"]
     elif tool == "mcpposture":
@@ -195,6 +199,21 @@ def fmt_pct(value: float | None) -> str:
     if value is None:
         return "n/a"
     return "%.1f%%" % (value * 100)
+
+
+def ensure_redteam2_fixtures() -> None:
+    """Materialize round-2 fixtures that are not committed (fake provider-shaped
+    secrets that GitHub push protection blocks). Deterministic; see generate.py."""
+    if not REDTEAM2_MANIFEST_PATH.is_file():
+        return
+    manifest = json.loads(REDTEAM2_MANIFEST_PATH.read_text(encoding="utf-8"))
+    if all((REDTEAM2_DIR / s["path"]).is_file() for s in manifest["samples"]):
+        return
+    subprocess.run(
+        [sys.executable, str(REDTEAM2_DIR / "generate.py"), "--missing-only"],
+        cwd=ROOT, check=True, capture_output=True,
+        env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"),
+    )
 
 
 def run_corpus(manifest: dict, root: Path = BENCH) -> dict:
@@ -457,6 +476,42 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
                     "retune rules against the red-team fixtures.</p>\n"
                 )
 
+    redteam2_html = ""
+    redteam2 = results.get("redteam2") or {}
+    if redteam2:
+        r2_intro = (
+            "A second independent red-team wrote %d new samples across eleven tools (the ten above plus "
+            "mcpoauth) against v0.41.0, without reading detector source, rule files, or the round-1 fixtures "
+            "(READMEs/usage and the round-1 SOURCES.md only). Techniques favor published research that round 1 "
+            "did not use: Radware ShadowLeak, HiddenLayer Policy Puppetry, Copilot autoApprove (CVE-2025-53773), "
+            "Cursor CurXecute, Cato HashJack, Tenable Gemini Trifecta, Noma ForcedLeak, Sneaky Bits and emoji "
+            "variation-selector smuggling, MPMA and MCPTox tool poisoning, Elastic orchestration injection, "
+            "postmark-mcp, Shai-Hulud, s1ngularity AI-CLI abuse, Tracebit Gemini CLI, Replit DB deletion, "
+            "Cymulate EscapeRoute, mcp-remote CVE-2025-6514, MCP Inspector CVE-2025-49596, Unit 42 Bedrock memory "
+            "poisoning, AgentPoison, and OAuth BCP (RFC 9700) misconfigurations. Fixtures live in "
+            "<code>benchmarks/redteam2/</code> with citations in <code>SOURCES.md</code>. This is an unseen score: "
+            "no rule was changed against this set."
+            % redteam2["sample_count"]
+        )
+        redteam2_html = section_table(
+            "Independent red-team round 2 (v0.41.0, unseen)", "redteam2", redteam2, r2_intro
+        )
+        redteam2_html += "<h3>Round 2 false negatives</h3>\n"
+        redteam2_html += list_items(redteam2.get("false_negatives") or [], "false negative")
+        redteam2_html += "<h3>Round 2 false positives</h3>\n"
+        redteam2_html += list_items(redteam2.get("false_positives") or [], "false positive")
+        gap_issues = redteam2.get("gap_issues") or {}
+        if gap_issues:
+            links = ", ".join(
+                '<a href="%s">#%s</a> (%s)' % (esc(url), esc(url.rsplit("/", 1)[-1]), esc(tool))
+                for tool, url in sorted(gap_issues.items())
+            )
+            redteam2_html += (
+                "<h3>Round 2 detection-gap issues</h3>\n<p>Every tool with a round-2 miss or false positive has one "
+                "<code>detection-gap</code> issue: " + links + ". This release does <strong>not</strong> retune "
+                "rules against the round-2 fixtures.</p>\n"
+            )
+
     closed = """
       <h2 id="gaps">Detection-gap issues #7–#11</h2>
       <p>The eight original evasions and four false positives were filed as
@@ -500,6 +555,7 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
         <li><strong>Sensitive paths</strong> — <a href="{site}/tools/pathfence/">pathfence</a></li>
         <li><strong>MCP client posture</strong> — <a href="{site}/tools/mcpposture/">mcpposture</a></li>
         <li><strong>Persistent memory poisoning</strong> — <a href="{site}/tools/memfence/">memfence</a></li>
+        <li><strong>MCP OAuth metadata</strong> (round 2 only) — <a href="{site}/tools/mcpoauth/">mcpoauth</a></li>
       </ul>
 """.format(site=SITE)
 
@@ -546,6 +602,7 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
     <article>
       {before_after}
       {heldout_html}
+      {redteam2_html}
       {redteam_html}
       {section_table("Expanded corpus (ten tools)", "expanded", results, "The original five tools plus piiguard, fetchfence, pathfence, mcpposture, and memfence, on newly written original fixtures.")}
       <h3>Expanded-corpus false negatives</h3>
@@ -562,7 +619,7 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
       <h2 id="limits">Limits of this benchmark</h2>
       <ul>
         <li>Every fixture was written for this repository. A detector can look strong here and still fail on a real transcript format or a novel payload.</li>
-        <li>The corpus is still small (n={results["sample_count"]} on the expanded set; n={comparable.get("sample_count", "85")} on the original slice; n={(heldout or {}).get("sample_count", "?")} held-out; n={(redteam or {}).get("sample_count", "?")} independent red-team). Percentages will move when a single sample is added or re-labeled.</li>
+        <li>The corpus is still small (n={results["sample_count"]} on the expanded set; n={comparable.get("sample_count", "85")} on the original slice; n={(heldout or {}).get("sample_count", "?")} held-out; n={(redteam or {}).get("sample_count", "?")} independent red-team round 1; n={(redteam2 or {}).get("sample_count", "?")} round 2). Percentages will move when a single sample is added or re-labeled.</li>
         <li>The held-out set was written after the #7–#11 fixes and was not used to retune those rules. A strong held-out score is still not evidence of real-world robustness.</li>
         <li>The independent red-team set was written without reading detector source or rule files. The v0.40.0 numbers on that set are the unseen score and stay visible. After issues #12–#16 were closed against general rule changes, the same set was re-run; those post-fix numbers are clearly labeled <strong>seen</strong> and are no longer independent.</li>
         <li>Info-level inventory findings are excluded. If we counted them, several tools would “detect” almost every transcript they parse.</li>
@@ -634,7 +691,7 @@ def canonical_results(results: dict) -> dict:
         "samples": results["samples"] if results["samples"] and "flagged" in results["samples"][0] and "title" not in results["samples"][0]
         else [slim_sample(r) if "outcome" in r and "title" in r else r for r in results["samples"]],
     }
-    for key in ("baseline", "original_comparable", "heldout", "redteam", "redteam_independent", "issues"):
+    for key in ("baseline", "original_comparable", "heldout", "redteam", "redteam_independent", "redteam2", "issues"):
         if results.get(key) is not None:
             out[key] = results[key]
     return out
@@ -764,6 +821,28 @@ def main(argv=None) -> int:
             rt_block["independent"] = True
         results["redteam"] = rt_block
 
+    if REDTEAM2_MANIFEST_PATH.is_file():
+        ensure_redteam2_fixtures()
+        r2_manifest = json.loads(REDTEAM2_MANIFEST_PATH.read_text(encoding="utf-8"))
+        r2_raw = run_corpus(r2_manifest, root=REDTEAM2_DIR)
+        results["redteam2"] = {
+            "sample_count": r2_raw["sample_count"],
+            "positive_definition": r2_manifest.get("positive_definition"),
+            "overall": r2_raw["overall"],
+            "per_tool": r2_raw["per_tool"],
+            "false_positives": r2_raw["false_positives"],
+            "false_negatives": r2_raw["false_negatives"],
+            "evasion_false_negatives": r2_raw["evasion_false_negatives"],
+            "unexpected_false_negatives": r2_raw["unexpected_false_negatives"],
+            "samples": [slim_sample(r) for r in r2_raw["samples"]],
+            "written_by": r2_manifest.get("written_by"),
+            "written_against": r2_manifest.get("written_against"),
+            "method": r2_manifest.get("method"),
+            "seen": False,
+            "independent": True,
+            "gap_issues": r2_manifest.get("gap_issues") or {},
+        }
+
     slim = canonical_results(results)
 
     if args.check:
@@ -789,6 +868,7 @@ def main(argv=None) -> int:
             or "Independent red-team results" not in body
             or "now seen" not in body
             or "v0.40.0, unseen" not in body
+            or (REDTEAM2_MANIFEST_PATH.is_file() and "Independent red-team round 2" not in body)
         ):
             sys.stderr.write("run_benchmark: docs/benchmarks/index.html is missing or stale.\n")
             return 1
@@ -812,6 +892,9 @@ def main(argv=None) -> int:
         if results.get("redteam_independent"):
             sys.stdout.write("\nindependent red-team set (v0.40.0, unseen):\n")
             sys.stdout.write(text_report(results["redteam_independent"]))
+        if results.get("redteam2"):
+            sys.stdout.write("\nindependent red-team round 2 (v0.41.0, unseen):\n")
+            sys.stdout.write(text_report(results["redteam2"]))
         if results.get("redteam"):
             label = "same red-team set after #12–#16 fixes (now seen)" if results["redteam"].get("seen") else "independent red-team set"
             sys.stdout.write("\n%s:\n" % label)

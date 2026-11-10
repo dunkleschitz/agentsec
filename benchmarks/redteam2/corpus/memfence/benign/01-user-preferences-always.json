@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "User prefers metric units.",
+      "user_id": "u-4821"
+    },
+    {
+      "id": "m2",
+      "memory": "Always respond in British English and keep answers under 200 words.",
+      "user_id": "u-4821"
+    },
+    {
+      "id": "m3",
+      "memory": "User is vegetarian.",
+      "user_id": "u-4821"
+    }
+  ]
+}

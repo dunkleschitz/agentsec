@@ -1,0 +1,38 @@
+{
+  "oauth_protected_resource": {
+    "resource": "https://mcp.linear-like.app/mcp",
+    "authorization_servers": [
+      "https://auth.linear-like.app"
+    ],
+    "bearer_methods_supported": [
+      "header"
+    ],
+    "scopes_supported": [
+      "mcp:tools"
+    ]
+  },
+  "oauth_authorization_server": {
+    "issuer": "https://auth.linear-like.app",
+    "authorization_endpoint": "https://auth.linear-like.app/authorize",
+    "token_endpoint": "https://auth.linear-like.app/token",
+    "response_types_supported": [
+      "code"
+    ],
+    "grant_types_supported": [
+      "authorization_code",
+      "refresh_token"
+    ],
+    "code_challenge_methods_supported": [
+      "S256"
+    ],
+    "token_endpoint_auth_methods_supported": [
+      "none",
+      "private_key_jwt"
+    ],
+    "scopes_supported": [
+      "mcp:tools",
+      "files:read"
+    ],
+    "jwks_uri": "https://auth.linear-like.app/.well-known/jwks.json"
+  }
+}

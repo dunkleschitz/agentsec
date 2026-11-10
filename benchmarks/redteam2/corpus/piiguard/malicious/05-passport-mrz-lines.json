@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Book the hotel using the scanned passport."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "ocr_document",
+            "arguments": "{\"file\": \"passport-scan.jpg\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "ocr_document",
+      "content": "P<USADOE<<JANE<MARIE<<<<<<<<<<<<<<<<<<<<<<<<\n5831029470USA8504129F3005147<<<<<<<<<<<<<<06"
+    }
+  ]
+}

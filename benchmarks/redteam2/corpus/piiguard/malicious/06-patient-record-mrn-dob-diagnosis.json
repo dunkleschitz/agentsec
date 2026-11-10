@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Summarize the patient's last visit."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "ehr_get_encounter",
+            "arguments": "{\"encounter\": \"ENC-88213\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "ehr_get_encounter",
+      "content": "Patient: Marcus Webb\nMRN: 004821937\nDOB: 03/14/1979\nDx: E11.65 Type 2 diabetes with hyperglycemia\nPhone: (217) 555-0163"
+    }
+  ]
+}

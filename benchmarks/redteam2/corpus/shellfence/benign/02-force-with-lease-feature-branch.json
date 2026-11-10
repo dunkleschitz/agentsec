@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Rebase my branch on main and update the PR."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "Bash",
+            "arguments": "{\"command\": \"git fetch origin && git rebase origin/main && git push --force-with-lease origin feature/checkout-retry\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "Bash",
+      "content": ""
+    }
+  ]
+}

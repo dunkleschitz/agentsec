@@ -1,0 +1,72 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Check the latest versions."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "fetch_url",
+            "arguments": "{\"url\": \"https://registry.npmjs.org/left-pad\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "fetch_url",
+      "content": ""
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_002",
+          "type": "function",
+          "function": {
+            "name": "fetch_url",
+            "arguments": "{\"url\": \"https://pypi.org/pypi/requests/json\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_002",
+      "name": "fetch_url",
+      "content": ""
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_003",
+          "type": "function",
+          "function": {
+            "name": "fetch_url",
+            "arguments": "{\"url\": \"https://api.github.com/repos/psf/requests/releases?per_page=5\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_003",
+      "name": "fetch_url",
+      "content": ""
+    }
+  ]
+}

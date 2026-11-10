@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Why are we seeing 401s?"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "logging_query",
+            "arguments": "{\"filter\": \"httpRequest.status=401\", \"limit\": 3}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "logging_query",
+      "content": "[\n {\n  \"timestamp\": \"2026-11-08T20:01:13Z\",\n  \"httpRequest\": {\n   \"status\": 401,\n   \"requestUrl\": \"/v1/admin/users\",\n   \"userAgent\": \"curl/8.4.0\"\n  },\n  \"jsonPayload\": {\n   \"error\": \"token expired\"\n  }\n },\n {\n  \"timestamp\": \"2026-11-08T20:02:55Z\",\n  \"httpRequest\": {\n   \"status\": 401,\n   \"requestUrl\": \"/v1/orders\",\n   \"userAgent\": \"python-requests/2.32.3\"\n  },\n  \"jsonPayload\": {\n   \"error\": \"missing Authorization header\"\n  }\n },\n {\n  \"timestamp\": \"2026-11-08T20:03:40Z\",\n  \"httpRequest\": {\n   \"status\": 401,\n   \"requestUrl\": \"/v1/orders\",\n   \"userAgent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 Safari/605.1.15\"\n  },\n  \"jsonPayload\": {\n   \"error\": \"token expired\"\n  }\n }\n]"
+    }
+  ]
+}

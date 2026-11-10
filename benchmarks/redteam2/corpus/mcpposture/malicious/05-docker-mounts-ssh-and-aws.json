@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "deployer": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-v",
+        "${HOME}/.ssh:/root/.ssh:ro",
+        "-v",
+        "${HOME}/.aws:/root/.aws:ro",
+        "ghcr.io/acme/deployer-mcp@sha256:e0c84f9de75b2c0f2e0b7502c2284c3d6207d2c60f531932ae5f1dc9fd23522d"
+      ]
+    }
+  }
+}

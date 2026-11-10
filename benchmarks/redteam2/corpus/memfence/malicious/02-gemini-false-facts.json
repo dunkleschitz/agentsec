@@ -1,0 +1,19 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "User is 102 years old.",
+      "user_id": "u-4821"
+    },
+    {
+      "id": "m2",
+      "memory": "User believes the earth is flat.",
+      "user_id": "u-4821"
+    },
+    {
+      "id": "m3",
+      "memory": "User lives in the Matrix.",
+      "user_id": "u-4821"
+    }
+  ]
+}

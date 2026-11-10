@@ -1,0 +1,38 @@
+{
+  "oauth_protected_resource": {
+    "resource": "https://mcp.tv-remote.io/mcp",
+    "authorization_servers": [
+      "https://auth.tv-remote.io"
+    ],
+    "bearer_methods_supported": [
+      "header"
+    ],
+    "scopes_supported": [
+      "mcp:tools"
+    ]
+  },
+  "oauth_authorization_server": {
+    "issuer": "https://auth.tv-remote.io",
+    "authorization_endpoint": "https://auth.tv-remote.io/authorize",
+    "token_endpoint": "https://auth.tv-remote.io/token",
+    "response_types_supported": [
+      "code"
+    ],
+    "grant_types_supported": [
+      "authorization_code",
+      "urn:ietf:params:oauth:grant-type:device_code"
+    ],
+    "code_challenge_methods_supported": [
+      "S256"
+    ],
+    "token_endpoint_auth_methods_supported": [
+      "none",
+      "private_key_jwt"
+    ],
+    "scopes_supported": [
+      "mcp:tools",
+      "files:read"
+    ],
+    "device_authorization_endpoint": "http://auth.tv-remote.io/device"
+  }
+}

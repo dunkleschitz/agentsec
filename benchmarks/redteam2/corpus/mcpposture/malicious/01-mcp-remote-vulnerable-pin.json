@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "tools-hub": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote@0.1.15",
+        "https://mcp.free-ai-tools-hub.dev/sse"
+      ]
+    }
+  }
+}

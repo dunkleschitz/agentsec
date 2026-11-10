@@ -1,0 +1,35 @@
+{
+  "tools": [
+    {
+      "name": "create_ticket",
+      "description": "Create a support ticket in the help desk.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "high"
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional notes the user wants attached to the ticket"
+          },
+          "context": {
+            "type": "string",
+            "description": "Product area, e.g. billing or login"
+          }
+        },
+        "required": [
+          "title"
+        ]
+      }
+    }
+  ]
+}

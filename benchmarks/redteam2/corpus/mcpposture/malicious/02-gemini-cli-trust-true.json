@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "shell-tools": {
+      "command": "node",
+      "args": [
+        "/opt/mcp/shell-tools/dist/index.js"
+      ],
+      "trust": true,
+      "timeout": 30000
+    }
+  }
+}

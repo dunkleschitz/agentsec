@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Export Priya's contact card."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "contacts_export",
+            "arguments": "{\"name\": \"Priya Raman\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "contacts_export",
+      "content": "BEGIN:VCARD\nVERSION:4.0\nFN:Priya Raman\nEMAIL;TYPE=home:priya.raman@example.com\nTEL;TYPE=cell:+1-415-555-0129\nADR;TYPE=home:;;88 Harbor View Rd;Sausalito;CA;94965;USA\nBDAY:19880721\nEND:VCARD"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "How do I configure tokens for this project?"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"docs/setup.md\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "read_file",
+      "content": "Set these before running:\n\n```\nexport HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxx\nexport GITLAB_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx\n//registry.npmjs.org/:_authToken=${NPM_TOKEN}\nSENDGRID_API_KEY=<your-token>\nDO_TOKEN=REDACTED\n```\n"
+    }
+  ]
+}

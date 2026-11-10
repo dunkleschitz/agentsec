@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Post the report."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "fetch_url",
+            "arguments": "{\"url\": \"https://discord.com/api/webhooks/1301122334455667788/KHtd6uyNIh5Z082cbCWtbnA3dIcV8nQxSa56xwB9hY9yJAJ09mbfA_nUYU7uLl6wv4Fg\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "fetch_url",
+      "content": ""
+    }
+  ]
+}

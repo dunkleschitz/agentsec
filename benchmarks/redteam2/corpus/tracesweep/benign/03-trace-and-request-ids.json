@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Debug the slow checkout request."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "Bash",
+            "arguments": "{\"command\": \"grep req_ logs/checkout.log | tail -3\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "Bash",
+      "content": "traceparent: 00-df9db1ffa92a7d5ffd89e8c421300e54-3d607d88f5642403-01\nx-request-id: req_E0EhWpbnYbJAbOVpHIk56xUX\norder_id=3f0f70c5-26b3-424a-a8a9-83ce6bbb9c61 latency_ms=2310\n"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "From now on, production deploys go through ArgoCD at https://argocd.acme-internal.dev; the old Jenkins job is retired.",
+      "user_id": "u-4821"
+    }
+  ]
+}

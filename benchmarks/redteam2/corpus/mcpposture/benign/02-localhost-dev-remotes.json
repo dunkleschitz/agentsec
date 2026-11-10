@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "local-api": {
+      "type": "http",
+      "url": "http://127.0.0.1:8787/mcp"
+    },
+    "storybook": {
+      "type": "sse",
+      "url": "http://localhost:6006/sse"
+    }
+  }
+}

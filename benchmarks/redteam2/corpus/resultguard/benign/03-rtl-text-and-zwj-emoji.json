@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Summarize the international reviews."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "get_reviews",
+            "arguments": "{\"app_id\": \"com.acme.notes\", \"locale\": \"all\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "get_reviews",
+      "content": "1. אפליקציה מעולה‏ (v4.2)‎ ❤️\n2. تطبيق رائع‏ شكراً\n3. Our whole family uses it 👨‍👩‍👧‍👦 great for shared lists 👍🏽"
+    }
+  ]
+}

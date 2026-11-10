@@ -1,0 +1,53 @@
+{
+  "tools": [
+    {
+      "name": "list_secret_scanning_alerts",
+      "description": "List secret scanning alerts for a repository. Requires a token with the security_events scope. Returns alert number, secret type and state; the secret value itself is never returned.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "resolved"
+            ]
+          }
+        },
+        "required": [
+          "owner",
+          "repo"
+        ]
+      }
+    },
+    {
+      "name": "get_code_scanning_alert",
+      "description": "Get details of a code scanning alert, including the rule that flagged hard-coded credentials.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "alertNumber": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "owner",
+          "repo",
+          "alertNumber"
+        ]
+      }
+    }
+  ]
+}

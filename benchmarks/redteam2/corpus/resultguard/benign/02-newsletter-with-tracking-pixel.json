@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Any newsletters worth reading in my inbox?"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "gmail_read_message",
+            "arguments": "{\"id\": \"18c2f0b1\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "gmail_read_message",
+      "content": "<html><body><h1>The Weekly Build</h1><p>Five tips for faster CI pipelines, and a look at Python 3.14.</p><a href=\"https://weeklybuild.news/issues/212\">Read online</a><img src=\"https://email.mg.weeklybuild.news/o/eJwNyEEKgCAQBdC7_LULU1T0Np3G1tB0b.gif\" width=\"1\" height=\"1\" alt=\"\"/></body></html>"
+    }
+  ]
+}

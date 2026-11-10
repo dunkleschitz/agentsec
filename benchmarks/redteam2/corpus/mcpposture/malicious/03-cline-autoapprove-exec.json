@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "dev-box": {
+      "command": "uvx",
+      "args": [
+        "devbox-mcp==1.4.2"
+      ],
+      "alwaysAllow": [
+        "execute_command",
+        "write_to_file",
+        "read_file"
+      ],
+      "autoApprove": [
+        "execute_command"
+      ],
+      "disabled": false
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "oauth_protected_resource": {
+    "resource": "https://mcp.tasks-app.io/mcp",
+    "authorization_servers": [
+      "https://auth.tasks-app.io"
+    ],
+    "bearer_methods_supported": [
+      "header"
+    ],
+    "scopes_supported": [
+      "mcp:tools"
+    ]
+  },
+  "oauth_authorization_server": {
+    "issuer": "https://auth.tasks-app.io",
+    "authorization_endpoint": "https://auth.tasks-app.io/authorize",
+    "token_endpoint": "https://auth.tasks-app.io/token",
+    "response_types_supported": [
+      "code"
+    ],
+    "grant_types_supported": [
+      "authorization_code",
+      "refresh_token"
+    ],
+    "code_challenge_methods_supported": [
+      "S256"
+    ],
+    "token_endpoint_auth_methods_supported": [
+      "none",
+      "private_key_jwt"
+    ],
+    "scopes_supported": [
+      "mcp:tools",
+      "files:read"
+    ],
+    "jwks": {
+      "keys": [
+        {
+          "kty": "RSA",
+          "kid": "2026-11",
+          "use": "sig",
+          "alg": "RS256",
+          "n": "zAPY0UR8sF4zxlvmuqT7VTCV1mTxM00-7aheg0JN9KvHeyeA1K3lfIttvPXWu9YBqxeM6TU3AcyVDPYYpdUPRsFXe315EwFrfi3ya5RKbmZqCxtMOb4IM9oIM-N-gv2GGaRJUQk5Hqm5RLnizDHoBabeb83M3xA7Ub3JqUVx0D3C4Z2Y7TruFOluEqyWydF1RSO3y_EdY0aBQIKtmvpRx2L4XzkL5fxUSdFUjWW62EXP4jRlObO502BS4VTJLekWcompvdsE73AphFDK7V0XjjIWHLqzDXw46RJDkUYL86YMjgANSGErZpfd6uraCqqAWPgLX86R9yO4VFWt4B4Bex",
+          "e": "AQAB",
+          "p": "YVMBwt_7BNn4h98bJZy0C9049lC7b4jwEDN0BdsFeLZ77ae6KQRwNWPmVUxmmm2uK8rBWwm7QhgjgxOMCQTISN0R478yfmxMXtImEoV5xkm_Pl9nFP5sYhGdKy8FkaYvRDXD1--efTq5JqfSjru4EWGKGNwGafAHwMSr_V3GG76",
+          "q": "2Lfsn0h34M6GszCx3gf1Fo8bakScjQDDxIZTY4QXATnpaqo6qeK15gupAwemOPTGKWqltSK7ohKlmGms3kmzrIN7anB0NlIKKkXe2ug6s9k7HyKI585xXg6LL5ur3I6eYTTG4D-YSFLuXuwqPUHyCQpjtDF9tR0IdhZKqnZ6ggr",
+          "dp": "qXzlS6m52oftF3_BfEk9GCazK9NBG2EA_5iB76BGmwIOdj5FJr-rkgsAHmrmXzFsWC7vNAfg9Ta_XT9KK7iQv89Bpsz0SZc_k0-eIi-p-wU5mTzkM_w59xxKNgH3qJBSnJUrFw-BIfvK1mLqdomkqlK7pqfypsO0YTJMLvjAl7Q",
+          "dq": "amgcW5RVbwE1UEQE9xHasMQxR5zIkirbjjO-bUe2PvOgrj19sKGH38Xcn7tEycwEvYWzLCLubUylRyllsvX32Qy45dbF-wMKwyZnf0Xy3eSHt1OPJBg7or7tlwtrMxtyA4sKg7n-8uBHdZv72-i53vwiVBfhhY-L4VEDlpPfcio",
+          "qi": "Y9ZNn1wk29wqIEox95U40z82_KzUcAyD8bhEMq9GMHcxipLHbLDzyYYU9HrvnmwDl0A2UqZMKmvqPapZpWyje4NmbLxpKjEfZG77dLDzppw7BGjPAb0VeF9DG_8w_tG59YG2eObHTYFaBkooS91q9Wu9kvcJf8D4IMmlKd71Ezo"
+        }
+      ]
+    }
+  }
+}

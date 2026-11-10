@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "How did the API do overnight?"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "metrics_query",
+            "arguments": "{\"range\": \"12h\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "metrics_query",
+      "content": "p50=212ms p99=1874ms errors=0.42%\nwindow_start=1762671600000 window_end=1762714800000\nnode 10.0.12.17:8443 uptime=3888123s rss_bytes=734003200\nbuild 2026.11.09.1415 commit 9f2c1e4"
+    }
+  ]
+}

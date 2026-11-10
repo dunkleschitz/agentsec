@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "notes": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/random-dev/notes-mcp",
+        "notes-mcp"
+      ]
+    }
+  }
+}
