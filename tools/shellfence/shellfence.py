@@ -46,6 +46,7 @@ RULES = {
     "SF16": ("high", "Secret-harvest pipeline followed by a public exfil channel (scanner on / plus public repo/gist/upload)"),
     "SF17": ("critical", "LOLBAS remote download or execute (certutil -urlcache, mshta, bitsadmin /transfer)"),
     "SF18": ("critical", "Download-then-execute without a pipe (curl/wget -o, chmod +x, then run the file)"),
+    "SF19": ("critical", "LOLBin / exec-trampoline or cloud-sync exfil (tar checkpoint-action, forfiles, MSBuild, rclone of $HOME)"),
 }
 
 SHELL_TOKENS = {
@@ -675,6 +676,36 @@ def _python_reverse_shell(cmd: str) -> bool:
 
 
 
+def _embedded_exec_payloads(cmd):
+    """Extract commands wrapped in LOLBin / build-event trampolines."""
+    if not cmd:
+        return []
+    out = []
+    quoted = r"(?:'([^']+)'|\"([^\"]+)\"|(\S+))"
+    # tar --checkpoint-action=exec=... (single, double, or bare)
+    for m in re.finditer(
+        r"(?i)--checkpoint-action\s*=\s*(?:(?:always-)?exec[=:]?)?\s*" + quoted,
+        cmd,
+    ):
+        val = m.group(1) or m.group(2) or m.group(3) or ""
+        if val:
+            out.append(val)
+    # forfiles /c "..." or /c '...'
+    for m in re.finditer(r"(?i)\bforfiles\b[^\n|;]{0,200}/c\s+" + quoted, cmd):
+        val = m.group(1) or m.group(2) or m.group(3) or ""
+        if val:
+            out.append(val)
+    # MSBuild /p:PostBuildEvent=...
+    for m in re.finditer(
+        r"(?i)(?:/p:)?(?:Pre|Post)BuildEvent\s*=\s*" + quoted,
+        cmd,
+    ):
+        val = m.group(1) or m.group(2) or m.group(3) or ""
+        if val:
+            out.append(val)
+    return out
+
+
 LOLBAS_RE = re.compile(
     r"(?ix)"
     r"("
@@ -690,6 +721,24 @@ LOLBAS_RE = re.compile(
     r")"
 )
 
+# Exec trampolines and living-off-the-land binary wrappers (class, not one binary).
+LOLBIN_TRAMPOLINE_RE = re.compile(
+    r"(?ix)(?:"
+    r"\btar\b[^\n|;]{0,200}--checkpoint-action\s*=\s*(?:exec|always[-]?exec)\b"
+    r"|\bforfiles\b[^\n|;]{0,200}/c\b"
+    r"|\bmsbuild\b[^\n|;]{0,240}(?:/p:)?PostBuildEvent\s*="
+    r"|\bmsbuild\b[^\n|;]{0,240}<(?:Exec|PreBuildEvent|PostBuildEvent|Target)\b"
+    r"|\b(?:installutil|ieexec|pcalua|odbcconf|register-cimprovider)\b"
+    r")"
+)
+# rclone / cloud-sync of a sensitive root to a remote, excluding --dry-run.
+CLOUD_SYNC_EXFIL_RE = re.compile(
+    r"(?ix)(?:^|[;&|\n]|&&|\|\|)\s*"
+    r"(?:sudo\s+)?(?:rclone|aws\s+s3\s+sync|azcopy|gsutil\s+(-m\s+)?(cp|rsync))\b"
+    r"(?!\s+[^\n]{0,200}--dry-run)"
+    r"[^\n;]{0,240}"
+    r"(?:\$HOME|\$\{HOME\}|~(?:/|$)|%USERPROFILE%|/etc(?:/|$)|/root(?:/|$)|/home/|/Users/)"
+)
 _DOWNLOADER_RE = re.compile(r"(?i)\b(?:curl|wget|fetch|bitsadmin|certutil|invoke-webrequest|iwr)\b")
 _CHMOD_EXEC_RE = re.compile(r"(?i)\bchmod\b\s+(?:-[a-zA-Z]+\s+)*(?:\+x|[0-7]*[1357]|a\+x|u\+x|ug\+x)\b")
 _EXEC_INTERP_RE = re.compile(r"(?i)^(?:(?:\./)?(?:sh|bash|zsh|dash|ksh|fish|python(?:3)?|perl|ruby|node|powershell|pwsh|cmd|start|cmd\.exe)\b)")
@@ -880,6 +929,28 @@ def classify_command(command: str, source: str, tool: str = "", turn=None, disab
 
     if _download_then_exec(n):
         add("SF18", "Download-then-execute without a pipe: %s" % _snippet(n, 90))
+
+    if LOLBIN_TRAMPOLINE_RE.search(n) or CLOUD_SYNC_EXFIL_RE.search(n):
+        add("SF19", "LOLBin exec trampoline or cloud-sync exfil: %s" % _snippet(n, 90))
+    if ps_decoded:
+        inner = _normalize_cmd(ps_decoded)
+        if LOLBIN_TRAMPOLINE_RE.search(inner) or CLOUD_SYNC_EXFIL_RE.search(inner):
+            add("SF19", "Decoded PowerShell LOLBin/cloud-sync abuse: %s" % _snippet(inner, 90))
+
+    # Recursively reason about commands wrapped inside trampolines
+    # (tar --checkpoint-action=exec, forfiles /c, MSBuild PostBuildEvent).
+    for payload in _embedded_exec_payloads(n):
+        inner = _normalize_cmd(payload)
+        if not inner or inner == n:
+            continue
+        if PIPE_SHELL_RE.search(inner):
+            add("SF01", "Embedded trampoline downloads and executes remote code: %s" % _snippet(inner, 90))
+        if LOLBAS_RE.search(inner):
+            add("SF17", "Embedded trampoline LOLBAS download/execute: %s" % _snippet(inner, 90))
+        if _download_then_exec(inner):
+            add("SF18", "Embedded trampoline download-then-execute: %s" % _snippet(inner, 90))
+        if LOLBIN_TRAMPOLINE_RE.search(inner) or CLOUD_SYNC_EXFIL_RE.search(inner):
+            add("SF19", "Nested LOLBin/cloud-sync abuse: %s" % _snippet(inner, 90))
 
     return findings
 

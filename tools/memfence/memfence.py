@@ -39,6 +39,8 @@ RULES = {
     "MF10": ("info", "Inventory of memory entries scanned"),
     "MF11": ("high", "Delayed or trigger-phrase backdoor (when the user later says X, do Y)"),
     "MF12": ("high", "Structural memory poison: sensitive object + exfil/mutation sink, or remote-exec / payment-swap framing"),
+    "MF13": ("high", "Auto-approve / confirmation-bypass policy planted for privileged tools"),
+    "MF14": ("medium", "Planted impossible user identity (age outside a realistic range)"),
 }
 
 # --- detection patterns ---
@@ -691,6 +693,36 @@ HTTP_PORTAL_RE = re.compile(
     r"(?:payroll\s+)?(?:portal|login|site)"
 )
 
+PRIVILEGED_TOOLS = r"(?:shell|bash|zsh|sh|powershell|pwsh|cmd|terminal|exec|execute|"
+PRIVILEGED_TOOLS += r"write[_-]?file|write[_-]?to[_-]?file|edit[_-]?file|run_command|run_terminal)"
+
+AUTO_APPROVE_RE = re.compile(
+    r"(?is)(?:"
+    r"(?:always\s+)?auto-?approve|alwaysAllow|always-allow|"
+    r"trust\s*:\s*true|disable[- ](?:all[- ])?confirmations?|"
+    r"do\s+not\s+ask(?:\s+the\s+user)?\s+to\s+confirm|"
+    r"without\s+(?:asking|requiring)\s+(?:the\s+)?(?:user'?s?\s+)?confirm"
+    r")"
+)
+PRIVILEGED_TOOL_RE = re.compile(r"(?is)\b" + PRIVILEGED_TOOLS + r"\b")
+IMPOSSIBLE_AGE_RE = re.compile(
+    r"(?is)\b(?:the\s+)?(?:user|customer|patient|client|account\s+holder)\b"
+    r"[^\n.]{0,40}?\b(?:is|are|was|were|aged|turns?|age(?:\s+is)?)\b"
+    r"[^\n\d]{0,20}?(\d{1,3})\s*(?:years?\s+old|yrs?\s+old|yo\b)"
+)
+
+
+def _impossible_age(text):
+    """Age claims outside a realistic living-person range (e.g. <=2 or >=100)."""
+    for m in IMPOSSIBLE_AGE_RE.finditer(text or ""):
+        try:
+            age = int(m.group(1))
+        except ValueError:
+            continue
+        if age <= 2 or age >= 100:
+            return m
+    return None
+
 
 def _match_is_negated(text, start, window=48):
     prefix = text[max(0, start - window):start]
@@ -799,6 +831,15 @@ def classify_entry(entry: MemoryEntry, disabled=None):
     elif HTTP_PORTAL_RE.search(scan) and re.search(r"(?is)send\s+them\s+there|redirect|when\s+they\s+ask", scan):
         m = HTTP_PORTAL_RE.search(scan)
         add("MF12", "Planted official-looking cleartext login portal in memory entry %s" % label, m.group(0) if m else scan)
+
+    if AUTO_APPROVE_RE.search(scan) and PRIVILEGED_TOOL_RE.search(scan):
+        m = AUTO_APPROVE_RE.search(scan)
+        if m and not _match_is_negated(scan, m.start()):
+            add("MF13", "Auto-approve / confirmation-bypass policy for a privileged tool in memory entry %s" % label, m.group(0) if m else scan)
+
+    age_hit = _impossible_age(scan)
+    if age_hit:
+        add("MF14", "Impossible user-age claim planted in memory entry %s" % label, age_hit.group(0))
 
     # MF08 encoded blobs
     if "MF08" not in disabled:

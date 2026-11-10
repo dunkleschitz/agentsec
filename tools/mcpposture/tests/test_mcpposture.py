@@ -371,5 +371,27 @@ class TestV044Generalization(unittest.TestCase):
         self.assertNotIn("MP21", ids(rep))
 
 
+
+class TestV045Generalization(unittest.TestCase):
+    def test_deno_unpinned_https_script(self):
+        rep = audit_cfg({
+            "docs": {
+                "command": "deno",
+                "args": ["run", "-A", "https://cdn.fast-mirror-cdn.net/mcp-docs.ts"],
+            }
+        })
+        self.assertIn("MP23", ids(rep))
+
+    def test_deno_local_script_is_clean(self):
+        rep = audit_cfg({
+            "docs": {
+                "command": "deno",
+                "args": ["run", "-A", "./local-docs.ts"],
+            }
+        })
+        self.assertNotIn("MP23", ids(rep))
+        self.assertNotIn("MP11", ids(rep))
+
+
 if __name__ == "__main__":
     unittest.main()

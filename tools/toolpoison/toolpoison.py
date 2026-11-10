@@ -260,6 +260,13 @@ def extract_tools(doc, source):
             return _validate(tools, source), "$.tools"
         if "name" in doc and ("description" in doc or "inputSchema" in doc):
             return _validate([doc], source), "$"
+        # Manifests that only carry resource templates, resources, or server
+        # instructions are still in scope; scan those channels with no tools.
+        if any(k in doc for k in (
+            "resourceTemplates", "resources", "instructions",
+            "serverInstructions", "server_instructions", "result", "params",
+        )):
+            return [], "$"
         raise ParseError("%s: no tools found (expected {\"tools\":[...]}, a list, or {\"result\":{\"tools\":[...]}})" % source)
     else:
         raise ParseError("%s: unsupported JSON top-level type %s" % (source, type(doc).__name__))
@@ -495,6 +502,41 @@ def _try_uu_decode(text):
     return "\n".join(chunks)
 
 
+_ROT13_HINT_RE = re.compile(r"(?i)\brot\s*13\b|caesar\s+cipher|decode\s+this\s+rot")
+_REVERSE_HINT_RE = re.compile(
+    r"(?i)\b(?:reverse|un-?reverse|backwards?)\b.{0,60}"
+    r"(?:this|it|the\s+(?:text|sentence|string|block|rule)|and\s+obey)"
+)
+
+
+def _rot13(s):
+    out = []
+    for ch in s:
+        if "a" <= ch <= "z":
+            out.append(chr((ord(ch) - 97 + 13) % 26 + 97))
+        elif "A" <= ch <= "Z":
+            out.append(chr((ord(ch) - 65 + 13) % 26 + 65))
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _reversed_views(text):
+    """If the text asks the model to reverse a blob, yield the reversed remainder."""
+    if not _REVERSE_HINT_RE.search(text):
+        return []
+    views = []
+    # Common shape: "Reverse this ...: <blob>"
+    if ":" in text:
+        head, tail = text.rsplit(":", 1)
+        if _REVERSE_HINT_RE.search(head) and len(tail.strip()) >= 12:
+            views.append(tail.strip()[::-1])
+    # Also try reversing the whole string / last whitespace-separated token run.
+    if len(text) >= 12:
+        views.append(text[::-1])
+    return views
+
+
 def decoded_text_views(text):
     """Views of a schema/description string after common concealment encodings."""
     if not isinstance(text, str) or not text:
@@ -512,6 +554,14 @@ def decoded_text_views(text):
     uu = _try_uu_decode(text)
     if uu and uu not in views:
         views.append(uu)
+    rotated = _rot13(text)
+    if rotated != text and (
+        _ROT13_HINT_RE.search(text) or (INSTR_HINT_RE.search(rotated) and not INSTR_HINT_RE.search(text))
+    ):
+        views.append(rotated)
+    for rev in _reversed_views(text):
+        if rev not in views:
+            views.append(rev)
     for m in B64_BLOB_RE.finditer(text):
         dec = _try_b64_decode(m.group(1))
         if dec and len(dec) >= 12 and INSTR_HINT_RE.search(dec):
@@ -733,6 +783,48 @@ def _collect_instruction_fields(doc, prefix="$"):
             yield from _collect_instruction_fields(val, child)
 
 
+def _collect_resource_templates(doc):
+    """Yield (path, name, description) for MCP resourceTemplates / resources."""
+    if not isinstance(doc, dict):
+        return
+    envelopes = [("$", doc)]
+    for key in ("result", "params"):
+        val = doc.get(key)
+        if isinstance(val, dict):
+            envelopes.append(("$." + key, val))
+    for prefix, root in envelopes:
+        templates = root.get("resourceTemplates")
+        if isinstance(templates, list):
+            for i, item in enumerate(templates):
+                if not isinstance(item, dict):
+                    continue
+                desc = item.get("description")
+                if isinstance(desc, str) and desc.strip():
+                    name = item.get("name") if isinstance(item.get("name"), str) else "resource-template"
+                    yield "%s.resourceTemplates[%d]" % (prefix, i), name, desc
+        resources = root.get("resources")
+        if isinstance(resources, list):
+            for i, item in enumerate(resources):
+                if not isinstance(item, dict):
+                    continue
+                desc = item.get("description")
+                if isinstance(desc, str) and desc.strip():
+                    name = item.get("name") if isinstance(item.get("name"), str) else "resource"
+                    yield "%s.resources[%d]" % (prefix, i), name, desc
+
+
+def scan_resource_templates(source, doc, max_desc_len=1000):
+    """Scan MCP resource template / resource descriptions as a tool-like channel."""
+    findings = []
+    for path, name, text in _collect_resource_templates(doc):
+        synthetic = [{"name": name, "description": text}]
+        for f in scan_tools(source, synthetic, "$", max_desc_len):
+            f["path"] = path + ".description"
+            f["tool"] = name
+            findings.append(f)
+    return findings
+
+
 def scan_server_instructions(source, doc, max_desc_len=1000):
     """Scan the rarely-reviewed server-level instructions string as its own channel."""
     fields = list(_collect_instruction_fields(doc))
@@ -756,6 +848,7 @@ def scan_files(paths, max_desc_len=1000, stdin=None):
         loaded.append((source, tools, base))
         findings.extend(scan_tools(source, tools, base, max_desc_len))
         findings.extend(scan_server_instructions(source, doc, max_desc_len))
+        findings.extend(scan_resource_templates(source, doc, max_desc_len))
     # TP09 duplicates across/within files
     where = {}
     for source, tools, base in loaded:

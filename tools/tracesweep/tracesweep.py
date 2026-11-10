@@ -211,6 +211,9 @@ RULES = [
     Rule("TS-NPM", "npm access token", "high",
          r"(?<![A-Za-z0-9_])(?P<secret>npm_[A-Za-z0-9]{20,})(?![A-Za-z0-9_])",
          priority=90),
+    Rule("TS-AGE-SECRET", "age secret key", "critical",
+         r"(?<![A-Za-z0-9_-])(?P<secret>AGE-SECRET-KEY-1[A-Z0-9]{50,})(?![A-Z0-9_-])",
+         priority=95),
     Rule("TS-GENERIC", "Generic secret assignment", "medium",
          r"(?i)(?P<key>[A-Za-z0-9_.\-]*" + GENERIC_KEYS + r"[A-Za-z0-9_\-]*)[\"']?"
          r"[ \t]*(?::|=|=>|:=)[ \t]*[\"']?(?P<secret>[^\s\"',;`{}()\[\]]{6,})",

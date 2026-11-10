@@ -288,5 +288,16 @@ class TestV044Generalization(unittest.TestCase):
         self.assertFalse(any(f.rule == "MO05" for f in findings))
 
 
+
+class TestV045Generalization(unittest.TestCase):
+    def test_id_token_alg_none_is_flagged(self):
+        doc = with_(GOOD_AS, id_token_signing_alg_values_supported=["none", "RS256"])
+        self.assertIn("MO15", rules(doc))
+
+    def test_rs256_only_is_clean_of_mo15(self):
+        doc = with_(GOOD_AS, id_token_signing_alg_values_supported=["RS256"])
+        self.assertNotIn("MO15", rules(doc))
+
+
 if __name__ == "__main__":
     unittest.main()

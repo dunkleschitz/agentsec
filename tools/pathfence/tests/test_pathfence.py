@@ -320,5 +320,41 @@ class TestV044Generalization(unittest.TestCase):
         self.assertIn("PF14", self.rules("/home/me/.bitcoin/wallet.dat"))
 
 
+
+class TestV045Generalization(unittest.TestCase):
+    def rules(self, path, op="read", content=""):
+        return {f.rule for f in pf.classify_path(path, "t", op=op, content=content)}
+
+    def test_password_store_path(self):
+        self.assertIn("PF15", self.rules("/home/dev/.password-store/github/token.gpg"))
+
+    def test_onepassword_vault(self):
+        self.assertIn(
+            "PF15",
+            self.rules("/Users/dev/Library/Application Support/1Password/1password.sqlite"),
+        )
+
+    def test_gnome_keyring(self):
+        self.assertIn("PF15", self.rules("/home/dev/.local/share/keyrings/login.keyring"))
+
+    def test_keepass_db(self):
+        self.assertIn("PF15", self.rules("/home/dev/Documents/vault.kdbx"))
+
+    def test_sudoers_write_payload(self):
+        rules = self.rules(
+            "/private/tmp/allow_dir_evil/test",
+            op="write",
+            content="dev ALL=(ALL) NOPASSWD: ALL\n",
+        )
+        self.assertIn("PF16", rules)
+        self.assertIn("PF09", rules)
+
+    def test_ordinary_notes_write_is_clean_of_pf16(self):
+        self.assertNotIn(
+            "PF16",
+            self.rules("/tmp/notes.txt", op="write", content="remember to buy milk\n"),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

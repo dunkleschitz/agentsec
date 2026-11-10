@@ -374,5 +374,29 @@ class TestV044Generalization(unittest.TestCase):
         self.assertIn("PG05", rules_in("Patient: Erik Lindqvist\nPersonnummer: 19840312-2391"))
 
 
+
+class TestV045Generalization(unittest.TestCase):
+    def test_labeled_pesel_with_checksum(self):
+        self.assertIn("PG05", rules_in("Name: Anna Kowalska\nPESEL: 44051401359\nTitle: Analyst"))
+
+    def test_labeled_nric_with_checksum(self):
+        self.assertIn("PG05", rules_in("Name: Wei Tan\nNRIC: S1234567D\nOffice: Singapore"))
+
+    def test_labeled_nir_without_requiring_checksum(self):
+        self.assertIn(
+            "PG05",
+            rules_in("Usager: Camille Moreau\nNIR: 2 84 03 75 115 149 83\nNote: follow-up in May"),
+        )
+
+    def test_labeled_my_number(self):
+        self.assertIn("PG05", rules_in("Name: Hana Suzuki\nMy Number: 1234 5678 9012\nOffice: Tokyo"))
+
+    def test_labeled_curp(self):
+        self.assertIn("PG05", rules_in("Cliente: Luis Hernandez\nCURP: HECL840312HDFRRN09\nCiudad: Mexico City"))
+
+    def test_redacted_pesel_is_clean(self):
+        self.assertNotIn("PG05", rules_in("PESEL: *********** (redacted)"))
+
+
 if __name__ == "__main__":
     unittest.main()

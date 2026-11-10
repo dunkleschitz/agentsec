@@ -274,6 +274,69 @@ def is_publish_sink(name: str) -> bool:
     return bool(name and PUBLISH_SINK_RE.search(name.replace("-", "_")))
 
 
+# Longest prefix first. Hosts are exact matches or subdomains (not lookalikes).
+_PROVIDER_HOST_PREFIXES = (
+    ("sk-ant-", ("api.anthropic.com", "anthropic.com")),
+    ("sk-proj-", ("api.openai.com", "openai.com")),
+    ("sk-svcacct-", ("api.openai.com", "openai.com")),
+    ("github_pat_", ("api.github.com", "github.com", "uploads.github.com")),
+    ("sk_live_", ("api.stripe.com", "stripe.com")),
+    ("rk_live_", ("api.stripe.com", "stripe.com")),
+    ("sk_test_", ("api.stripe.com", "stripe.com")),
+    ("glpat-", ("gitlab.com",)),
+    ("AKIA", ("amazonaws.com", "aws.amazon.com")),
+    ("ASIA", ("amazonaws.com", "aws.amazon.com")),
+    ("AIza", ("googleapis.com", "google.com")),
+    ("SG.", ("api.sendgrid.com", "sendgrid.com")),
+    ("npm_", ("registry.npmjs.org", "npmjs.org", "npmjs.com")),
+    ("ghp_", ("api.github.com", "github.com", "uploads.github.com")),
+    ("gho_", ("api.github.com", "github.com")),
+    ("ghu_", ("api.github.com", "github.com")),
+    ("ghs_", ("api.github.com", "github.com")),
+    ("ghr_", ("api.github.com", "github.com")),
+    ("xox", ("slack.com",)),
+    ("sk-", ("api.openai.com", "openai.com")),
+)
+
+
+def _hosts_in_blob(blob: str):
+    hosts = []
+    url_re = re.compile(r"https?://([^/\s<>]+)", re.I)
+    for m in url_re.finditer(blob or ""):
+        host = m.group(1).split("@")[-1].split(":")[0].lower().rstrip(".")
+        # Strip wrapping quotes if a JSON value leaked into the URL token.
+        host = host.strip("'\"")
+        if host:
+            hosts.append(host)
+    return hosts
+
+
+def _host_is_allowed(host, allowed):
+    host = (host or "").lower()
+    for h in allowed:
+        h = h.lower()
+        if host == h or host.endswith("." + h):
+            return True
+    return False
+
+
+def _is_official_provider_use(value, blob) -> bool:
+    """True when a provider-shaped key is sent only to that provider's official hosts."""
+    if not value or not blob:
+        return False
+    allowed = None
+    for prefix, hosts in _PROVIDER_HOST_PREFIXES:
+        if value.startswith(prefix):
+            allowed = hosts
+            break
+    if not allowed:
+        return False
+    hosts = _hosts_in_blob(blob)
+    if not hosts:
+        return False
+    return all(_host_is_allowed(h, allowed) for h in hosts)
+
+
 def is_outbound_tool(name: str) -> bool:
     return bool(name and OUTBOUND_RE.search(name.replace("-", "_")))
 
@@ -552,6 +615,8 @@ def analyze(events, source, disabled=None):
         # Result-sourced propagations
         hits = matching_taints(blob, after_turn=e.turn, source_kinds={"tool_result"})
         for t in hits:
+            if _is_official_provider_use(t.value, blob):
+                continue
             masked = mask_secret(t.value)
             is_auth = t.kind in ("bearer", "jwt", "cookie", "authorization") or (
                 t.kind == "labeled" and re.search(r"(?i)token|session|auth|bearer|jwt|cookie", t.kind)
@@ -629,6 +694,8 @@ def analyze(events, source, disabled=None):
         # User-sourced → outbound (FL08)
         if is_outbound_tool(e.tool) and "FL08" not in disabled:
             for t in matching_taints(blob, after_turn=e.turn, source_kinds={"user"}):
+                if _is_official_provider_use(t.value, blob):
+                    continue
                 masked = mask_secret(t.value)
                 findings.append(Finding(
                     "FL08", source,

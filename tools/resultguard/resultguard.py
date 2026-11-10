@@ -95,6 +95,8 @@ ACTION_BAIT_RE = re.compile(
     r"(?:call|invoke|use|run|execute|trigger)\s+(?:the\s+)?"
     r"(?:`?[A-Za-z][\w./:-]{1,64}`?\s+)?(?:tool|function|command|action)\b"
     r"|(?:call|invoke|use)\s+`?[A-Za-z][\w./:-]{2,64}`?\s*(?:\(|with\b|to\b)"
+    r"|i\s+will\s+now\s+call\s+[A-Za-z][\w./:-]{1,64}"
+    r"|(?:the\s+)?next\s+assistant\s+message\s+should"
     r"|(?:run|execute)\s+(?:bash|sh|zsh|powershell|cmd|shell|terminal)\b"
     r"|send(?:_|\s+)(?:email|mail|message|slack|telegram|tweet)\b"
     r"|exfiltrat(?:e|ion)|upload\s+(?:the\s+)?(?:secrets?|credentials?|keys?|files?)\b"
@@ -117,7 +119,9 @@ EXFIL_HOST_RE = re.compile(
 EXFIL_PHRASE_RE = re.compile(
     r"(?is)(?:"
     r"(?:fetch|get|post|put|send|upload|forward|exfiltrate|beacon|callback)\s+"
-    r"(?:(?:this|the|all|any|those)\s+)?(?:data|content|secrets?|credentials?|keys?|tokens?|files?|history|conversation)\s+"
+    r"(?:(?:this|the|all|any|those|full|current|raw)\s+)*"
+    r"(?:data|content|secrets?|credentials?|keys?|tokens?|files?|history|conversation|"
+    r"workspace(?:\s+listing)?|listing|transcript|messages?|documents?)\s+"
     r"(?:to|at|via)\s+(?:https?://|www\.)"
     r"|https?://[^\s)\"'<>\]]+[?&](?:data|secret|token|key|payload|q|content)="
     r")"
@@ -710,6 +714,10 @@ def normalize_injection_views(text):
         views.append((label, s))
 
     add("raw", text)
+    ansi = _strip_ansi(text)
+    add("ansi", ansi)
+    if _ANSI_CONCEAL_RE.search(text) and ansi != text:
+        add("ansi-conceal", ansi)
     unescaped = html.unescape(text)
     add("html", unescaped)
     add("url", unquote(unquote_plus(unescaped)))
@@ -756,7 +764,8 @@ AUTHORITY_RE = re.compile(
     r"|\bnew\s+(?:system\s+)?(?:instructions?|policy|rules?|directive)\b"
     r"|\bjailbreak\b|\bdeveloper\s+mode\b|\byou\s+are\s+now\b"
     r"|\b(?:official|authoritative|binding|mandatory)\s+(?:policy|rule|instruction|configuration)\b"
-    r"|<\s*(?:system|developer|policy|instruction|important|authorization)[^>]*>"
+    r"|<\s*(?:system|developer|instruction|important|authorization)[^>]*>"
+    r"|<\s*policy\b[^>]*(?:assistant|system|model|agent|instruction|runtime|override)"
     r"|\[\s*(?:SYSTEM|INST|SYS|DEV)\s*\]"
     r"|ignora(?:d|r)?\s+las\s+instrucciones|ignorez\s+les\s+instructions|ignoriere?\s+"
     r"|忽略(?:之前|以前|所有)?(?:的)?(?:指令|指示|规则)"
@@ -789,6 +798,14 @@ SINK_RE = re.compile(
     r")"
 )
 
+POLICY_DIRECTIVE_RE = re.compile(
+    r"(?is)(?:"
+    r"<\s*(?:command|request|requests-allowed|responses-allowed|blocked-modes|blocked-strings)\b"
+    r"|\binteraction-mode\s*="
+    r"|blocked[-_ ](?:modes|strings)\b"
+    r")"
+)
+
 POLICY_FRAME_RE = re.compile(
     r"(?is)(?:"
     r"<\s*(?:interaction-config|policy|system-config|agent-config|authorization-policy|"
@@ -808,6 +825,22 @@ CONFIG_MUTATION_RE = re.compile(
     r"|~/?\.cursor/mcp\.json|~/?\.vscode/settings\.json"
     r")"
 )
+
+PREFILLED_TURN_RE = re.compile(
+    r"(?ims)(?:(?:^|\n)\s*(?:assistant|system)\s*:[ \t]*\S"
+    r"|(?:the\s+)?next\s+assistant\s+message\s+should)"
+)
+
+_ANSI_CSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+# Same fg/bg color, SGR hidden (8), or erase-line / erase-display used as concealment.
+_ANSI_CONCEAL_RE = re.compile(
+    r"\x1b\[(?:8(?:;|m)|(?:3|9)(\d);(?:4|10)\1(?:;|m)|[0-2]?K|[0-2]?J)"
+)
+
+
+def _strip_ansi(s):
+    return _ANSI_CSI_RE.sub("", s or "")
+
 
 DELAYED_TRIGGER_RE = re.compile(
     r"(?is)(?:"
@@ -862,7 +895,15 @@ def structural_injection_hits(text):
     if ANSWER_IN_SINK_RE.search(text):
         m = ANSWER_IN_SINK_RE.search(text)
         hits.append(("answer-in-sink", m.group(0)[:80]))
-    if POLICY_FRAME_RE.search(text) and (AGENT_CUE_RE.search(text) or AUTHORITY_RE.search(text) or OVERRIDE_RE.search(text) or SINK_RE.search(text)):
+    if POLICY_FRAME_RE.search(text) and (
+        AGENT_CUE_RE.search(text) or OVERRIDE_RE.search(text) or SINK_RE.search(text)
+        or EXFIL_PHRASE_RE.search(text) or INSTR_HINT_RE.search(text)
+        or SENSITIVE_OBJ_RE.search(text) or HARVEST_RE.search(text)
+        or POLICY_DIRECTIVE_RE.search(text)
+    ):
+        # A bare <policy> / [section] tag is not enough; require an instruction,
+        # sensitive-object harvest, directive body, or sink so ordinary vendor
+        # policy XML (rate limits, etc.) stays clean.
         m = POLICY_FRAME_RE.search(text)
         hits.append(("policy-frame", m.group(0)[:80]))
     if CONFIG_MUTATION_RE.search(text):
@@ -871,8 +912,11 @@ def structural_injection_hits(text):
     if DELAYED_TRIGGER_RE.search(text) and (SINK_RE.search(text) or SENSITIVE_OBJ_RE.search(text) or AGENT_CUE_RE.search(text)):
         m = DELAYED_TRIGGER_RE.search(text)
         hits.append(("delayed-trigger", m.group(0)[:80]))
+    if PREFILLED_TURN_RE.search(text) and (SINK_RE.search(text) or ACTION_BAIT_RE.search(text) or EXFIL_PHRASE_RE.search(text)):
+        m = PREFILLED_TURN_RE.search(text)
+        hits.append(("prefilled-assistant-turn", m.group(0)[:80]))
     agent = bool(AGENT_CUE_RE.search(text) or OVERRIDE_RE.search(text))
-    authority = bool(AUTHORITY_RE.search(text) or OVERRIDE_RE.search(text) or ROLE_RE.search(text) or POLICY_FRAME_RE.search(text))
+    authority = bool(AUTHORITY_RE.search(text) or OVERRIDE_RE.search(text) or ROLE_RE.search(text))
     sensitive = bool(SENSITIVE_OBJ_RE.search(text) or HARVEST_RE.search(text))
     sink = bool(SINK_RE.search(text) or EXFIL_HOST_RE.search(text) or EXFIL_PHRASE_RE.search(text) or MD_IMG_RE.search(text))
     score = sum((agent, authority, sensitive, sink))
@@ -980,7 +1024,7 @@ def scan_text(text, source, tool, turn, disabled=None):
         # Decoded hidden channels that themselves look like instructions.
         if not any(f.rule == "TR06" for f in findings):
             for label, view in views:
-                if label in {"sneaky-bits", "variation-selector", "tags"} and (
+                if label in {"sneaky-bits", "variation-selector", "tags", "ansi-conceal"} and (
                     OVERRIDE_RE.search(view) or INSTR_HINT_RE.search(view) or AGENT_CUE_RE.search(view)
                 ):
                     add("TR06", "%s channel decodes to instruction-like text: %r" % (label, view[:60]))

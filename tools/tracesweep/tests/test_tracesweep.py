@@ -418,5 +418,15 @@ class TestV044Generalization(unittest.TestCase):
         self.assertIn("TS-TELEGRAM", self.rules(url))
 
 
+
+class TestV045Generalization(unittest.TestCase):
+    def rules(self, text):
+        return {h["rule"].id if hasattr(h["rule"], "id") else h["rule"] for h in ts.scan_text(text)}
+
+    def test_age_secret_key(self):
+        key = "AGE-SECRET-KEY-1CXCLO2BSK7EYTQPBBOOFV5ONPUJ7X7XXKK4AYS4BRPBPPRTCUBXKPZJLHU"
+        self.assertIn("TS-AGE-SECRET", self.rules(key))
+
+
 if __name__ == "__main__":
     unittest.main()

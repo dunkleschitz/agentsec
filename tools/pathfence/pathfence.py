@@ -40,6 +40,8 @@ RULES = {
     "PF12": ("info", "Inventory of file paths observed in tool calls"),
     "PF13": ("high", "UNC / remote share path (forced authentication / NTLM leak)"),
     "PF14": ("high", "Cryptocurrency wallet or keystore path"),
+    "PF15": ("high", "Password-manager / credential-store path (pass, 1Password, KeePass, keyring)"),
+    "PF16": ("critical", "Privilege-escalation payload in a write (sudoers, authorized_keys, ld.so.preload)"),
 }
 
 # Tool-name tokens that usually mean "agent is touching the filesystem"
@@ -109,6 +111,37 @@ WALLET_PATH_RE = re.compile(
     r"(?:^|/)(?:Exodus|exodus)/(?:exodus\.wallet|seed\.seco)|"
     r"(?:^|/)Bitcoin/wallets?/|"
     r"(?:^|/)(?:metamask|wallet-core|keystore)/"
+    r")"
+)
+
+CRED_STORE_RE = re.compile(
+    r"(?i)("
+    r"(?:^|/)\.password-store(?:$|/)|"
+    r"(?:^|/)\.local/share/keyrings(?:$|/)|"
+    r"(?:^|/)(?:keyrings?)/[^/]*\.keyring$|"
+    r"(?:^|/)login\.keyring$|"
+    r"(?:^|/)(?:1Password|1password)(?:$|/)|"
+    r"1password\.sqlite$|"
+    r"(?:^|/)(?:op\.|onepassword)[^/]*\.(?:sqlite|db)$|"
+    r"(?:^|/)(?:Bitwarden|bitwarden|LastPass|lastpass|Dashlane|dashlane|KeePassXC|keepassxc|KeePass|keepass)(?:$|/)|"
+    r"\.kdbx$|"
+    r"(?:^|/)\.config/keepassxc(?:$|/)|"
+    r"(?:^|/)kwalletd?(?:$|/)|"
+    r"(?:^|/)\.local/share/kwalletd(?:$|/)|"
+    r"(?:^|/)login\.keychain(?:-db)?$|"
+    r"(?:^|/)Library/Keychains(?:$|/)|"
+    r"(?:^|/)\.gnupg/private-keys-v1\.d(?:$|/)|"
+    r"(?:^|/)\.config/op(?:$|/)|"
+    r"(?:^|/)\.config/bitwarden(?:$|/)"
+    r")"
+)
+
+PRIVESC_WRITE_RE = re.compile(
+    r"(?is)(?:"
+    r"ALL\s*=\s*\(\s*ALL\s*\)\s*NOPASSWD"
+    r"|\bld\.so\.preload\b"
+    r"|(?:^|\n)\s*(?:ssh-(?:rsa|ed25519|dss|ecdsa)|ecdsa-sha2-nistp\d+)\s+[A-Za-z0-9+/=]{20,}"
+    r"|Defaults\s+!authenticate"
     r")"
 )
 
@@ -410,15 +443,16 @@ def extract_paths_from_args(args: dict, tool_name: str = ""):
 
 
 class PathEvent:
-    __slots__ = ("source", "tool", "turn", "path", "key", "op")
+    __slots__ = ("source", "tool", "turn", "path", "key", "op", "content")
 
-    def __init__(self, source, tool, path, turn=None, key="", op="read"):
+    def __init__(self, source, tool, path, turn=None, key="", op="read", content=""):
         self.source = source
         self.tool = tool
         self.path = path
         self.turn = turn
         self.key = key
         self.op = op
+        self.content = content or ""
 
 
 def _parse_args(raw):
@@ -446,6 +480,27 @@ def _iter_messages(doc):
     return None
 
 
+CONTENT_ARG_KEYS = {
+    "content", "contents", "data", "text", "body", "value", "payload",
+    "file_content", "file_contents", "new_string", "new_text",
+}
+
+
+def _write_content_from_args(args):
+    if not isinstance(args, dict):
+        return ""
+    parts = []
+    for k, v in args.items():
+        key_l = str(k).lower()
+        if key_l in CONTENT_ARG_KEYS and isinstance(v, str) and v.strip():
+            parts.append(v)
+        elif isinstance(v, dict):
+            inner = _write_content_from_args(v)
+            if inner:
+                parts.append(inner)
+    return "\n".join(parts)
+
+
 def extract_paths_from_obj(doc, source: str):
     events = []
     msgs = _iter_messages(doc)
@@ -470,7 +525,7 @@ def extract_paths_from_obj(doc, source: str):
                         for path, key in paths:
                             if is_file_tool(name) or key in PATH_ARG_KEYS or "path" in key or "file" in key \
                                     or key in SHELL_CMD_KEYS:
-                                events.append(PathEvent(source, name, path, turn=i, key=key, op=op))
+                                events.append(PathEvent(source, name, path, turn=i, key=key, op=op, content=_write_content_from_args(args)))
             content = msg.get("content")
             if isinstance(content, list):
                 for block in content:
@@ -485,7 +540,7 @@ def extract_paths_from_obj(doc, source: str):
                             for path, key in paths:
                                 if is_file_tool(name) or key in PATH_ARG_KEYS or "path" in key or "file" in key \
                                         or key in SHELL_CMD_KEYS:
-                                    events.append(PathEvent(source, name, path, turn=i, key=key, op=op))
+                                    events.append(PathEvent(source, name, path, turn=i, key=key, op=op, content=_write_content_from_args(args)))
             if role in ("assistant", "tool", "") and msg.get("tool") and (
                 msg.get("args") or msg.get("arguments") or msg.get("input")
             ):
@@ -495,7 +550,7 @@ def extract_paths_from_obj(doc, source: str):
                 if is_file_tool(name) or paths:
                     op = "write" if is_write_tool(name) else ("shell" if is_shell_tool(name) else "read")
                     for path, key in paths:
-                        events.append(PathEvent(source, name, path, turn=i, key=key, op=op))
+                        events.append(PathEvent(source, name, path, turn=i, key=key, op=op, content=_write_content_from_args(args)))
         return events
 
     if isinstance(doc, dict):
@@ -509,7 +564,7 @@ def extract_paths_from_obj(doc, source: str):
             for path, key in paths:
                 if not name or is_file_tool(name) or key in PATH_ARG_KEYS or "path" in key or "file" in key \
                         or key in SHELL_CMD_KEYS:
-                    events.append(PathEvent(source, name or "path", path, turn=doc.get("turn"), key=key, op=op))
+                    events.append(PathEvent(source, name or "path", path, turn=doc.get("turn"), key=key, op=op, content=_write_content_from_args(args)))
     return events
 
 
@@ -630,7 +685,7 @@ def _outside_workspace(path: str, workspaces: list[str]) -> bool:
 
 
 def classify_path(path: str, source: str, tool: str = "", turn=None, op: str = "read",
-                  allow_paths=None, workspaces=None, disabled=None):
+                  allow_paths=None, workspaces=None, disabled=None, content=""):
     """Return findings for one path."""
     allow_paths = allow_paths or []
     workspaces = workspaces or []
@@ -693,6 +748,14 @@ def classify_path(path: str, source: str, tool: str = "", turn=None, op: str = "
     if WALLET_PATH_RE.search(n) or WALLET_PATH_RE.search(raw.replace("\\", "/")):
         add("PF14", "Cryptocurrency wallet or keystore path %r" % n)
 
+    # PF15 password managers / OS keyrings / pass(1) stores
+    if CRED_STORE_RE.search(n) or CRED_STORE_RE.search(raw.replace("\\", "/")):
+        add("PF15", "Password-manager or credential-store path %r" % n)
+
+    # PF16 privilege-escalation payload written to a file (path-independent)
+    if op == "write" and content and PRIVESC_WRITE_RE.search(content):
+        add("PF16", "Privilege-escalation payload written to %r" % n)
+
     # PF01 secrets (basename + path patterns) — after more specific rules
     if SECRET_BASENAME_RE.match(base) or SECRET_PATH_RE.search(n):
         # avoid double-counting pure SSH key basenames already PF02
@@ -720,7 +783,7 @@ def classify_path(path: str, source: str, tool: str = "", turn=None, op: str = "
 
     # PF09 write to sensitive — escalate when op is write/shell and any high+ finding exists
     # Actually PF09 is its own rule when writing to sensitive paths
-    sensitive_hit = any(f.rule in ("PF01", "PF02", "PF03", "PF04", "PF05", "PF10", "PF11", "PF13", "PF14") for f in findings)
+    sensitive_hit = any(f.rule in ("PF01", "PF02", "PF03", "PF04", "PF05", "PF10", "PF11", "PF13", "PF14", "PF15", "PF16") for f in findings)
     if op in ("write", "shell") and sensitive_hit:
         add("PF09", "Write/shell targeting sensitive path %r" % n)
     elif op == "write" and (SECRET_BASENAME_RE.match(base) or SSH_GPG_RE.search(n) or CLOUD_CRED_RE.search(n)):
@@ -897,6 +960,7 @@ def main(argv=None):
         findings.extend(classify_path(
             ev.path, ev.source, tool=ev.tool, turn=ev.turn, op=ev.op,
             allow_paths=ns.allow_path, workspaces=ns.workspace, disabled=disabled,
+            content=getattr(ev, "content", "") or "",
         ))
 
     # PF12 inventory (one finding per unique path unless disabled)

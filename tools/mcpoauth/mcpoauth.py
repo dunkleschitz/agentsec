@@ -40,6 +40,7 @@ RULES = {
     "MO12": ("high", "Endpoint points at a private, link-local, or cloud-metadata address"),
     "MO13": ("info", "Open dynamic client registration endpoint (review confused-deputy risk)"),
     "MO14": ("info", "Inventory of metadata documents found"),
+    "MO15": ("critical", "JWT none algorithm advertised for token or request signing"),
 }
 
 URL_FIELDS = (
@@ -286,6 +287,22 @@ def audit_as(findings, file, text, ptr, doc, disabled):
         add("MO13", "dynamic client registration is open at %s; if this server proxies a "
             "third-party API with a static client ID, require per-client consent"
             % doc["registration_endpoint"], "registration_endpoint", field="registration_endpoint")
+
+    _SIGNING_ALG_FIELDS = (
+        "id_token_signing_alg_values_supported",
+        "token_endpoint_auth_signing_alg_values_supported",
+        "request_object_signing_alg_values_supported",
+        "userinfo_signing_alg_values_supported",
+        "introspection_signing_alg_values_supported",
+        "authorization_signing_alg_values_supported",
+        "dpop_signing_alg_values_supported",
+        "resource_signing_alg_values_supported",
+    )
+    for field in _SIGNING_ALG_FIELDS:
+        algs = as_list(doc.get(field)) if field in doc else []
+        if any(str(a).lower() == "none" for a in algs):
+            add("MO15", "%s advertises the JWT 'none' algorithm, which accepts unsigned tokens"
+                % field, field, field=field)
 
     for field in URL_FIELDS:
         check_url_list(findings, file, text, ptr, field, doc.get(field), disabled)
