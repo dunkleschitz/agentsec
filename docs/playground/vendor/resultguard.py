@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import codecs
 import html
 import json
 import os
@@ -899,6 +900,98 @@ def _has_mixed_lookalike_script(s):
     return False
 
 
+
+def _try_utf7_decode(s):
+    """Decode RFC 2152 UTF-7 when a shifted sequence or charset hint is present."""
+    if not s or "+" not in s:
+        return None
+    hinted = bool(re.search(r"(?i)charset\s*=\s*[\"']?utf-7|\butf-7\b", s))
+    shifted = bool(re.search(r"\+[A-Za-z0-9+/]{4,}-", s))
+    if not hinted and not shifted:
+        return None
+    try:
+        dec = s.encode("ascii", errors="strict").decode("utf-7")
+    except (UnicodeEncodeError, UnicodeDecodeError, ValueError):
+        try:
+            dec = s.encode("latin-1", errors="replace").decode("utf-7", errors="replace")
+        except (UnicodeDecodeError, ValueError):
+            return None
+    if not dec or dec == s:
+        return None
+    return dec
+
+
+_HTML_COMMENT_RE = re.compile(r"<!--([\s\S]*?)-->")
+_LATEX_IFFALSE_RE = re.compile(r"(?s)\\iffalse\b(.*?)\\fi\b")
+_LATEX_COMMENT_ENV_RE = re.compile(r"(?s)\\begin\{comment\}(.*?)\\end\{comment\}")
+_MD_COMMENT_RE = re.compile(r"\[//\]:\s*#\s*[(\[<]?([\s\S]*?)(?:[)\]>]|$)")
+_HIDDEN_STYLE_RE = re.compile(
+    r"(?is)<(?P<tag>[a-z][\w:-]*)\b[^>]*(?:"
+    r"style\s*=\s*[\"'][^\"']*(?:"
+    r"display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(?:\.0+)?|"
+    r"font-size\s*:\s*(?:0(?:\.0+)?(?:px|em|rem|pt|%)?|0?\.0+\w*|1px|0px)|"
+    r"color\s*:\s*(?:white|#fff(?:fff)?|transparent)|mso-hide\s*:\s*all|"
+    r"height\s*:\s*0(?:px)?|width\s*:\s*0(?:px)?"
+    r")[^\"']*[\"']"
+    r"|hidden\s*=\s*[\"']?(?:true|hidden)|aria-hidden\s*=\s*[\"']true"
+    r")[^>]*>(?P<body>[\s\S]*?)</(?P=tag)>"
+)
+_MERMAID_BLOCK_RE = re.compile(
+    r"(?is)(?:```(?:mermaid|plantuml|kroki)\b[\s\S]*?```|"
+    r"\[mermaid\][\s\S]*?\[/mermaid\])"
+)
+_NARRATIVE_RE = re.compile(
+    r"(?is)<(?:div|text|Narrative)\b[^>]*(?:"
+    r"xmlns\s*=\s*[\"'][^\"']*(?:hl7|fhir|xhtml)[^\"']*[\"']|"
+    r"class\s*=\s*[\"'][^\"']*narrative"
+    r")[^>]*>([\s\S]*?)</(?:div|text|Narrative)>"
+)
+_OOXML_VANISH_RE = re.compile(
+    r"(?is)(?:w:vanish|w:webHidden)[\s\S]{0,400}?<w:t\b[^>]*>([\s\S]*?)</w:t>"
+)
+_CONDITIONAL_COMMENT_RE = re.compile(r"(?is)<!\[if[^\]]*\]>([\s\S]*?)<!\[endif\]>")
+
+
+def _concealed_channel_views(text):
+    """Extract text hidden in charset/markup channels (comments, conditionals, tiny/hidden styles, narratives)."""
+    if not isinstance(text, str) or not text:
+        return []
+    chunks = []
+    seen = set()
+
+    def add(s):
+        if not s:
+            return
+        s = s.strip()
+        if len(s) < 4 or s in seen or s == text.strip():
+            return
+        seen.add(s)
+        chunks.append(s)
+
+    for rx in (
+        _HTML_COMMENT_RE,
+        _LATEX_IFFALSE_RE,
+        _LATEX_COMMENT_ENV_RE,
+        _MD_COMMENT_RE,
+        _CONDITIONAL_COMMENT_RE,
+        _NARRATIVE_RE,
+        _OOXML_VANISH_RE,
+    ):
+        for m in rx.finditer(text):
+            add(m.group(1) if m.lastindex else m.group(0))
+    for m in _HIDDEN_STYLE_RE.finditer(text):
+        add(m.group("body"))
+    for m in _MERMAID_BLOCK_RE.finditer(text):
+        add(m.group(0))
+    out = list(chunks)
+    for s in list(chunks):
+        dec = _try_utf7_decode(s)
+        if dec and dec not in seen:
+            seen.add(dec)
+            out.append(dec)
+    return out
+
+
 def _common_decode_views(text):
     """Best-effort views after common transforms (escapes, encodings, ciphers)."""
     if not isinstance(text, str) or not text:
@@ -998,6 +1091,9 @@ def _common_decode_views(text):
             dec = _try_b85_decode(m.group(1))
             if dec and (INSTR_HINT_RE.search(dec) or _englishish_ratio(dec) >= 0.4):
                 add(dec)
+    utf7 = _try_utf7_decode(text)
+    if utf7:
+        add(utf7)
     return views
 
 
@@ -1276,6 +1372,10 @@ def normalize_injection_views(text):
         frag = unquote(unquote_plus(m.group(1).replace("+", " ")))
         if len(frag) >= 12:
             add("url-fragment", frag)
+    for s in _concealed_channel_views(text):
+        add("concealed-channel", s)
+        for t in _common_decode_views(s):
+            add("concealed-transform", t)
     # Base64 / hex / rot13 already handled by decode_candidates; also
     # expose short url-decoded paths as their own view.
     return views

@@ -327,5 +327,20 @@ class TestV047Generalization(unittest.TestCase):
 
 
 
+
+class TestV048Generalization(unittest.TestCase):
+    def rules(self, url):
+        return {f.rule for f in ff.classify_url(url, "t")}
+
+    def test_equinix_metadata_hostname(self):
+        self.assertIn("FF01", self.rules("https://metadata.equinix.com/metadata"))
+
+    def test_aliyun_metadata_hostname(self):
+        self.assertIn("FF01", self.rules("https://metadata.aliyuncs.com/latest/meta-data"))
+
+    def test_docs_host_named_metadata_without_imds_path_is_clean(self):
+        self.assertNotIn("FF01", self.rules("https://metadata.example.com/blog/what-is-imds"))
+
+
 if __name__ == "__main__":
     unittest.main()

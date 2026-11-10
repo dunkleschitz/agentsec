@@ -47,7 +47,7 @@ From a clean checkout, with Python 3.10+:
 python3 -m venv /tmp/agentsec-build
 /tmp/agentsec-build/bin/pip install -U pip build
 /tmp/agentsec-build/bin/python -m build
-# artifacts: dist/agentsec-0.47.0.tar.gz and dist/agentsec-0.47.0-py3-none-any.whl
+# artifacts: dist/agentsec-0.48.0.tar.gz and dist/agentsec-0.48.0-py3-none-any.whl
 
 python3 -m venv /tmp/agentsec-verify
 /tmp/agentsec-verify/bin/pip install dist/agentsec-*.whl
@@ -65,9 +65,9 @@ project and trusted publisher above exist, and you intend to release.
 2. Tag and push (example):
 
    ```sh
-   git tag -a v0.47.0 -m "agentsec v0.47.0"
-   git push origin v0.47.0
-   gh release create v0.47.0 --verify-tag --title "v0.47.0" --notes-file RELEASE-NOTES.md
+   git tag -a v0.48.0 -m "agentsec v0.48.0"
+   git push origin v0.48.0
+   gh release create v0.48.0 --verify-tag --title "v0.48.0" --notes-file RELEASE-NOTES.md
    ```
 
 3. In GitHub: **Actions → Publish to PyPI → Run workflow**.

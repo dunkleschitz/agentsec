@@ -408,5 +408,27 @@ class TestV047Generalization(unittest.TestCase):
 
 
 
+
+class TestV048Generalization(unittest.TestCase):
+    def rules(self, path, op="read", content=""):
+        return {f.rule for f in pf.classify_path(path, "t", op=op, content=content)}
+
+    def test_imessage_chat_db(self):
+        self.assertIn("PF17", self.rules("/Users/alex/Library/Messages/chat.db"))
+
+    def test_whatsapp_chatstorage(self):
+        self.assertIn(
+            "PF17",
+            self.rules("/Users/alex/Library/Group Containers/group.net.whatsapp.WhatsApp.shared/ChatStorage.sqlite"),
+        )
+
+    def test_teleport_and_restic_keys(self):
+        self.assertTrue(self.rules("/home/dev/.tsh/keys/prod/user") & {"PF01", "PF15"})
+        self.assertTrue(self.rules("/home/dev/.config/restic/keys/id") & {"PF01", "PF15"})
+
+    def test_project_messages_draft_is_clean(self):
+        self.assertFalse({"PF01", "PF17"} & self.rules("/home/dev/src/app/Messages/draft.txt"))
+
+
 if __name__ == "__main__":
     unittest.main()

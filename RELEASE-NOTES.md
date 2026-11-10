@@ -1,22 +1,24 @@
-# agentsec v0.47.0
+# agentsec v0.48.0
 
-Offline, stdlib-only kit. 38 tools. This release continues the class-level approach that reversed the unseen-F1 decline in v0.46.0, then scores a fresh round-7 set once. 2043 unit tests.
+Offline, stdlib-only kit. 38 tools. This release generalizes detectors by class for independent red-team round 8 (issues #28–#36), then re-scores that set as seen. The original v0.47.0 unseen score stays the headline independent number. 2085 unit tests.
 
 ### Generalization (class-level, not fixture-specific instances)
 
-Round 6 is the development set. Rules were extended around classes, then checked on a private labeled dev set of new variants, then frozen before any round-7 sample was written:
+Round 8 is the development set. Rules were extended around classes, checked on a private labeled dev set of new variants, then frozen before the round-8 fixtures were re-scored:
 
-- **toolpoison / resultguard** — an encoding-concealment layer covering MIME/RFC 2047 encoded-words and base-N transforms (Base45/58/85 and similar) with decode-and-rescan, plus Unicode confusable / mixed-script detection using a UTS #39-style skeleton (NFKD + lookalike fold). Documentation that merely mentions an encoding, and ordinary foreign-script place names, stay clean.
-- **shellfence** — interpreter one-liners (`-c`/`-e`/`-r`) and generic network-relay / upload tools (socat, ncat, wget --post-file, curl --upload-file / --data-binary @file) as a class, only when a network or home/secret sink is present. A bare `python -c 'print(sys.version)'`, wget of public docs, or a local LISTEN+FILE server is not in this class.
-- **memfence** — memories that schedule a future data transfer, add a recipient or channel (BCC/CC, status text, webhook), or silently rewrite user input / destinations / queries. Negation must modify the action (so "do not recognize" and "ask before cc'ing" stay clean).
-- **pathfence** — config-path patterns for CLI tools that store tokens in a hidden user dir (`~/.<tool>/` or `~/.config/<app>/` plus token- or config-ish basenames), excluding known dev-tool apps.
-- **mcpposture** — unpinned remote code execution as a class across ecosystems (nix flake refs, cargo install, go, npx, uvx, pipx, deno, docker/podman `:latest`). Wildcard binds (`--bind *`, `--listen *`, bare `*`) are treated as bind-all.
-- **fetchfence** — documentation/preview paths on loopback (`/docs`, `/playground`, and similar) are not SSRF; loopback metadata, Consul, Docker API, gopher, and `/admin` still flag.
-- **tracesweep** — incoming webhook URLs as a secret class (Slack, Discord, Teams, and generic `/api/webhooks/<token>`), not only `xox*` bot tokens.
+- **resultguard / toolpoison** — a concealed-document channel covering charset and markup that hides text: UTF-7, HTML/Markdown/LaTeX comment and conditional blocks, hidden or tiny CSS, Mermaid/PlantUML remote-image labels, and structured clinical/office narratives (FHIR/CDA/OOXML vanished text), with decode-and-rescan. Documentation that merely mentions UTF-7 or ordinary clinical text stays clean.
+- **toolpoison** — annotation-vs-behavior contradictions (`readOnlyHint` / `destructiveHint` / a read-only title vs. destructive verbs in the name, description, or schema), including tokenized names such as `drop_namespace`. Defensive mentions of sensitive paths by a tool whose purpose is to manage them, and third-person discussion of attack phrases, are no longer TP03/TP01 false positives.
+- **shellfence** — reverse tunnels (`ssh`/`autossh -R`, `RemoteForward`) and container/namespace escapes (`nsenter -t 1`, `chroot /proc/1/root`, `unshare` plus proc root) as a class. Ordinary `ssh` login and `-L` local forwards stay clean.
+- **memfence** — memories that change trust or identity, pre-approve money movement, weaken security controls (2FA/MFA/confirmation), or route private data to an external sink (public issue/repo, SFTP/SCP export), including instructions buried in a style preference. “2FA is enabled” and “do not auto-approve payments without confirmation” stay clean.
+- **fetchfence** — cloud-provider metadata hostnames as a class (`metadata.<provider-domain>`, IMDS paths), not a single Equinix hostname.
+- **pathfence** — local messaging/mail databases (Messages, Mail, WhatsApp ChatStorage, and similar) and infra-access / backup-key stores (Teleport `tsh`, Borg, restic, kopia, and similar) as path classes.
+- **mcpposture** — unpinned installers in more ecosystems (`gem exec`, `mise`/`rtx`/`asdf exec`, WSL-wrapped launchers), container runtime sockets (`containerd.sock`, `crio.sock`, `podman.sock` as well as `docker.sock`), and proxy-environment hijack (`HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` to a non-loopback host).
+- **secretflow** — push-notification sinks as a class (`ntfy`, Pushover, Gotify, OneSignal, and similar).
+- **mcpoauth** — look-alike authorization servers (typo/confusable of the resource host or of a well-known issuer) and over-broad first-party scopes (`*.all`, `mail.send`, `cloud-platform`). Narrow scopes such as `Mail.Read` stay clean. A well-known identity provider listed for a different app host is not treated as a look-alike.
 
 ### Benchmark
 
-Unseen F1 on successive independent rounds had been 78.3 → 74.4 → 61.5, then recovered to 81.3 on round 6 after the first class-level rewrite. This release is scored against a new blind round 7. The series is now:
+The headline independent number is still round 8 on frozen v0.47.0 detectors. Unseen F1 across successive independent rounds: 78.3 → 74.4 → 61.5 → 81.3 → 96.1 → 78.2.
 
 | Set | P / R / F1 | Notes |
 |---|---|---|
@@ -33,11 +35,13 @@ Unseen F1 on successive independent rounds had been 78.3 → 74.4 → 61.5, then
 | Red-team round 5 (v0.45.0, unseen) | 96.0% / 45.3% / 61.5% | 24/1/29/26, frozen |
 | Same round-5 set after later generalization | 100% / 100% / 100% | 53/0/0/27, labeled **seen** |
 | Red-team round 6 (v0.46.0, unseen) | 97.4% / 69.8% / 81.3% | 37/1/16/26, frozen |
-| Same round-6 set after v0.47.0 generalization | 100% / 100% / 100% | 53/0/0/27, labeled **seen** |
+| Same round-6 set after later generalization | 100% / 100% / 100% | 53/0/0/27, labeled **seen** |
 | Red-team round 7 (v0.47.0, unseen) | 100.0% / 92.5% / 96.1% | 49/0/4/27, scored **once** |
+| Red-team round 8 (v0.47.0, unseen) | 95.6% / 66.2% / 78.2% | 43/2/22/33, frozen; **headline independent** |
+| Same round-8 set after v0.48.0 generalization | 100.0% / 93.8% / 96.8% | 61/0/4/35, labeled **seen** |
 
-Round 7 (`benchmarks/redteam7/`, 80 samples) was written after the rules were frozen, from published techniques rounds 1–6 did not use (Jupyter markdown cells, GraphQL SDL descriptions, SRT captions, Open Graph `og:description`, systemd `Description=`, svn log, Apple plist strings, RDF Turtle comments, JSON Schema `default`, Base58, quoted-printable, MCP `_meta`, fullwidth confusables, `lua -e` / `curl --data-binary` / `ncat` / `osascript` / `tar|curl` / `openssl s_client`, forget-archive and clipboard-rewrite memory, Spanish DNI / Irish PPSN / Chinese resident ID / Croatian OIB / Belgian NISS, `ldap://` / Docker Engine API / `ftp://` / `[::1]/server-status` / `/cgi-bin/`, glab/heroku/sfdx/linode/netlify paths, `pipx run` / `podman :latest` / `--listen *` / `nix profile install` / `deno jsr:`, Notion / PagerDuty / Loki sinks, `shpat_` / `github_pat_` / `vercel_` tokens, and HTTP introspection / userinfo / PAR endpoints; see `SOURCES.md`). Numbers are reported honestly. No detector was changed after this set existed.
+Round 8 (`benchmarks/redteam8/`, 100 samples) was written against the frozen v0.47.0 detectors by a separate author who did not read tool source, tests, or prior fixtures. Detection-gap issues #28–#36 describe the misses. Fixes were designed from the issue text and a private dev set; the fixtures were not opened while designing rules, then the set was re-scored once as seen. Remaining honest seen misses: a FHIR narrative and a LaTeX `iffalse` channel that the concealed-document class did not extract, a trust/identity memory whose wording the new class did not match, and a push-notification hop whose tool name the sink class did not treat as outbound. Those four were left as-is. Closed #28–#36.
 
-Remaining round-7 misses (honest, not retuned): shellfence `tar | curl --data-binary` and `openssl s_client` relays, a memfence logout/PagerDuty-note transfer, and a pathfence Linode CLI `config.ini`. The v0.46.0 loopback-docs fetchfence false positive is gone, and the round-5 seen leftovers (memfence query-rewrite and emergency-CC, tracesweep Slack incoming webhook) now flag.
+### Issues
 
-The floating Action / image tag `v0` points at this release (`uses: dunkleschitz/agentsec@v0` or `@v0.47.0`).
+Closed #28, #29, #30, #31, #32, #33, #34, #35, #36. Good-first-issues #1–#5 were not touched.

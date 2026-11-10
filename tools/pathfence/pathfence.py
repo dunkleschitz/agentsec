@@ -42,6 +42,7 @@ RULES = {
     "PF14": ("high", "Cryptocurrency wallet or keystore path"),
     "PF15": ("high", "Password-manager / credential-store path (pass, 1Password, KeePass, keyring)"),
     "PF16": ("critical", "Privilege-escalation payload in a write (sudoers, authorized_keys, ld.so.preload)"),
+    "PF17": ("high", "Local messaging or mail database path"),
 }
 
 # Tool-name tokens that usually mean "agent is touching the filesystem"
@@ -189,6 +190,8 @@ _SECRET_APP_DIRS = {
     "discord", "whatsapp", "whatsappdesktop", "icloud",
     "kwallet", "keyrings", "password-store", "1password", "bitwarden",
     "keepass", "keepassxc", "age", "sops", "filezilla", "tdata",
+    "tsh", ".tsh", "teleport", "borg", "restic", "kopia", "tarsnap",
+    "duplicity", "boundary",
 }
 _CLUSTER_CONF_BASENAMES = {
     "admin.conf", "kubeconfig", "kubeconfig.yaml", "kubeconfig.yml",
@@ -818,6 +821,20 @@ def _outside_workspace(path: str, workspaces: list[str]) -> bool:
     return True
 
 
+
+MESSAGE_STORE_RE = re.compile(
+    r"(?ix)"
+    r"(?:"
+    r"(?:^|/)(?:Library/)?Messages/(?:chat\.db|Attachments|sms\.db)|"
+    r"(?:^|/)(?:Library/)?Mail/(?:V\d+/)?MailData/|"
+    r"(?:^|/)Envelope\s+Index|"
+    r"(?:^|/)ChatStorage\.sqlite|"
+    r"(?:^|/)group\.net\.whatsapp\.[^/]+/|"
+    r"(?:^|/)(?:Library/Application Support/)?(?:Signal|Telegram(?: Desktop)?|Element|Slack|Discord|WhatsApp(?:Desktop)?)/|"
+    r"(?:^|/)(?:sms|imessage|ichat|mailbox)\.db$"
+    r")"
+)
+
 def classify_path(path: str, source: str, tool: str = "", turn=None, op: str = "read",
                   allow_paths=None, workspaces=None, disabled=None, content=""):
     """Return findings for one path."""
@@ -885,6 +902,8 @@ def classify_path(path: str, source: str, tool: str = "", turn=None, op: str = "
     # PF15 password managers / OS keyrings / pass(1) stores
     if CRED_STORE_RE.search(n) or CRED_STORE_RE.search(raw.replace("\\", "/")):
         add("PF15", "Password-manager or credential-store path %r" % n)
+    if MESSAGE_STORE_RE.search(n.replace("\\", "/")):
+        add("PF17", "Local messaging or mail database path %r" % n)
 
     # Generic sensitive-path classifier (tokens, vault, state, profile-db, …)
     reason = _generic_sensitive_reason(n, base)
@@ -930,7 +949,7 @@ def classify_path(path: str, source: str, tool: str = "", turn=None, op: str = "
 
     # PF09 write to sensitive — escalate when op is write/shell and any high+ finding exists
     # Actually PF09 is its own rule when writing to sensitive paths
-    sensitive_hit = any(f.rule in ("PF01", "PF02", "PF03", "PF04", "PF05", "PF10", "PF11", "PF13", "PF14", "PF15", "PF16") for f in findings)
+    sensitive_hit = any(f.rule in ("PF01", "PF02", "PF03", "PF04", "PF05", "PF10", "PF11", "PF13", "PF14", "PF15", "PF16", "PF17") for f in findings)
     if op in ("write", "shell") and sensitive_hit:
         add("PF09", "Write/shell targeting sensitive path %r" % n)
     elif op == "write" and (SECRET_BASENAME_RE.match(base) or SSH_GPG_RE.search(n) or CLOUD_CRED_RE.search(n)):

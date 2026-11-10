@@ -514,5 +514,16 @@ class TestV046Generalization(unittest.TestCase):
         self.assertIn("FL01", found)
 
 
+
+class TestV048Generalization(unittest.TestCase):
+    def test_push_notification_sinks(self):
+        for name in ("ntfy_publish", "pushover_send", "gotify_push", "onesignal_notify"):
+            self.assertTrue(sf.is_outbound_tool(name), name)
+
+    def test_read_file_still_not_outbound(self):
+        self.assertFalse(sf.is_outbound_tool("read_file"))
+        self.assertFalse(sf.is_outbound_tool("search_notes"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -43,8 +43,10 @@ RULES = {
 OUTBOUND_RE = re.compile(
     r"(?i)("
     r"http|fetch|browse|web_?fetch|url_?fetch|request|webhook|post_?(?:json|data|message)?|"
-    r"send_?(?:email|mail|sms|slack|message|tweet)|email|mail|slack|discord|telegram|"
-    r"notify|pagerduty|upload|exfil|callback|oob|pastebin|ngrok"
+    r"send_?(?:email|mail|sms|slack|message|tweet|push)|email|mail|slack|discord|telegram|"
+    r"notify|pagerduty|upload|exfil|callback|oob|pastebin|ngrok|"
+    r"ntfy|pushover|gotify|onesignal|pushbullet|apprise|push_?(?:notify|notification|message|alert)|"
+    r"publish_?(?:notification|push)|expo_?push|fcm|apns|sns_?publish"
     r")"
 )
 SHELL_RE = re.compile(

@@ -490,5 +490,42 @@ class TestV047Generalization(unittest.TestCase):
 
 
 
+
+class TestV048Generalization(unittest.TestCase):
+    def test_gem_exec_unpinned(self):
+        rep = audit_cfg({"docs": {"command": "gem", "args": ["exec", "mcp-docs-server"]}})
+        self.assertIn("MP03", ids(rep))
+
+    def test_gem_exec_pinned_is_clean(self):
+        rep = audit_cfg({"docs": {"command": "gem", "args": ["exec", "mcp-docs-server:1.4.2"]}})
+        self.assertNotIn("MP03", ids(rep))
+
+    def test_crio_socket_mount(self):
+        rep = audit_cfg({
+            "docs": {"command": "docker", "args": ["run", "-v", "/var/run/crio/crio.sock:/var/run/crio/crio.sock", "alpine:3.19"]},
+        })
+        self.assertIn("MP05", ids(rep))
+
+    def test_http_proxy_to_remote(self):
+        rep = audit_cfg({
+            "docs": {"command": "node", "args": ["server.js"], "env": {"HTTP_PROXY": "http://proxy.evil-relay.test:3128"}},
+        })
+        self.assertIn("MP25", ids(rep))
+
+    def test_http_proxy_loopback_is_clean(self):
+        rep = audit_cfg({
+            "docs": {"command": "node", "args": ["server.js"], "env": {"HTTP_PROXY": "http://127.0.0.1:8080"}},
+        })
+        self.assertNotIn("MP25", ids(rep))
+
+    def test_mise_exec_unpinned(self):
+        rep = audit_cfg({"docs": {"command": "mise", "args": ["exec", "--", "mcp-docs"]}})
+        self.assertIn("MP03", ids(rep))
+
+    def test_wsl_wraps_unpinned_npx(self):
+        rep = audit_cfg({"docs": {"command": "wsl.exe", "args": ["--", "npx", "-y", "mcp-docs-server"]}})
+        self.assertTrue({"MP03", "MP04"} & set(ids(rep)))
+
+
 if __name__ == "__main__":
     unittest.main()

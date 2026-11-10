@@ -479,6 +479,57 @@ class ResultsTests(unittest.TestCase):
         self.assertIn("v0.47.0, unseen", page)
 
 
+    def test_redteam8_is_seen_and_frozen_unseen_is_preserved(self):
+        import sys
+
+        sys.path.insert(0, str(BENCH))
+        import run_benchmark
+
+        run_benchmark.ensure_redteam8_fixtures()
+        r8_dir = BENCH / "redteam8"
+        r8_manifest = json.loads((r8_dir / "manifest.json").read_text(encoding="utf-8"))
+        samples = r8_manifest["samples"]
+        self.assertGreaterEqual(len(samples), 90)
+        ids = [s["id"] for s in samples]
+        self.assertEqual(len(ids), len(set(ids)))
+        tools = {s["tool"] for s in samples}
+        for name in (
+            "resultguard", "toolpoison", "tracesweep", "secretflow", "shellfence",
+            "piiguard", "fetchfence", "pathfence", "mcpposture", "memfence", "mcpoauth",
+        ):
+            self.assertIn(name, tools)
+        self.assertEqual({s["label"] for s in samples}, {"malicious", "benign"})
+        prior = set()
+        for name in ("redteam", "redteam2", "redteam3", "redteam4", "redteam5", "redteam6", "redteam7"):
+            prior |= {s["id"] for s in json.loads((BENCH / name / "manifest.json").read_text(encoding="utf-8"))["samples"]}
+        main_ids = {s["id"] for s in json.loads(MANIFEST.read_text(encoding="utf-8"))["samples"]}
+        self.assertTrue(set(ids).isdisjoint(prior | main_ids))
+        for sample in samples:
+            path = r8_dir / sample["path"]
+            self.assertTrue(path.is_file(), sample["path"])
+            self.assertTrue(path.read_text(encoding="utf-8").strip(), sample["path"])
+            self.assertTrue(sample.get("source"), sample["id"])
+        sources = (r8_dir / "SOURCES.md").read_text(encoding="utf-8")
+        self.assertIn("UTF-7", sources)
+        self.assertIn("Equinix", sources)
+        results = json.loads(RESULTS.read_text(encoding="utf-8"))
+        r8 = results["redteam8"]
+        self.assertEqual(r8["sample_count"], len(samples))
+        self.assertTrue(r8["seen"])
+        self.assertFalse(r8["independent"])
+        frozen = json.loads((BENCH / "baseline_redteam8_v0.47.0.json").read_text(encoding="utf-8"))
+        self.assertEqual(frozen["version"], "v0.47.0")
+        self.assertEqual(frozen["sample_count"], len(samples))
+        self.assertEqual(frozen["overall"]["tp"], 43)
+        self.assertEqual(frozen["overall"]["fp"], 2)
+        self.assertEqual(frozen["overall"]["fn"], 22)
+        self.assertEqual(frozen["overall"]["tn"], 33)
+        self.assertEqual(results["redteam8_independent"]["overall"], frozen["overall"])
+        page = (ROOT / "docs" / "benchmarks" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("Independent red-team round 8", page)
+        self.assertIn("v0.47.0, unseen", page)
+        self.assertIn("v0.48.0 generalization", page)
+
     def test_baseline_is_the_v038_snapshot(self):
 
         baseline = json.loads((BENCH / "baseline_v0.38.0.json").read_text(encoding="utf-8"))

@@ -18,7 +18,9 @@ import argparse
 import ipaddress
 import json
 import os
+import re
 import sys
+import unicodedata
 from urllib.parse import urlsplit
 
 VERSION = "0.1.0"
@@ -42,6 +44,7 @@ RULES = {
     "MO14": ("info", "Inventory of metadata documents found"),
     "MO15": ("critical", "JWT none algorithm advertised for token or request signing"),
     "MO16": ("high", "Token endpoint allows auth method 'none', or a redirect URI is a wildcard / non-https public URL"),
+    "MO17": ("high", "Authorization server is a look-alike of the resource or of a well-known issuer"),
 }
 
 URL_FIELDS = (
@@ -71,11 +74,117 @@ def is_broad_scope(scope: str) -> bool:
         return False
     if s in BROAD_SCOPES:
         return True
+    tail = s.rsplit("/", 1)[-1]
+    if tail in BROAD_SCOPES:
+        return True
     if s.startswith("admin:") or s.endswith(":admin") or s.startswith("delete:"):
         return True
     if "delete_repo" in s or s.endswith(":delete"):
         return True
+    # First-party / cloud-provider scopes that grant broad mailbox, file, or
+    # platform access (Graph *.ReadWrite.All, GCP cloud-platform, mail.send).
+    if tail.endswith(".all") or tail.endswith(".readwrite.all") or tail.endswith("-all"):
+        return True
+    if "readwrite.all" in tail or tail.endswith(".fullcontrol"):
+        return True
+    if tail in {
+        "cloud-platform", "mail.send", "mail.readwrite",
+        "files.readwrite", "files.readwrite.all",
+    }:
+        return True
     return False
+
+
+_HOMOGLYPH = str.maketrans({
+    "\u0410": "A", "\u0412": "B", "\u0415": "E", "\u041a": "K", "\u041c": "M",
+    "\u041d": "H", "\u041e": "O", "\u0420": "P", "\u0421": "C", "\u0422": "T",
+    "\u0425": "X", "\u0430": "a", "\u0435": "e", "\u043e": "o", "\u0440": "p",
+    "\u0441": "c", "\u0443": "y", "\u0445": "x", "\u0456": "i",
+    "\u0391": "A", "\u0395": "E", "\u0399": "I", "\u039f": "O", "\u03a1": "P",
+    "\u03b1": "a", "\u03bf": "o", "\u03c1": "p", "\uff21": "A", "\uff41": "a",
+})
+
+KNOWN_IDP_HOSTS = {
+    "accounts.google.com", "login.microsoftonline.com", "login.windows.net",
+    "login.live.com", "github.com", "gitlab.com", "bitbucket.org",
+    "auth0.com", "okta.com", "login.okta.com", "appleid.apple.com",
+    "facebook.com", "cognito-idp.amazonaws.com",
+}
+
+_MULTI_TLDS = {"co.uk", "com.au", "co.jp", "com.br", "co.kr", "com.mx", "google.internal"}
+
+
+def _host_of(url):
+    if not url or not isinstance(url, str):
+        return ""
+    try:
+        raw = url if "://" in url else "https://" + url
+        return (urlsplit(raw).hostname or "").lower().rstrip(".")
+    except ValueError:
+        return ""
+
+
+def _reg_labels(host):
+    h = (host or "").lower().rstrip(".")
+    parts = h.split(".")
+    if len(parts) >= 3 and ".".join(parts[-2:]) in _MULTI_TLDS:
+        return parts[-3], ".".join(parts[-2:])
+    if len(parts) >= 2:
+        return parts[-2], parts[-1]
+    return h, ""
+
+
+def _skeleton_host(host):
+    s = unicodedata.normalize("NFKD", host or "")
+    s = s.translate(_HOMOGLYPH)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+    # visually confusable substitutions often used in look-alike issuers
+    s = s.replace("0", "o").replace("1", "l").replace("3", "e").replace("5", "s")
+    return s.lower()
+
+
+def _edit_distance(a, b, cap=3):
+    if a == b:
+        return 0
+    if abs(len(a) - len(b)) > cap:
+        return cap + 1
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(cur[-1] + 1, prev[j] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+        if min(prev) > cap:
+            return cap + 1
+    return prev[-1]
+
+
+def hosts_lookalike(a, b):
+    """True when two hostnames are typo-squatted or confusable, not the same site."""
+    a = (a or "").lower().rstrip(".")
+    b = (b or "").lower().rstrip(".")
+    if not a or not b or a == b:
+        return False
+    ra, ta = _reg_labels(a)
+    rb, tb = _reg_labels(b)
+    if ra == rb and ta == tb:
+        return False
+    sa, sb = _skeleton_host(a), _skeleton_host(b)
+    if sa == sb:
+        return True
+    sra, srb = _skeleton_host(ra), _skeleton_host(rb)
+    if sra == srb and ra != rb and min(len(ra), len(rb)) >= 4:
+        return True
+    if ra != rb and min(len(ra), len(rb)) >= 5 and _edit_distance(ra, rb) <= 2:
+        return True
+    return False
+
+
+def _is_known_idp(host):
+    h = (host or "").lower().rstrip(".")
+    if h in KNOWN_IDP_HOSTS:
+        return True
+    return any(h.endswith("." + k) for k in KNOWN_IDP_HOSTS)
 
 def mask(value) -> str:
     s = str(value)
@@ -412,6 +521,19 @@ def audit_pr(findings, file, text, ptr, doc, disabled, expected):
     walk_url_fields(findings, file, text, ptr, doc, disabled)
     for i, srv in enumerate(servers):
         check_url(findings, file, text, ptr, "authorization_servers/%d" % i, srv, disabled)
+        sh = _host_of(srv if isinstance(srv, str) else "")
+        if not sh:
+            continue
+        rh = _host_of(resource) if isinstance(resource, str) else ""
+        if rh and hosts_lookalike(sh, rh):
+            add("MO17", "authorization_servers host %s looks like the resource host %s (confused-deputy / typo-squat risk)"
+                % (sh, rh), srv if isinstance(srv, str) else "", field="authorization_servers/%d" % i)
+        else:
+            for idp in KNOWN_IDP_HOSTS:
+                if hosts_lookalike(sh, idp) and not _is_known_idp(sh):
+                    add("MO17", "authorization_servers host %s looks like well-known issuer %s"
+                        % (sh, idp), srv if isinstance(srv, str) else "", field="authorization_servers/%d" % i)
+                    break
     scan_secrets(findings, file, text, ptr, doc, disabled)
 
 

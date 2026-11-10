@@ -347,5 +347,32 @@ class TestV046Generalization(unittest.TestCase):
         self.assertNotIn("MO16", self._audit(doc))
 
 
+
+class TestV048Generalization(unittest.TestCase):
+    def test_lookalike_issuer_and_broad_scope(self):
+        doc = with_(GOOD_PR,
+                    resource="https://mcp.example.com/mcp",
+                    authorization_servers=["https://login.examp1e.com"],
+                    scopes_supported=["openid", "Files.ReadWrite.All", "mail.send"])
+        r = set(rules(doc))
+        self.assertTrue({"MO17", "MO10"} & r)
+        self.assertIn("MO17", r)
+        self.assertIn("MO10", r)
+
+    def test_known_idp_and_narrow_scopes_is_clean_of_mo17_mo10(self):
+        doc = with_(GOOD_PR,
+                    resource="https://mcp.myapp.com/mcp",
+                    authorization_servers=["https://accounts.google.com"],
+                    scopes_supported=["openid", "email", "profile"])
+        r = set(rules(doc))
+        self.assertNotIn("MO17", r)
+        self.assertNotIn("MO10", r)
+
+    def test_narrow_mail_read_scope_is_not_broad(self):
+        self.assertFalse(mcpoauth.is_broad_scope("Mail.Read"))
+        self.assertFalse(mcpoauth.is_broad_scope("email"))
+        self.assertTrue(mcpoauth.is_broad_scope("mail.send"))
+
+
 if __name__ == "__main__":
     unittest.main()

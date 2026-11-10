@@ -56,6 +56,7 @@ REDTEAM7_DIR = BENCH / "redteam7"
 REDTEAM7_MANIFEST_PATH = REDTEAM7_DIR / "manifest.json"
 REDTEAM8_DIR = BENCH / "redteam8"
 REDTEAM8_MANIFEST_PATH = REDTEAM8_DIR / "manifest.json"
+REDTEAM8_BASELINE_PATH = BENCH / "baseline_redteam8_v0.47.0.json"
 SITE = "https://dunkleschitz.github.io/agentsec"
 
 SEVERITY_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
@@ -868,33 +869,45 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
 
     redteam8_html = ""
     redteam8 = results.get("redteam8") or {}
-    if redteam8:
-        r8_intro = (
+    redteam8_independent = results.get("redteam8_independent") or {}
+    if redteam8 or redteam8_independent:
+        shared8 = (
             "An eighth independent set of %d samples across the same eleven tools, written against the "
             "frozen v0.47.0 detectors by a separate author who did not read tool source, rule lists, tests, "
             "prior red-team fixtures, or the private dev set. Techniques come from published 2025-2026 "
-            "research that rounds 1-7 did not list (Cursor Mermaid image exfil / CVE-2025-54132, SVG and "
-            "EXIF metadata, UTF-7 mail, FHIR narratives, CloudEvents, LaTeX hidden blocks, HTML entities, "
-            "Greek confusables, WhatsApp-style padded shadowing, annotation deception, LOLBAS "
-            "regsvr32/msiexec, PowerShell EncodedCommand, ssh -R, ruby -e, Defender tamper, nsenter "
-            "breakout, identity-spoof and payment-preapproval memory, Thai/Israeli/NHS/NIF/Norwegian/"
-            "Korean/Romanian/Estonian/Czech/NZ/Indonesian identifiers and LU/IS IBANs, IPv4-mapped IMDS, "
-            "Aliyun/ECS/Equinix metadata, sslip.io, rmi/nfs, Claude/Codex/Cursor/iMessage/npmrc/"
-            "Snowflake/Teleport paths, gem/mise/WSL and deno --allow-all https, containerd.sock, "
-            "JAVA_TOOL_OPTIONS/BASH_ENV, attacker HTTP_PROXY, OpenSSH/PGP and unlisted SaaS prefixes, "
-            "Twilio/Datadog/Dropbox/Zendesk/ntfy sinks, device-code HTTP, token exchange, request "
-            "alg=none, 2026 MCP SDK audience/confused-deputy metadata, javascript:/data: policy URIs; "
-            "see benchmarks/redteam8/SOURCES.md). These numbers are the honest independent score for "
-            "v0.47.0 on this new set; they were not used to retune rules. Prior unseen scores stay visible."
-            % redteam8["sample_count"]
+            "research that rounds 1-7 did not list (see benchmarks/redteam8/SOURCES.md). "
+            % (redteam8 or redteam8_independent).get("sample_count", 100)
         )
-        redteam8_html = section_table(
-            "Independent red-team round 8 (v0.47.0, unseen)", "redteam8", redteam8, r8_intro
-        )
-        redteam8_html += "<h3>Round 8 false negatives</h3>\n"
-        redteam8_html += list_items(redteam8.get("false_negatives") or [], "false negative")
-        redteam8_html += "<h3>Round 8 false positives</h3>\n"
-        redteam8_html += list_items(redteam8.get("false_positives") or [], "false positive")
+        if redteam8_independent:
+            redteam8_html = section_table(
+                "Independent red-team round 8 (v0.47.0, unseen)", "redteam8-unseen",
+                redteam8_independent,
+                shared8 + " These numbers were scored once against the frozen v0.47.0 rules, before any later rule was changed against this set. They remain the honest unseen score and the headline independent number until a new independent round exists. Unseen F1 across successive independent rounds: 78.3 (r3) → 74.4 (r4) → 61.5 (r5) → 81.3 (r6) → 96.1 (r7) → 78.2 (r8).",
+            )
+            redteam8_html += "<h3>Round 8 false negatives (v0.47.0)</h3>\n"
+            redteam8_html += list_items(redteam8_independent.get("false_negatives") or [], "false negative")
+            redteam8_html += "<h3>Round 8 false positives (v0.47.0)</h3>\n"
+            redteam8_html += list_items(redteam8_independent.get("false_positives") or [], "false positive")
+        if redteam8:
+            if redteam8.get("seen"):
+                seen_intro = (
+                    shared8 + " After the v0.48.0 class-level rule changes (issues #28–#36; rules were "
+                    "generalized from the issue text and a private dev set, without opening the round-8 "
+                    "fixtures while designing fixes), the same fixtures were re-run. The table below is a "
+                    "<strong>seen</strong> score and is no longer independent. The original unseen numbers "
+                    "are kept in the table above and remain the headline independent score."
+                )
+                title = "Same round-8 set after v0.48.0 generalization (now seen)"
+                anchor = "redteam8-seen"
+            else:
+                seen_intro = shared8 + " These numbers are the honest independent score; they were not used to retune rules."
+                title = "Independent red-team round 8 (v0.47.0, unseen)"
+                anchor = "redteam8"
+            redteam8_html += section_table(title, anchor, redteam8, seen_intro)
+            redteam8_html += "<h3>Post-generalization round-8 false negatives</h3>\n" if redteam8.get("seen") else "<h3>Round 8 false negatives</h3>\n"
+            redteam8_html += list_items(redteam8.get("false_negatives") or [], "false negative")
+            redteam8_html += "<h3>Post-generalization round-8 false positives</h3>\n" if redteam8.get("seen") else "<h3>Round 8 false positives</h3>\n"
+            redteam8_html += list_items(redteam8.get("false_positives") or [], "false positive")
         redteam8_html += (
             "<h3>Round 8 detection-gap issues #28–#36</h3>\n"
             "<p>Every tool with a round-8 miss or false positive has one "
@@ -908,7 +921,8 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
             '<a href="https://github.com/dunkleschitz/agentsec/issues/34">#34</a> (mcpposture), '
             '<a href="https://github.com/dunkleschitz/agentsec/issues/35">#35</a> (secretflow), and '
             '<a href="https://github.com/dunkleschitz/agentsec/issues/36">#36</a> (mcpoauth). '
-            "This release does <strong>not</strong> retune rules against the round-8 fixtures.</p>\n"
+            "v0.48.0 generalizes detectors by class from the issue text and a private dev set; "
+            "the original unseen table above is unchanged.</p>\n"
         )
 
     closed = """
@@ -1101,7 +1115,7 @@ def canonical_results(results: dict) -> dict:
         "samples": results["samples"] if results["samples"] and "flagged" in results["samples"][0] and "title" not in results["samples"][0]
         else [slim_sample(r) if "outcome" in r and "title" in r else r for r in results["samples"]],
     }
-    for key in ("baseline", "original_comparable", "heldout", "redteam", "redteam_independent", "redteam2", "redteam2_independent", "redteam3", "redteam3_independent", "redteam4", "redteam4_independent", "redteam5", "redteam5_independent", "redteam6", "redteam6_independent", "redteam7", "redteam8", "issues"):
+    for key in ("baseline", "original_comparable", "heldout", "redteam", "redteam_independent", "redteam2", "redteam2_independent", "redteam3", "redteam3_independent", "redteam4", "redteam4_independent", "redteam5", "redteam5_independent", "redteam6", "redteam6_independent", "redteam7", "redteam8", "redteam8_independent", "issues"):
         if results.get(key) is not None:
             out[key] = results[key]
     return out
@@ -1141,6 +1155,12 @@ def load_redteam6_baseline() -> dict | None:
     if not REDTEAM6_BASELINE_PATH.is_file():
         return None
     return json.loads(REDTEAM6_BASELINE_PATH.read_text(encoding="utf-8"))
+
+
+def load_redteam8_baseline() -> dict | None:
+    if not REDTEAM8_BASELINE_PATH.is_file():
+        return None
+    return json.loads(REDTEAM8_BASELINE_PATH.read_text(encoding="utf-8"))
 
 
 def load_redteam3_baseline() -> dict | None:
@@ -1452,7 +1472,7 @@ def main(argv=None) -> int:
         ensure_redteam8_fixtures()
         r8_manifest = json.loads(REDTEAM8_MANIFEST_PATH.read_text(encoding="utf-8"))
         r8_raw = run_corpus(r8_manifest, root=REDTEAM8_DIR)
-        results["redteam8"] = {
+        r8_block = {
             "sample_count": r8_raw["sample_count"],
             "positive_definition": r8_manifest.get("positive_definition"),
             "overall": r8_raw["overall"],
@@ -1465,9 +1485,22 @@ def main(argv=None) -> int:
             "written_by": r8_manifest.get("written_by"),
             "written_against": r8_manifest.get("written_against"),
             "method": r8_manifest.get("method"),
-            "seen": False,
-            "independent": True,
         }
+        r8_independent = load_redteam8_baseline()
+        if r8_independent:
+            results["redteam8_independent"] = r8_independent
+            r8_block["seen"] = True
+            r8_block["independent"] = False
+            r8_block["tuned_in"] = "v0.48.0"
+            r8_block["note"] = (
+                "Post-generalization numbers on the same 100 samples after the v0.48.0 "
+                "class-level rule changes. Round 8 was the development set for those issues; "
+                "this is now a 'seen' score. The original unseen numbers stay in redteam8_independent."
+            )
+        else:
+            r8_block["seen"] = False
+            r8_block["independent"] = True
+        results["redteam8"] = r8_block
 
     slim = canonical_results(results)
 
@@ -1522,7 +1555,9 @@ def main(argv=None) -> int:
             ))
             or (REDTEAM8_MANIFEST_PATH.is_file() and (
                 "Independent red-team round 8" not in body
+                or "v0.47.0, unseen" not in body
             ))
+            or (REDTEAM8_BASELINE_PATH.is_file() and "v0.48.0 generalization" not in body)
         ):
             sys.stderr.write("run_benchmark: docs/benchmarks/index.html is missing or stale.\n")
             return 1
@@ -1608,8 +1643,16 @@ def main(argv=None) -> int:
         if results.get("redteam7"):
             sys.stdout.write("\nindependent red-team round 7 (v0.47.0, unseen):\n")
             sys.stdout.write(text_report(results["redteam7"]))
-        if results.get("redteam8"):
+        if results.get("redteam8_independent"):
             sys.stdout.write("\nindependent red-team round 8 (v0.47.0, unseen):\n")
+            sys.stdout.write(text_report(results["redteam8_independent"]))
+        if results.get("redteam8"):
+            label = (
+                "same round-8 set after v0.48.0 generalization (now seen)"
+                if results["redteam8"].get("seen")
+                else "independent red-team round 8 (v0.47.0, unseen)"
+            )
+            sys.stdout.write("\n%s:\n" % label)
             sys.stdout.write(text_report(results["redteam8"]))
     return 0
 

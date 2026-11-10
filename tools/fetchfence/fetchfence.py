@@ -71,6 +71,48 @@ METADATA_HOSTS = {
     "kubernetes.default.svc.cluster.local",
 }
 
+# IaaS / cloud-vendor domains that operate a metadata service. A host whose
+# first label is metadata or instance-data under one of these is IMDS.
+_CLOUD_PROVIDER_DOMAINS = (
+    "packet.net", "equinix.com", "equinixmetal.com", "equinixmetal.net",
+    "google.internal", "googleapis.com", "cloud.goog", "google.com",
+    "aws.internal", "amazonaws.com", "azure.com", "cloud.microsoft",
+    "microsoft.com", "oraclecloud.com", "alibabacloud.com", "aliyun.com",
+    "aliyuncs.com", "cloud.ibm.com", "digitalocean.com", "linode.com",
+    "vultr.com", "hetzner.com", "hetzner.cloud", "ovh.net", "ovhcloud.com",
+    "cloudflare.com", "tencentcloud.com", "huaweicloud.com", "openstacklocal",
+)
+_IMDS_PATH_RE = re.compile(
+    r"(?i)^/(?:metadata(?:/|$)|latest/meta-data|computeMetadata(?:/|$)|"
+    r"metadata/v1(?:/|$)|openstack(?:/|$)|opc/v[12](?:/|$)|oracle(?:/|$)|"
+    r"2009-04-04/meta-data)"
+)
+
+
+def is_cloud_metadata_host(host, path=""):
+    """True for cloud-provider metadata hostnames as a class, not a single vendor."""
+    h = (host or "").lower().rstrip(".")
+    if not h:
+        return False
+    if h in METADATA_HOSTS or h.endswith(".metadata.google.internal"):
+        return True
+    labels = h.split(".")
+    first = labels[0]
+    if first in {"metadata", "instance-data", "instance-metadata"}:
+        rest = ".".join(labels[1:])
+        if any(rest == d or rest.endswith("." + d) for d in _CLOUD_PROVIDER_DOMAINS):
+            return True
+        if rest and _IMDS_PATH_RE.search(path or ""):
+            return True
+        # Bare metadata.<vendor> already covered; also well-known two-label IMDS hosts.
+        if h in {
+            "metadata.packet.net", "metadata.equinix.com", "metadata.google.internal",
+            "metadata.goog",
+        }:
+            return True
+    return False
+
+
 CALLBACK_HOST_RE = re.compile(
     r"(?i)^(?:.+\.)?(?:"
     r"webhook\.site|requestbin(?:\.com)?|pipedream\.net|hookbin\.com|beeceptor\.com|"
@@ -541,7 +583,7 @@ def classify_url(url: str, source: str, tool: str = "", turn=None, allow_hosts=N
         add("FF05", "URL contains embedded userinfo credentials", host_dec)
 
     # Metadata / link-local by hostname
-    if host_dec in METADATA_HOSTS or host_dec.endswith(".metadata.google.internal"):
+    if is_cloud_metadata_host(host_dec, p.path or ""):
         add("FF01", "Cloud metadata hostname %r" % host_dec, host_dec)
 
     # IP classification

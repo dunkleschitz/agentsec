@@ -103,6 +103,9 @@ RULES: Dict[str, Dict[str, str]] = {
     "MP24": {"name": "bind-all-interfaces", "severity": "high",
              "rationale": "The server is bound to all interfaces (0.0.0.0 or ::) or advertised on an unspecified address, exposing it beyond the local machine.",
              "fix": "Bind to 127.0.0.1 or a specific interface, and require authentication on any non-loopback listener."},
+    "MP25": {"name": "proxy-env-hijack", "severity": "high",
+             "rationale": "HTTP_PROXY/HTTPS_PROXY/ALL_PROXY (and related) point at a non-loopback proxy, so every HTTP client the server starts can be intercepted.",
+             "fix": "Remove the proxy override, or point it only at a trusted loopback proxy you control."},
 }
 
 # ---------------------------------------------------------------------------
@@ -414,6 +417,10 @@ def find_launch(cmd: str, args: List[str]) -> Tuple[str, Optional[str], List[str
         ecosystem_launcher, argv = "uv tool run", argv[2:]
     elif b == "pipx" and argv[:1] == ["run"]:
         ecosystem_launcher, argv = "pipx run", argv[1:]
+    elif b in ("gem", "gem.exe") and argv[:1] == ["exec"]:
+        ecosystem_launcher, argv = "gem exec", argv[1:]
+    elif b in ("mise", "mise.exe", "rtx", "rtx.exe", "asdf", "asdf.exe") and argv and argv[0] in ("exec", "x", "run"):
+        ecosystem_launcher, argv = f"{b.split('.')[0]} {argv[0]}", argv[1:]
     elif b in ("docker", "podman") and "run" in argv:
         ecosystem_launcher, argv = f"{b} run", argv[argv.index("run") + 1:]
     if not ecosystem_launcher:
@@ -478,6 +485,85 @@ def py_pinned(spec: str) -> Optional[bool]:
     if m and re.fullmatch(r"v?\d+(\.\d+)+([\w.+-]*)", m.group(1)):
         return True
     return False
+
+
+
+def gem_pinned(spec, flags=None):
+    """True when gem exec/install names an exact version (:1.2.3 or -v/--version)."""
+    flags = flags or []
+    joined = " ".join(str(x) for x in flags)
+    if re.search(r"(?i)(?:--version|-v)(?:=|\s+)\d+\.\d+", joined):
+        return True
+    s = (spec or "").strip()
+    if re.search(r":v?\d+\.\d+", s):
+        return True
+    if re.search(r"@(?:v?\d+\.\d+[\w.+-]*|[0-9a-f]{7,40})$", s):
+        return True
+    return False
+
+
+def mise_pinned(spec, flags=None):
+    """True when mise/rtx/asdf exec names a version (tool@1.2.3 or --version)."""
+    flags = flags or []
+    joined = " ".join([spec or ""] + [str(x) for x in flags])
+    if re.search(r"@(?:v?\d+\.\d+[\w.+-]*|[0-9a-f]{7,40})(?:$|\s)", joined):
+        return True
+    if re.search(r"(?i)--version(?:=|\s+)\d+\.\d+", joined):
+        return True
+    return False
+
+
+_WSL_VALUE_FLAGS = {"-d", "--distribution", "-u", "--user", "-e", "--exec", "-m", "--mount"}
+
+
+def unwrap_wsl(cmd, args):
+    """Return (cmd, args) after stripping a WSL wrapper so inner launchers are visible."""
+    if base(cmd) not in {"wsl", "wsl.exe"}:
+        return cmd, list(args)
+    argv = list(args)
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--":
+            i += 1
+            break
+        if a in ("-e", "--exec", "--"):
+            i += 1
+            break
+        if a.startswith("-"):
+            name = a.split("=", 1)[0]
+            if name in _WSL_VALUE_FLAGS and "=" not in a and i + 1 < len(argv):
+                i += 2
+                continue
+            i += 1
+            continue
+        break
+    rest = argv[i:]
+    if not rest:
+        return cmd, list(args)
+    return rest[0], rest[1:]
+
+
+PROXY_ENV_NAMES = {
+    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "FTP_PROXY", "SOCKS_PROXY",
+    "http_proxy", "https_proxy", "all_proxy", "ftp_proxy", "socks_proxy",
+}
+
+def _proxy_is_non_loopback(value: str) -> bool:
+    v = (value or "").strip()
+    if not v or is_placeholder(v):
+        return False
+    raw = v if "://" in v else "http://" + v
+    try:
+        u = urlsplit(raw)
+    except ValueError:
+        return False
+    host = (u.hostname or "").lower().rstrip(".")
+    if not host:
+        return False
+    if host in LOCAL_HOSTS or host.startswith("127.") or host in {"::1", "[::1]"}:
+        return False
+    return True
 
 
 def image_pinned(image: str) -> bool:
@@ -678,6 +764,8 @@ def audit_server(srv: Server) -> None:
     if cmd and not args and " " in cmd.strip() and not os.path.exists(cmd):
         parts = cmd.split()
         cmd, args = parts[0], parts[1:]
+    if cmd:
+        cmd, args = unwrap_wsl(cmd, args)
 
     if url:
         srv.transport = typ if typ in ("sse", "http", "streamable-http", "streamablehttp", "ws", "websocket") else ("sse" if urlsplit(url).path.rstrip("/").endswith("/sse") else "http")
@@ -703,6 +791,9 @@ def audit_server(srv: Server) -> None:
             add("MP14", f"env {k} set empty (disables verification in some clients)", f"{k}=''")
         if k.upper() in INJECT_ENV and vs.strip():
             add("MP15", f"env {k} injects code/libraries into the server process", f"{k}={vs[:60]}")
+        if k in PROXY_ENV_NAMES or k.upper() in {n.upper() for n in PROXY_ENV_NAMES}:
+            if _proxy_is_non_loopback(vs):
+                add("MP25", f"env {k} forces egress through a non-loopback proxy", f"{k}={vs[:80]}")
         if k.upper() == "NODE_OPTIONS" and re.search(r"(--require|-r\s|--import|--loader|--experimental-loader|--inspect)", vs):
             add("MP15", "NODE_OPTIONS preloads code or opens an inspector port", f"NODE_OPTIONS={vs[:60]}")
         if k in REGISTRY_ENV or k.upper() in {x.upper() for x in REGISTRY_ENV}:
@@ -837,6 +928,10 @@ def audit_server(srv: Server) -> None:
                 pinned = image_pinned(pkg)
             elif launcher in ("uvx", "uv tool run", "pipx run"):
                 pinned = py_pinned(pkg)
+            elif launcher == "gem exec":
+                pinned = gem_pinned(pkg, lflags + args)
+            elif launcher.split()[0] in ("mise", "rtx", "asdf"):
+                pinned = mise_pinned(pkg, lflags + args)
             else:
                 pinned = npm_pinned(pkg)
             srv.pinned = pinned
@@ -986,8 +1081,11 @@ def check_docker(srv: Server, add, flags: List[str]) -> None:
                 src = m.group(1) if m else ""
             else:
                 src = val.split(":")[0] if not re.match(r"^[A-Za-z]:\\", val) else val[:2] + val[2:].split(":")[0]
-            if "docker.sock" in val:
-                add("MP05", "Docker socket mounted into container (equivalent to root on host)", f"{name} {val}", "critical")
+            if re.search(r"(?i)(?:docker|containerd|crio|cri-o|podman)\.sock\b", val) or re.search(
+                r"(?i)/(?:run|var/run)/(?:docker\.sock|containerd/|crio/|podman/)", val
+            ):
+                kind = "Docker socket" if "docker.sock" in val.lower() else "Container runtime socket"
+                add("MP05", f"{kind} mounted into container (equivalent to root on host)", f"{name} {val}", "critical")
             elif src and broad_root(src) == "filesystem root":
                 add("MP05", f"host root filesystem mounted into container: {val}", f"{name} {val}", "critical")
             elif src and broad_root(src):
@@ -1001,6 +1099,9 @@ def check_docker(srv: Server, add, flags: List[str]) -> None:
                 srv.inline_secrets += 1
                 add("MP01", f"inline secret in docker -e {k} ({reason})", f"-e {k}={mask(v)}")
                 check_scope(srv, add, k, v)
+            if k in PROXY_ENV_NAMES or k.upper() in {n.upper() for n in PROXY_ENV_NAMES}:
+                if _proxy_is_non_loopback(v):
+                    add("MP25", f"docker env {k} forces egress through a non-loopback proxy", f"-e {k}={v[:80]}")
 
 
 def check_scope(srv: Server, add, key: str, value: str) -> None:

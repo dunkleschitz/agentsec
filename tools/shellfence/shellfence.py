@@ -48,6 +48,8 @@ RULES = {
     "SF18": ("critical", "Download-then-execute without a pipe (curl/wget -o, chmod +x, then run the file)"),
     "SF19": ("critical", "LOLBin / exec-trampoline or cloud-sync exfil (tar checkpoint-action, forfiles, MSBuild, rclone of $HOME)"),
     "SF20": ("critical", "Interpreter one-liner or generic network-relay/upload of a secret or home path"),
+    "SF21": ("critical", "Reverse tunnel or remote port-forward to an off-site host"),
+    "SF22": ("critical", "Container or namespace escape (nsenter, /proc/1/root, host chroot)"),
 }
 
 SHELL_TOKENS = {
@@ -936,6 +938,37 @@ def _download_then_exec(cmd: str) -> bool:
     return has_chmod and has_exec
 
 
+
+REVERSE_TUNNEL_RE = re.compile(
+    r"(?ix)"
+    r"("
+    # SSH short-flag cluster that includes R (e.g. -R, -fNR), or RemoteForward.
+    # Do not treat the letter R later in the command (user, port) as a flag.
+    r"\b(?:ssh|autossh|ssh\.exe)\b[^\n|;]{0,200}?"
+    r"(?:(?<=\s)-[46ACfgkKmNnqTvVx]*R[46ACfgkKmNnqTvVx]*(?:\s|=|:|$)|-o\s*RemoteForward=|\bRemoteForward\s)"
+    r"|"
+    r"\b(?:chisel|frpc?)\b[^\n|;]{0,120}?\b(?:reverse|rport|remote[_-]?port)\b"
+    r")"
+)
+
+NS_ESCAPE_RE = re.compile(
+    r"(?ix)"
+    r"("
+    r"\bnsenter\b[^\n|;]{0,120}?(?:-t|--target)\s*1\b"
+    r"|"
+    r"\bnsenter\b[^\n|;]{0,80}?(?:-m|--mount|--net|--pid)\b"
+    r"|"
+    r"\bchroot\s+/proc/\d+/root"
+    r"|"
+    r"(?:^|[;&|\n])\s*(?:cd|cat|cp|tar|dd|sh|bash)\s+/proc/1/root"
+    r"|"
+    r"/proc/1/root"
+    r"|"
+    r"\bunshare\b[^\n|;]{0,80}?(?:-m|--mount).{0,80}?(?:chroot|/proc/)"
+    r")"
+)
+
+
 def classify_command(command: str, source: str, tool: str = "", turn=None, disabled=None):
 
     """Return findings for one shell command."""
@@ -1057,6 +1090,15 @@ def classify_command(command: str, source: str, tool: str = "", turn=None, disab
         inner = _normalize_cmd(ps_decoded)
         if _interpreter_exfil_oneliner(inner) or RELAY_UPLOAD_RE.search(inner):
             add("SF20", "Decoded PowerShell interpreter/relay exfil: %s" % _snippet(inner, 90))
+
+    if REVERSE_TUNNEL_RE.search(n):
+        add("SF21", "Reverse tunnel or remote port-forward: %s" % _snippet(n, 90))
+    if ps_decoded and REVERSE_TUNNEL_RE.search(_normalize_cmd(ps_decoded)):
+        add("SF21", "Decoded PowerShell reverse tunnel: %s" % _snippet(ps_decoded, 90))
+    if NS_ESCAPE_RE.search(n):
+        add("SF22", "Container/namespace escape: %s" % _snippet(n, 90))
+    if ps_decoded and NS_ESCAPE_RE.search(_normalize_cmd(ps_decoded)):
+        add("SF22", "Decoded PowerShell container/namespace escape: %s" % _snippet(ps_decoded, 90))
 
     return findings
 

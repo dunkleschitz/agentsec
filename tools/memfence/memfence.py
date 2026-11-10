@@ -42,6 +42,7 @@ RULES = {
     "MF13": ("high", "Auto-approve / confirmation-bypass policy planted for privileged tools"),
     "MF14": ("medium", "Planted impossible user identity (age outside a realistic range)"),
     "MF15": ("high", "Memory schedules a future data transfer, adds a recipient/channel, or silently rewrites user input"),
+    "MF16": ("high", "Memory changes trust or identity, pre-approves money movement, weakens security controls, or routes data to an external sink"),
 }
 
 # --- detection patterns ---
@@ -811,6 +812,76 @@ def _match_is_negated(text, start, window=48):
     return bool(_NEGATION_RE.search(prefix))
 
 
+
+IDENTITY_TRUST_RE = re.compile(
+    r"(?is)"
+    r"("
+    r"(?:treat|regard|consider|interpret)\s+"
+    r"(?:mail|email|messages?|requests?|traffic|senders?)\s+"
+    r"from\s+.{0,80}?\s+as\s+(?:the\s+)?(?:account\s+)?(?:owner|admin(?:istrator)?|user|identity)"
+    r"|"
+    r"(?:treat|regard|consider)\s+.{0,80}?\s+as\s+(?:the\s+)?(?:account\s+)?(?:owner|admin(?:istrator)?|trusted\s+identity)"
+    r"|"
+    r"(?:this|that|the)\s+(?:address|sender|email|mailbox)\s+is\s+(?:the\s+)?(?:account\s+)?owner"
+    r"|"
+    r"(?:map|alias|trust)\s+.{0,60}?\s+as\s+(?:the\s+)?(?:trusted\s+)?(?:owner|admin|identity)"
+    r"|"
+    r"inherit\s+(?:the\s+)?(?:owner|admin(?:istrator)?|account)(?:'s)?\s+privileges"
+    r")"
+)
+
+MONEY_PREAPPROVE_RE = re.compile(
+    r"(?is)"
+    r"("
+    r"(?:standing|blanket|pre[- ]?approved?|auto[- ]?approv(?:e|ed|al))\s+"
+    r".{0,80}?(?:wire|transfer|payment|ach|invoice|payout|withdrawal)"
+    r"|"
+    r"(?:auto[- ]?approve|always\s+allow|always\s+approve|do\s+not\s+(?:ask|require)\s+(?:the\s+)?(?:user\s+)?(?:to\s+)?confirm)"
+    r".{0,80}?(?:wire|transfer|payment|ach|invoice|payout|payments?\s+tool)"
+    r"|"
+    r"(?:wire|transfer|payment|ach|invoice|payout).{0,80}?"
+    r"(?:auto[- ]?approv(?:e|ed|al)|without\s+confirm|skip\s+confirm|no\s+need\s+to\s+confirm|standing\s+approval)"
+    r"|"
+    r"(?:always\s+)?(?:allow|approve|authorize)\s+(?:large\s+)?(?:wire|transfers|payments?)"
+    r")"
+)
+
+SECURITY_WEAKEN_RE = re.compile(
+    r"(?is)"
+    r"("
+    r"(?:2fa|mfa|two[- ]factor|second[- ]factor|2[- ]step)(?:\s+auth(?:entication)?)?"
+    r".{0,40}?(?:is\s+)?(?:disabled|turned\s+off|is\s+off|no\s+longer\s+required|not\s+required)"
+    r"|"
+    r"(?:disable|skip|bypass|turn\s+off|do\s+not\s+(?:require|ask\s+for|perform))\s+"
+    r"(?:the\s+)?(?:2fa|mfa|two[- ]factor|second[- ]factor|confirmation|verification|approval|auth(?:entication)?)"
+    r"|"
+    r"(?:confirmation|verification|approval)\s+(?:must|should|can)\s+be\s+skipped"
+    r"|"
+    r"skip\s+(?:confirmation|verification|approval|2fa|mfa)"
+    r")"
+)
+
+EXTERNAL_SINK_RE = re.compile(
+    r"(?is)"
+    r"("
+    r"(?:file|post|open|create|publish|open(?:ing)?)\s+"
+    r".{0,100}?(?:public\s+)?(?:github|gitlab|bitbucket|sourcehut)?\s*"
+    r"(?:issue|issues|pull\s+request|pr\b|repo(?:sitory)?)\b"
+    r".{0,120}?(?:vulnerabilit|secrets?|tokens?|credentials?|findings?|private)?"
+    r"|"
+    r"(?:vulnerabilit(?:y|ies)\s+findings?|private\s+(?:findings?|secrets?|tokens?|data)|secrets?|tokens?|credentials?)"
+    r".{0,120}?(?:public\s+)?(?:github|gitlab|bitbucket)?\s*(?:issue|issues|pull\s+request|pr\b|repo(?:sitory)?)"
+    r"|"
+    r"(?:sftp|scp|rsync|ftp)\s+.{0,100}?(?:transcript|conversation|history|memory|chat)"
+    r"|"
+    r"(?:transcript|conversation|history|memory|chat).{0,100}?(?:sftp|scp|rsync|ftp|export)"
+    r"|"
+    r"(?:export|upload|exfiltrat)\s+.{0,80}?(?:transcript|conversation|history|memory)"
+    r"\s+.{0,80}?(?:sftp|scp|rsync|ftp|https?://)"
+    r")"
+)
+
+
 def classify_entry(entry: MemoryEntry, disabled=None):
 
     disabled = set(disabled or [])
@@ -928,6 +999,17 @@ def classify_entry(entry: MemoryEntry, disabled=None):
         m = (FUTURE_TRANSFER_RE.search(scan) or ADDED_CHANNEL_RE.search(scan) or REWRITE_INPUT_RE.search(scan))
         if m and not _action_is_negated(scan, m.start()):
             add("MF15", "Future transfer, added recipient/channel, or silent input rewrite in memory entry %s" % label, m.group(0) if m else scan)
+
+    for rule, rx, msg in (
+        ("MF16", IDENTITY_TRUST_RE, "Planted identity/trust remapping in memory entry %s"),
+        ("MF16", MONEY_PREAPPROVE_RE, "Planted standing approval for money movement in memory entry %s"),
+        ("MF16", SECURITY_WEAKEN_RE, "Planted security-control weakening in memory entry %s"),
+        ("MF16", EXTERNAL_SINK_RE, "Memory routes private data to an external sink in entry %s"),
+    ):
+        m = rx.search(scan)
+        if m and not _action_is_negated(scan, m.start()) and not _match_is_negated(scan, m.start()):
+            add(rule, msg % label, m.group(0))
+            break
 
 
     # MF08 encoded blobs
