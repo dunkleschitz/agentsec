@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "remote": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote@1.2.3"
+      ],
+      "env": {
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+      }
+    }
+  }
+}

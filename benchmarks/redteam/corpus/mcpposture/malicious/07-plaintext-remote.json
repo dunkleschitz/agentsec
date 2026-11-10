@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "sse": {
+      "url": "http://mcp.evil.invalid/sse",
+      "type": "sse"
+    }
+  }
+}

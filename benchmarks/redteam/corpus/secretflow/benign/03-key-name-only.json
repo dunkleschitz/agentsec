@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Rotate the API_KEY in staging."
+    },
+    {
+      "role": "assistant",
+      "content": "I will open a ticket to rotate API_KEY."
+    }
+  ]
+}

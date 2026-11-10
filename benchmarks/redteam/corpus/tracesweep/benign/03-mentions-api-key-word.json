@@ -1,0 +1,12 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Where do I put my API key?"
+    },
+    {
+      "role": "assistant",
+      "content": "Store the API key in a secret manager, never in source."
+    }
+  ]
+}

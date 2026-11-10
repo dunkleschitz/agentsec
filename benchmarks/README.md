@@ -36,6 +36,8 @@ The committed table lives at [dunkleschitz.github.io/agentsec/benchmarks/](https
 
 Numbers will move when a single sample is added or re-labeled; treat percentages as a snapshot, not a product claim.
 
+- **Independent red-team** (`benchmarks/redteam/`): ~100 adversarial + benign look-alike samples written without reading detector source/rule files, citing published research in `SOURCES.md`. Reported separately on the Pages page.
+
 ## Layout
 
 ```
@@ -46,9 +48,14 @@ benchmarks/
 ├── baseline_v0.38.0.json      frozen v0.38.0 numbers for the before table
 ├── run_benchmark.py           stdlib runner and Pages generator
 ├── corpus/                    main corpus, including the original 85 plus five new tools
-└── heldout/
+├── heldout/
+│   ├── manifest.json
+│   └── corpus/                40 samples written after the #7–#11 fixes
+└── redteam/
+    ├── README.md
+    ├── SOURCES.md
     ├── manifest.json
-    └── corpus/                40 samples written after the #7–#11 fixes
+    └── corpus/                ~100 independent adversarial + look-alike samples
 ```
 
 `difficulty: evasion` samples are malicious on purpose but written to stress a known heuristic gap (typos, split words, encodings, non-English text, transformed secrets, unusual spellings). On the original 85-sample corpus those evasions were missed in v0.38.0 and are caught after the v0.39.0 rule changes. Held-out evasions use *different* wording; a miss there is reported and is not patched away against the held-out set.

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "remote": {
+      "url": "https://mcp.vendor.invalid/mcp",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer ${MCP_TOKEN}"
+      }
+    }
+  }
+}

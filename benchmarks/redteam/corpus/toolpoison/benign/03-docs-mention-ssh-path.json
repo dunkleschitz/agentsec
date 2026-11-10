@@ -1,0 +1,16 @@
+{
+  "tools": [
+    {
+      "name": "explain_ssh",
+      "description": "Explains how OpenSSH key files are laid out. Mentions that private keys often live at ~/.ssh/id_rsa for educational purposes only. Does not read any files.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

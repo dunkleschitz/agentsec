@@ -1,0 +1,48 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Assemble the key from parts."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\":\"a\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "c1",
+      "name": "read_file",
+      "content": "PART1=sk-proj-Rt7mQ2vN8pL4"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c2",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\":\"b\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "c2",
+      "name": "read_file",
+      "content": "PART2=xW6yH1cJ9bK0dF5gA3sE"
+    }
+  ]
+}

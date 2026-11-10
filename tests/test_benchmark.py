@@ -78,6 +78,7 @@ class ResultsTests(unittest.TestCase):
         self.assertIn("not a red-team dataset", page.lower())
         self.assertIn("Before (v0.38.0)", page)
         self.assertIn("Held-out set", page)
+        self.assertIn("Independent red-team results", page)
         results = json.loads(RESULTS.read_text(encoding="utf-8"))
         # After the #7-#11 fixes the original 85-sample slice is clean.
         comparable = results["original_comparable"]
@@ -111,6 +112,36 @@ class ResultsTests(unittest.TestCase):
         self.assertTrue(set(ids).isdisjoint(main_ids))
         for sample in samples:
             path = BENCH / "heldout" / sample["path"]
+            self.assertTrue(path.is_file(), sample["path"])
+            self.assertTrue(path.read_text(encoding="utf-8").strip(), sample["path"])
+
+
+    def test_redteam_is_separate_and_complete(self):
+        rt_manifest = json.loads((BENCH / "redteam" / "manifest.json").read_text(encoding="utf-8"))
+        samples = rt_manifest["samples"]
+        self.assertGreaterEqual(len(samples), 90)
+        self.assertLessEqual(len(samples), 120)
+        ids = [s["id"] for s in samples]
+        self.assertEqual(len(ids), len(set(ids)))
+        tools = {s["tool"] for s in samples}
+        for name in (
+            "resultguard", "toolpoison", "tracesweep", "secretflow", "shellfence",
+            "piiguard", "fetchfence", "pathfence", "mcpposture", "memfence",
+        ):
+            self.assertIn(name, tools)
+        main_ids = {s["id"] for s in json.loads(MANIFEST.read_text(encoding="utf-8"))["samples"]}
+        self.assertTrue(set(ids).isdisjoint(main_ids))
+        sources = (BENCH / "redteam" / "SOURCES.md").read_text(encoding="utf-8")
+        self.assertIn("Invariant Labs", sources)
+        self.assertIn("Trail of Bits", sources)
+        results = json.loads(RESULTS.read_text(encoding="utf-8"))
+        redteam = results["redteam"]
+        self.assertEqual(redteam["sample_count"], len(samples))
+        self.assertIn("false_negatives", redteam)
+        self.assertIn("false_positives", redteam)
+        self.assertIn("overall", redteam)
+        for sample in samples:
+            path = BENCH / "redteam" / sample["path"]
             self.assertTrue(path.is_file(), sample["path"])
             self.assertTrue(path.read_text(encoding="utf-8").strip(), sample["path"])
 

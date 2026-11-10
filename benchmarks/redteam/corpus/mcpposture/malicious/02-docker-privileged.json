@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "dock": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--privileged",
+        "-v",
+        "/var/run/docker.sock:/var/run/docker.sock",
+        "mcp/docker-tools:latest"
+      ]
+    }
+  }
+}

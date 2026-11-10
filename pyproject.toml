@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentsec"
-version = "0.39.0"
+version = "0.40.0"
 description = "35 offline, stdlib-only Python CLIs that scan AI agents for prompt injection, MCP tool poisoning, SSRF, and secret leaks."
 readme = "README.md"
 license = { file = "LICENSE" }

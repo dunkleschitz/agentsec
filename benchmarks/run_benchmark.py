@@ -33,6 +33,8 @@ MANIFEST_PATH = BENCH / "manifest.json"
 RESULTS_PATH = BENCH / "results.json"
 HELDOUT_DIR = BENCH / "heldout"
 HELDOUT_MANIFEST_PATH = HELDOUT_DIR / "manifest.json"
+REDTEAM_DIR = BENCH / "redteam"
+REDTEAM_MANIFEST_PATH = REDTEAM_DIR / "manifest.json"
 BASELINE_PATH = BENCH / "baseline_v0.38.0.json"
 SITE = "https://dunkleschitz.github.io/agentsec"
 
@@ -336,6 +338,7 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
     baseline = results.get("baseline") or {}
     comparable = results.get("original_comparable") or {}
     heldout = results.get("heldout") or {}
+    redteam = results.get("redteam") or {}
 
     before_after = ""
     if baseline and comparable:
@@ -374,6 +377,29 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
         heldout_html += list_items(heldout.get("false_negatives") or [], "false negative")
         heldout_html += "<h3>Held-out false positives</h3>\n"
         heldout_html += list_items(heldout.get("false_positives") or [], "false positive")
+
+    redteam_html = ""
+    if redteam:
+        rt_intro = (
+            "An independent red-team wrote %d fresh samples across all ten tools without reading "
+            "detector source or rule files (READMEs/usage only). Attacks are drawn from published "
+            "research (Invariant Labs, Trail of Bits, CyberArk, Embrace The Red, Aim Security EchoLeak, "
+            "PortSwigger SSRF bypasses, Pillar Security, General Analysis / Supabase MCP, Amazon Q wipe "
+            "prompt, MINJA, Nx s1ngularity). Benign look-alikes are included. Fixtures live in "
+            "<code>benchmarks/redteam/</code> with citations in <code>SOURCES.md</code>. "
+            "These numbers are the honest independent score; they were not used to retune rules."
+            % redteam["sample_count"]
+        )
+        redteam_html = section_table(
+            "Independent red-team results",
+            "redteam",
+            redteam,
+            rt_intro,
+        )
+        redteam_html += "<h3>Red-team false negatives</h3>\n"
+        redteam_html += list_items(redteam.get("false_negatives") or [], "false negative")
+        redteam_html += "<h3>Red-team false positives</h3>\n"
+        redteam_html += list_items(redteam.get("false_positives") or [], "false positive")
 
     closed = """
       <h2 id="gaps">Detection-gap issues #7–#11</h2>
@@ -464,6 +490,7 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
     <article>
       {before_after}
       {heldout_html}
+      {redteam_html}
       {section_table("Expanded corpus (ten tools)", "expanded", results, "The original five tools plus piiguard, fetchfence, pathfence, mcpposture, and memfence, on newly written original fixtures.")}
       <h3>Expanded-corpus false negatives</h3>
       {list_items(results["false_negatives"], "false negative")}
@@ -472,15 +499,16 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
       {closed}
 
       <h2 id="how">How a detection is counted</h2>
-      <p>{esc(results.get("positive_definition") or "")} The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code> and <code>benchmarks/heldout/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
+      <p>{esc(results.get("positive_definition") or "")} The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>, <code>benchmarks/heldout/manifest.json</code>, and <code>benchmarks/redteam/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
       <p>Ten jobs are covered:</p>
       {tool_list}
 
       <h2 id="limits">Limits of this benchmark</h2>
       <ul>
         <li>Every fixture was written for this repository. A detector can look strong here and still fail on a real transcript format or a novel payload.</li>
-        <li>The corpus is still small (n={results["sample_count"]} on the expanded set; n={comparable.get("sample_count", "85")} on the original slice; n={(heldout or {}).get("sample_count", "?")} held-out). Percentages will move when a single sample is added or re-labeled.</li>
+        <li>The corpus is still small (n={results["sample_count"]} on the expanded set; n={comparable.get("sample_count", "85")} on the original slice; n={(heldout or {}).get("sample_count", "?")} held-out; n={(redteam or {}).get("sample_count", "?")} independent red-team). Percentages will move when a single sample is added or re-labeled.</li>
         <li>The held-out set was written after the #7–#11 fixes and was not used to retune those rules. A strong held-out score is still not evidence of real-world robustness.</li>
+        <li>The independent red-team set was written without reading detector source or rule files. Misses on that set are filed as <code>detection-gap</code> issues and are <strong>not</strong> patched away against these fixtures in the same release.</li>
         <li>Info-level inventory findings are excluded. If we counted them, several tools would “detect” almost every transcript they parse.</li>
         <li>All secrets and personal-data values are fake. tracesweep also suppresses documentation placeholders (the word <code>example</code>, <code>your_api_key</code>, and similar), which is why those values are not used as the malicious keys in this set.</li>
       </ul>
@@ -550,7 +578,7 @@ def canonical_results(results: dict) -> dict:
         "samples": results["samples"] if results["samples"] and "flagged" in results["samples"][0] and "title" not in results["samples"][0]
         else [slim_sample(r) if "outcome" in r and "title" in r else r for r in results["samples"]],
     }
-    for key in ("baseline", "original_comparable", "heldout", "issues"):
+    for key in ("baseline", "original_comparable", "heldout", "redteam", "issues"):
         if results.get(key) is not None:
             out[key] = results[key]
     return out
@@ -643,6 +671,23 @@ def main(argv=None) -> int:
             "written_after": held_manifest.get("written_after"),
         }
 
+    if REDTEAM_MANIFEST_PATH.is_file():
+        rt_manifest = json.loads(REDTEAM_MANIFEST_PATH.read_text(encoding="utf-8"))
+        rt_raw = run_corpus(rt_manifest, root=REDTEAM_DIR)
+        results["redteam"] = {
+            "sample_count": rt_raw["sample_count"],
+            "positive_definition": rt_manifest.get("positive_definition"),
+            "overall": rt_raw["overall"],
+            "per_tool": rt_raw["per_tool"],
+            "false_positives": rt_raw["false_positives"],
+            "false_negatives": rt_raw["false_negatives"],
+            "evasion_false_negatives": rt_raw["evasion_false_negatives"],
+            "unexpected_false_negatives": rt_raw["unexpected_false_negatives"],
+            "samples": [slim_sample(r) for r in rt_raw["samples"]],
+            "written_by": rt_manifest.get("written_by"),
+            "method": rt_manifest.get("method"),
+        }
+
     slim = canonical_results(results)
 
     if args.check:
@@ -665,6 +710,7 @@ def main(argv=None) -> int:
             or "Detection benchmark" not in body
             or "Held-out set" not in body
             or "Before (v0.38.0)" not in body
+            or "Independent red-team results" not in body
         ):
             sys.stderr.write("run_benchmark: docs/benchmarks/index.html is missing or stale.\n")
             return 1
@@ -685,6 +731,9 @@ def main(argv=None) -> int:
         if results.get("heldout"):
             sys.stdout.write("\nheld-out set:\n")
             sys.stdout.write(text_report(results["heldout"]))
+        if results.get("redteam"):
+            sys.stdout.write("\nindependent red-team set:\n")
+            sys.stdout.write(text_report(results["redteam"]))
     return 0
 
 
