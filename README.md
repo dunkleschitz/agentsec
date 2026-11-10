@@ -197,7 +197,7 @@ jobs:
 
 Inputs and outputs are documented in [action.yml](action.yml). Per-tool reports land in
 `agentsec-sarif/` (SARIF when the tool supports `--sarif`, otherwise JSON). Pin a release
-tag (`@v0` or `@v0.44.0`) once you rely on it; `@main` always tracks the latest commit.
+tag (`@v0` or `@v0.45.0`) once you rely on it; `@main` always tracks the latest commit.
 
 To also gate MCP tool-definition drift, set `mcp-snapshot` and `mcp-lock` and include
 `toolpin` in `tools`. The action will run `toolpin check` against those files.
@@ -221,7 +221,7 @@ The repository ships [`.pre-commit-hooks.yaml`](.pre-commit-hooks.yaml) so other
 ```yaml
 repos:
   - repo: https://github.com/dunkleschitz/agentsec
-    rev: v0.44.0
+    rev: v0.45.0
     hooks:
       - id: agentsec-secretflow
         files: '(transcripts|agent-runs)/.*\.(json|jsonl)$'
@@ -252,14 +252,14 @@ A non-root `python:3.12-slim` image is published to the GitHub Container Registr
 
 ```sh
 # Scan a local file. Mount the directory read-only; the process runs as uid 1000.
-docker run --rm -v "$PWD:/work:ro" ghcr.io/dunkleschitz/agentsec:v0.44.0 \
+docker run --rm -v "$PWD:/work:ro" ghcr.io/dunkleschitz/agentsec:v0.45.0 \
   mcpposture /work/mcp.json
 
-docker run --rm -v "$PWD:/work:ro" ghcr.io/dunkleschitz/agentsec:v0.44.0 \
+docker run --rm -v "$PWD:/work:ro" ghcr.io/dunkleschitz/agentsec:v0.45.0 \
   resultguard /work/transcript.json --json --fail-on high
 ```
 
-Tags: `v0.44.0` (this release), `v0` (floating major, follows the latest `v0.x` tag), and `latest` (the tip of `main`). The image `ENTRYPOINT` is `agentsec`; arguments after the image name are passed to the CLI. The first pull from `ghcr.io` on a public repository may require the package to be set public in GitHub → Packages if a fresh publish created it as private.
+Tags: `v0.45.0` (this release), `v0` (floating major, follows the latest `v0.x` tag), and `latest` (the tip of `main`). The image `ENTRYPOINT` is `agentsec`; arguments after the image name are passed to the CLI. The first pull from `ghcr.io` on a public repository may require the package to be set public in GitHub → Packages if a fresh publish created it as private.
 
 Build a local copy from a clone with `docker build -t ghcr.io/dunkleschitz/agentsec:local .`. The workflow at [`.github/workflows/docker.yml`](.github/workflows/docker.yml) authenticates to `ghcr.io` with `GITHUB_TOKEN`.
 
@@ -285,7 +285,7 @@ MCP client configs are handed to `mcpposture` directly. Every secret in the fixt
   and with example inputs built from **synthetic, fake data**: fake keys, fake transcripts,
   fake configs and fake documents. The tests check rule behavior, output formats and CLI exit
   codes against those fixtures. A small labeled corpus in [`benchmarks/`](benchmarks/)
-  reports per-tool precision and recall, a before/after table on the original 85-sample corpus, a held-out set, and four independent red-team rounds. The current unseen score is independent red-team round 4 (80 samples, written after the v0.44.0 rules were frozen): P=97.0% R=60.4% F1=74.4% (32/1/21/26). Round 3 is now seen (live P/R/F1 100% on the same 84 samples; its original unseen score stays visible at P=97.3% R=65.5% F1=78.3%). The results page lists
+  reports per-tool precision and recall, a before/after table on the original 85-sample corpus, a held-out set, and five independent red-team rounds. The current unseen score is independent red-team round 5 (80 samples, written after the v0.45.0 rules were frozen): P=96.0% R=45.3% F1=61.5% (24/1/29/26). Round 4 is now seen (live P/R/F1 100% on the same 80 samples; its original unseen score stays visible at P=97.0% R=60.4% F1=74.4%). The results page lists
   every false negative and false positive. The tools have **not** been benchmarked against
   real-world corpora, real attack datasets, or the live schemas of every agent or MCP client
   they parse.

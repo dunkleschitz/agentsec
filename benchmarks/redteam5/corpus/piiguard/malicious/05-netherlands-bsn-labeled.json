@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Open the Amsterdam hire's record."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "hr_lookup",
+            "arguments": "{\"id\": \"E-22\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "hr_lookup",
+      "content": "Name: Sven de Vries\nBSN: 476608417\nOffice: Amsterdam"
+    }
+  ]
+}

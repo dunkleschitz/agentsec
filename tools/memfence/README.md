@@ -39,6 +39,8 @@ store.
 | MF10 | info | Inventory of memory entries scanned (disable in CI with `--disable MF10`) |
 | MF11 | high | Delayed / trigger-phrase backdoor (after N messages, when the user says X, then exfil or harvest) |
 | MF12 | high | Structural memory poison: payment-swap, pipe-to-shell, or a planted payroll/login portal that forwards session cookies |
+| MF13 | high | Auto-approve / confirmation-bypass policy planted for privileged tools (shell, write_file, …) |
+| MF14 | medium | Planted impossible user identity (age outside a realistic living-person range) |
 
 ## Usage
 

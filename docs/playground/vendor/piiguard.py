@@ -193,6 +193,42 @@ PERSONNUMMER_RE = re.compile(
     r"(?<!\d)((?:19|20)\d{6}[-+]\d{4}|\d{6}[-+]\d{4})(?!\d)"
 )
 
+# Poland PESEL: 11 digits, YYMMDD + serial + checksum (weights 1,3,7,9,1,3,7,9,1,3).
+PESEL_LABELED_RE = re.compile(
+    r"(?i)\b(?:pesel|polish\s+(?:national\s+id|personal\s+(?:id|identification)\s+number))\s*[:#]?\s*"
+    r"(\d{11})\b"
+)
+PESEL_RE = re.compile(r"(?<!\d)(\d{11})(?!\d)")
+
+# Singapore NRIC / FIN: letter + 7 digits + checksum letter.
+NRIC_LABELED_RE = re.compile(
+    r"(?i)\b(?:nric|fin|singapore\s+(?:nric|national\s+id|nric\s+number))\s*[:#]?\s*"
+    r"([STFGM]\d{7}[A-Z])\b"
+)
+NRIC_RE = re.compile(r"(?<![A-Z0-9])([STFGM]\d{7}[A-Z])(?![A-Z0-9])")
+
+# France NIR / numéro de sécurité sociale: 15 digits, often grouped.
+NIR_LABELED_RE = re.compile(
+    r"(?i)\b(?:nir|n[°o]?\s*s[ée]cu(?:rit[ée])?(?:\s+sociale)?|insee|"
+    r"num[ée]ro\s+de\s+s[ée]curit[ée]\s+sociale|"
+    r"french\s+(?:social\s+security|nir)\s+(?:number|no\.?))\s*[:#]?\s*"
+    r"([12]\s*\d{2}\s*\d{2}\s*\d{2}\s*\d{3}\s*\d{3}\s*\d{2}|[12]\d{14})\b"
+)
+
+# Japan My Number / Individual Number: 12 digits, often grouped in 4s.
+MYNUMBER_LABELED_RE = re.compile(
+    r"(?i)\b(?:my\s*number|individual\s+number|kojin\s*bang[oô]|個人番号|"
+    r"マイナンバー)\s*[:#]?\s*"
+    r"(\d{4}[\s-]?\d{4}[\s-]?\d{4}|\d{12})\b"
+)
+
+# Mexico CURP: 18-character personal ID.
+CURP_LABELED_RE = re.compile(
+    r"(?i)\b(?:curp|clave\s+unica\s+de\s+registro\s+de\s+poblaci[oó]n)\s*[:#]?\s*"
+    r"([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]{2})\b"
+)
+CURP_RE = re.compile(r"(?<![A-Z0-9])([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]{2})(?![A-Z0-9])")
+
 # Roles / content extraction
 TEXT_KEYS = {
     "content", "text", "message", "body", "output", "result", "value",
@@ -448,6 +484,61 @@ def _tfn_ok(raw: str) -> bool:
     n = [int(ch) for ch in digits]
     weights = (1, 4, 3, 7, 5, 8, 6, 9, 10)
     return sum(a * b for a, b in zip(n, weights[: len(n)])) % 11 == 0
+
+
+def _pesel_ok(raw: str, require_checksum: bool) -> bool:
+    digits = re.sub(r"\D", "", raw or "")
+    if len(digits) != 11 or len(set(digits)) <= 2:
+        return False
+    # First 6 are a date with century encoded in the month ( +20 / +40 / +60 / +80 ).
+    try:
+        month = int(digits[2:4]) % 20
+        day = int(digits[4:6])
+    except ValueError:
+        return False
+    if month < 1 or month > 12 or day < 1 or day > 31:
+        return False
+    if not require_checksum:
+        return True
+    weights = (1, 3, 7, 9, 1, 3, 7, 9, 1, 3)
+    total = sum(int(d) * w for d, w in zip(digits[:10], weights))
+    check = (10 - (total % 10)) % 10
+    return check == int(digits[10])
+
+
+def _nric_ok(raw: str) -> bool:
+    s = re.sub(r"[\s-]", "", raw or "").upper()
+    if not re.fullmatch(r"[STFGM]\d{7}[A-Z]", s):
+        return False
+    weights = (2, 7, 6, 5, 4, 3, 2)
+    total = sum(int(ch) * w for ch, w in zip(s[1:8], weights))
+    prefix = s[0]
+    if prefix in "TG":
+        total += 4
+    elif prefix == "M":
+        total += 3
+    remainder = total % 11
+    if prefix in "ST":
+        table = "JZIHGFEDCBA"
+    else:
+        table = "XWUTRQPNMLK"
+    return s[8] == table[remainder]
+
+
+def _nir_labeled_ok(raw: str) -> bool:
+    """Labeled French NIR: 15 digits (spaces allowed). Checksum is not required."""
+    digits = re.sub(r"\D", "", raw or "")
+    return len(digits) == 15 and digits[0] in "12"
+
+
+def _mynumber_labeled_ok(raw: str) -> bool:
+    digits = re.sub(r"\D", "", raw or "")
+    return len(digits) == 12 and len(set(digits)) > 2
+
+
+def _curp_ok(raw: str) -> bool:
+    s = re.sub(r"[\s-]", "", raw or "").upper()
+    return bool(re.fullmatch(r"[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]{2}", s))
 
 
 def _personnummer_date_ok(raw: str) -> bool:
@@ -785,6 +876,47 @@ def scan_text(text: str, source: str, turn=None, role="", tool="", disabled=None
                 if labeled or len(digits) == 12:
                     add("PG05", "Swedish personal identity number", raw, *sp)
                     claim(sp)
+        for m in list(PESEL_LABELED_RE.finditer(text)) + list(PESEL_RE.finditer(text)):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            labeled = bool(PESEL_LABELED_RE.search(text[max(0, m.start() - 40): m.end() + 1]))
+            if _pesel_ok(raw, require_checksum=True) or (labeled and _pesel_ok(raw, require_checksum=False)):
+                add("PG05", "Polish PESEL number", raw, *sp)
+                claim(sp)
+        for m in list(NRIC_LABELED_RE.finditer(text)) + list(NRIC_RE.finditer(text)):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            if _nric_ok(raw):
+                add("PG05", "Singapore NRIC / FIN", raw, *sp)
+                claim(sp)
+        for m in NIR_LABELED_RE.finditer(text):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            if _nir_labeled_ok(raw):
+                add("PG05", "French NIR / social security number", raw, *sp)
+                claim(sp)
+        for m in MYNUMBER_LABELED_RE.finditer(text):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            if _mynumber_labeled_ok(raw):
+                add("PG05", "Japan My Number / Individual Number", raw, *sp)
+                claim(sp)
+        for m in list(CURP_LABELED_RE.finditer(text)) + list(CURP_RE.finditer(text)):
+            raw = m.group(1)
+            sp = (m.start(1), m.end(1))
+            if is_claimed(sp):
+                continue
+            if _curp_ok(raw):
+                add("PG05", "Mexican CURP", raw, *sp)
+                claim(sp)
 
     # PG06 bank
     if "PG06" not in disabled:

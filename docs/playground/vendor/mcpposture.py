@@ -563,6 +563,14 @@ REMOTE_BOOTSTRAP_RE = re.compile(
     r"|(?:eval|exec)\s*\(\s*(?:await\s+)?(?:fetch|requests)"
 )
 
+# Launcher runs an http(s) URL as the script (deno/bun/node/python -u URL).
+REMOTE_URL_LAUNCH_RE = re.compile(
+    r"(?is)(?:^|[\s;|&])(?:deno|bun|node(?:js)?|tsx?|python(?:3)?)\b"
+    r"(?:\s+-[A-Za-z0-9-]+|\s+--[A-Za-z0-9][A-Za-z0-9-]*)*"
+    r"\s+(?:run\b(?:\s+-[A-Za-z0-9-]+|\s+--[A-Za-z0-9][A-Za-z0-9-]*)*\s+)?"
+    r"https?://[^\s\"']+"
+)
+
 
 def _parse_dotted_version(s: str):
     m = re.search(r"(\d+(?:\.\d+){0,4})", s or "")
@@ -848,9 +856,9 @@ def audit_server(srv: Server) -> None:
                 break
 
         # pipe-to-shell / remote bootstrap
-        if PIPE_SHELL_RE.search(joined) or REMOTE_BOOTSTRAP_RE.search(joined):
+        if PIPE_SHELL_RE.search(joined) or REMOTE_BOOTSTRAP_RE.search(joined) or REMOTE_URL_LAUNCH_RE.search(joined):
             add("MP11", "arguments download and execute remote code", joined[:100])
-            if REMOTE_BOOTSTRAP_RE.search(joined):
+            if REMOTE_BOOTSTRAP_RE.search(joined) or REMOTE_URL_LAUNCH_RE.search(joined):
                 add("MP23", "launch command downloads and executes remote code at start", joined[:120])
 
         # known-vulnerable pinned versions (advisory ranges, not a single fixture)

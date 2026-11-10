@@ -40,6 +40,8 @@ Standard library only. It never runs an agent and never contacts the network.
 | PF12 | info | Inventory of every observed path (disable in CI with `--disable PF12`) |
 | PF13 | high | UNC / remote share path (forced authentication / NTLM leak) |
 | PF14 | high | Cryptocurrency wallet or keystore path (Bitcoin `wallet.dat`, Exodus, Solana `id.json`, MetaMask keystore, …) |
+| PF15 | high | Password-manager / credential-store path (`pass`, 1Password, KeePass, GNOME keyring, …) |
+| PF16 | critical | Privilege-escalation payload in a write (sudoers `NOPASSWD`, `authorized_keys`, `ld.so.preload`) |
 
 ## Usage
 

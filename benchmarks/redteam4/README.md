@@ -5,9 +5,10 @@ frozen. Techniques are taken from published research that was **not** the
 basis of rounds 1–3 (see [SOURCES.md](SOURCES.md)). Every secret and every
 personal identifier is synthetic.
 
-This set is the **unseen** score for v0.44.0. Do not retune detectors against
-these fixtures. A later release may relabel this set as seen if the rules are
-changed in response to it.
+This set was the **unseen** score for v0.44.0. The v0.45.0 release generalized
+detectors against the round-4 misses and relabeled this set **seen**. The original
+unseen score is frozen in `benchmarks/baseline_redteam4_v0.44.0.json` and stays
+on the benchmarks page. Do not edit these fixtures to chase a seen score.
 
 ## Positive definition
 

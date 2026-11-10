@@ -45,6 +45,9 @@ REDTEAM3_MANIFEST_PATH = REDTEAM3_DIR / "manifest.json"
 REDTEAM3_BASELINE_PATH = BENCH / "baseline_redteam3_v0.43.0.json"
 REDTEAM4_DIR = BENCH / "redteam4"
 REDTEAM4_MANIFEST_PATH = REDTEAM4_DIR / "manifest.json"
+REDTEAM4_BASELINE_PATH = BENCH / "baseline_redteam4_v0.44.0.json"
+REDTEAM5_DIR = BENCH / "redteam5"
+REDTEAM5_MANIFEST_PATH = REDTEAM5_DIR / "manifest.json"
 SITE = "https://dunkleschitz.github.io/agentsec"
 
 SEVERITY_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
@@ -247,6 +250,21 @@ def ensure_redteam4_fixtures() -> None:
         return
     subprocess.run(
         [sys.executable, str(REDTEAM4_DIR / "generate.py"), "--missing-only"],
+        cwd=ROOT, check=True, capture_output=True,
+        env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"),
+    )
+
+
+def ensure_redteam5_fixtures() -> None:
+    """Materialize round-5 fixtures that are not committed (fake provider-shaped
+    secrets that GitHub push protection blocks). Deterministic; see generate.py."""
+    if not REDTEAM5_MANIFEST_PATH.is_file():
+        return
+    manifest = json.loads(REDTEAM5_MANIFEST_PATH.read_text(encoding="utf-8"))
+    if all((REDTEAM5_DIR / s["path"]).is_file() for s in manifest["samples"]):
+        return
+    subprocess.run(
+        [sys.executable, str(REDTEAM5_DIR / "generate.py"), "--missing-only"],
         cwd=ROOT, check=True, capture_output=True,
         env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"),
     )
@@ -632,9 +650,11 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
 
     redteam4_html = ""
     redteam4 = results.get("redteam4") or {}
-    if redteam4:
-        r4_intro = (
-            "A fourth independent set of %d samples across the same eleven tools, written after the "
+    redteam4_independent = results.get("redteam4_independent") or {}
+    if redteam4_independent or redteam4:
+        n = (redteam4_independent or redteam4).get("sample_count") or (redteam4 or {}).get("sample_count")
+        shared = (
+            "A fourth independent set of %s samples across the same eleven tools, written after the "
             "v0.44.0 generalization rules were frozen, from published techniques that rounds 1–3 "
             "did not use (Policy Puppetry, ANSI-hidden instructions, HTTP header instructions, "
             "FigStep-class OCR captions, MCP resource contents and resource templates, outputSchema "
@@ -643,17 +663,65 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
             "calendar-triggered exfil, PESEL/NRIC/NIR/My Number/CURP, redis://, .onion, dword IPs, "
             "password-store/1Password/k8s service-account tokens/keychains, SSE token-in-query, Deno, "
             "DNS/CSS/WebSocket secret sinks, hf_/dop_v1_/age keys, JWT alg=none, and others; see "
-            "benchmarks/redteam4/SOURCES.md). "
+            "benchmarks/redteam4/SOURCES.md)."
+            % n
+        )
+        if redteam4_independent:
+            redteam4_html += section_table(
+                "Independent red-team round 4 (v0.44.0, unseen)",
+                "redteam4-independent",
+                redteam4_independent,
+                shared + " These numbers were scored once against the frozen v0.44.0 rules, before any later rule was changed against this set. They remain the honest unseen score.",
+            )
+            redteam4_html += "<h3>Round 4 false negatives (v0.44.0)</h3>\n"
+            redteam4_html += list_items(redteam4_independent.get("false_negatives") or [], "false negative")
+            redteam4_html += "<h3>Round 4 false positives (v0.44.0)</h3>\n"
+            redteam4_html += list_items(redteam4_independent.get("false_positives") or [], "false positive")
+        if redteam4:
+            if redteam4.get("seen"):
+                seen_intro = (
+                    shared + " After the v0.45.0 structure-based rule changes (round 4 was the development "
+                    "set for those rules), the same fixtures were re-run. The table below is a "
+                    "<strong>seen</strong> score and is no longer independent. The original unseen numbers "
+                    "are kept in the table above."
+                )
+                title = "Same round-4 set after v0.45.0 generalization (now seen)"
+                anchor = "redteam4-seen"
+            else:
+                seen_intro = shared + " These numbers are the honest independent score; they were not used to retune rules."
+                title = "Independent red-team round 4 (v0.44.0, unseen)"
+                anchor = "redteam4"
+            redteam4_html += section_table(title, anchor, redteam4, seen_intro)
+            redteam4_html += "<h3>Post-generalization round-4 false negatives</h3>\n" if redteam4.get("seen") else "<h3>Round 4 false negatives</h3>\n"
+            redteam4_html += list_items(redteam4.get("false_negatives") or [], "false negative")
+            redteam4_html += "<h3>Post-generalization round-4 false positives</h3>\n" if redteam4.get("seen") else "<h3>Round 4 false positives</h3>\n"
+            redteam4_html += list_items(redteam4.get("false_positives") or [], "false positive")
+
+    redteam5_html = ""
+    redteam5 = results.get("redteam5") or {}
+    if redteam5:
+        r5_intro = (
+            "A fifth independent set of %d samples across the same eleven tools, written after the "
+            "v0.45.0 generalization rules were frozen, from published techniques that rounds 1–4 "
+            "did not use (CSV HYPERLINK injection, DNS TXT and git-log instructions, JSON \\uXXXX "
+            "escapes, Atom/RSS content, decoded JWT claims, ASCII backspace overstrike, SAML "
+            "AttributeValue, MCP prompts, Base32/Braille/Atbash concealment, find -exec, schtasks, "
+            "rsync, make $(shell), wmic, awk system(), planted API base-URL and query-rewrite memory, "
+            "TCKN/RUT/SA ID/codice fiscale/BSN, gopher/hex/octal/LDAP/k8s DNS SSRF, vault-token and "
+            "age key paths, FileZilla/terraform/Signal paths, go run @latest, npx github:, cwd /, "
+            "uvx git+http, bind 0.0.0.0, Telegram/S3/GraphQL secret sinks, pypi-/Slack webhook/gsk_ "
+            "tokens, token_endpoint_auth none, wildcard redirects, and cleartext front-channel logout; "
+            "see benchmarks/redteam5/SOURCES.md). "
             "This is an unseen score: no rule was changed against this set. Numbers are reported even when they are poor."
-            % redteam4["sample_count"]
+            % redteam5["sample_count"]
         )
-        redteam4_html = section_table(
-            "Independent red-team round 4 (v0.44.0, unseen)", "redteam4", redteam4, r4_intro
+        redteam5_html = section_table(
+            "Independent red-team round 5 (v0.45.0, unseen)", "redteam5", redteam5, r5_intro
         )
-        redteam4_html += "<h3>Round 4 false negatives</h3>\n"
-        redteam4_html += list_items(redteam4.get("false_negatives") or [], "false negative")
-        redteam4_html += "<h3>Round 4 false positives</h3>\n"
-        redteam4_html += list_items(redteam4.get("false_positives") or [], "false positive")
+        redteam5_html += "<h3>Round 5 false negatives</h3>\n"
+        redteam5_html += list_items(redteam5.get("false_negatives") or [], "false negative")
+        redteam5_html += "<h3>Round 5 false positives</h3>\n"
+        redteam5_html += list_items(redteam5.get("false_positives") or [], "false positive")
 
     closed = """
       <h2 id="gaps">Detection-gap issues #7–#11</h2>
@@ -746,6 +814,7 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
       {before_after}
       {heldout_html}
       {redteam4_html}
+      {redteam5_html}
       {redteam3_html}
       {redteam2_html}
       {redteam_html}
@@ -757,14 +826,14 @@ def render_html(results: dict, issues: list[dict] | None = None) -> str:
       {closed}
 
       <h2 id="how">How a detection is counted</h2>
-      <p>{esc(results.get("positive_definition") or "")} The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>, <code>benchmarks/heldout/manifest.json</code>, <code>benchmarks/redteam/manifest.json</code>, <code>benchmarks/redteam2/manifest.json</code>, <code>benchmarks/redteam3/manifest.json</code>, and <code>benchmarks/redteam4/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
+      <p>{esc(results.get("positive_definition") or "")} The script is <code>benchmarks/run_benchmark.py</code>; the labels live in <code>benchmarks/manifest.json</code>, <code>benchmarks/heldout/manifest.json</code>, <code>benchmarks/redteam/manifest.json</code>, <code>benchmarks/redteam2/manifest.json</code>, <code>benchmarks/redteam3/manifest.json</code>, <code>benchmarks/redteam4/manifest.json</code>, and <code>benchmarks/redteam5/manifest.json</code>. Fixtures are original and use only fake credentials and reserved documentation values.</p>
       <p>Ten jobs are covered:</p>
       {tool_list}
 
       <h2 id="limits">Limits of this benchmark</h2>
       <ul>
         <li>Every fixture was written for this repository. A detector can look strong here and still fail on a real transcript format or a novel payload.</li>
-        <li>The corpus is still small (n={results["sample_count"]} on the expanded set; n={comparable.get("sample_count", "85")} on the original slice; n={(heldout or {}).get("sample_count", "?")} held-out; n={(redteam or {}).get("sample_count", "?")} independent red-team round 1; n={(redteam2 or {}).get("sample_count", "?")} round 2; n={(results.get("redteam3") or {}).get("sample_count", "?")} round 3; n={(results.get("redteam4") or {}).get("sample_count", "?")} round 4). Percentages will move when a single sample is added or re-labeled.</li>
+        <li>The corpus is still small (n={results["sample_count"]} on the expanded set; n={comparable.get("sample_count", "85")} on the original slice; n={(heldout or {}).get("sample_count", "?")} held-out; n={(redteam or {}).get("sample_count", "?")} independent red-team round 1; n={(redteam2 or {}).get("sample_count", "?")} round 2; n={(results.get("redteam3") or {}).get("sample_count", "?")} round 3; n={(results.get("redteam4") or {}).get("sample_count", "?")} round 4; n={(results.get("redteam5") or {}).get("sample_count", "?")} round 5). Percentages will move when a single sample is added or re-labeled.</li>
         <li>The held-out set was written after the #7–#11 fixes and was not used to retune those rules. A strong held-out score is still not evidence of real-world robustness.</li>
         <li>The independent red-team set was written without reading detector source or rule files. The v0.40.0 numbers on that set are the unseen score and stay visible. After issues #12–#16 were closed against general rule changes, the same set was re-run; those post-fix numbers are clearly labeled <strong>seen</strong> and are no longer independent.</li>
         <li>Round 2 was the development set for the v0.43.0 generalization. Its v0.41.0 numbers stay visible as the unseen score. The post-generalization re-run is labeled <strong>seen</strong>.</li>
@@ -839,7 +908,7 @@ def canonical_results(results: dict) -> dict:
         "samples": results["samples"] if results["samples"] and "flagged" in results["samples"][0] and "title" not in results["samples"][0]
         else [slim_sample(r) if "outcome" in r and "title" in r else r for r in results["samples"]],
     }
-    for key in ("baseline", "original_comparable", "heldout", "redteam", "redteam_independent", "redteam2", "redteam2_independent", "redteam3", "redteam3_independent", "redteam4", "issues"):
+    for key in ("baseline", "original_comparable", "heldout", "redteam", "redteam_independent", "redteam2", "redteam2_independent", "redteam3", "redteam3_independent", "redteam4", "redteam4_independent", "redteam5", "issues"):
         if results.get(key) is not None:
             out[key] = results[key]
     return out
@@ -861,6 +930,12 @@ def load_redteam2_baseline() -> dict | None:
     if not REDTEAM2_BASELINE_PATH.is_file():
         return None
     return json.loads(REDTEAM2_BASELINE_PATH.read_text(encoding="utf-8"))
+
+
+def load_redteam4_baseline() -> dict | None:
+    if not REDTEAM4_BASELINE_PATH.is_file():
+        return None
+    return json.loads(REDTEAM4_BASELINE_PATH.read_text(encoding="utf-8"))
 
 
 def load_redteam3_baseline() -> dict | None:
@@ -1052,7 +1127,7 @@ def main(argv=None) -> int:
         ensure_redteam4_fixtures()
         r4_manifest = json.loads(REDTEAM4_MANIFEST_PATH.read_text(encoding="utf-8"))
         r4_raw = run_corpus(r4_manifest, root=REDTEAM4_DIR)
-        results["redteam4"] = {
+        r4_block = {
             "sample_count": r4_raw["sample_count"],
             "positive_definition": r4_manifest.get("positive_definition"),
             "overall": r4_raw["overall"],
@@ -1065,6 +1140,39 @@ def main(argv=None) -> int:
             "written_by": r4_manifest.get("written_by"),
             "written_against": r4_manifest.get("written_against"),
             "method": r4_manifest.get("method"),
+        }
+        r4_independent = load_redteam4_baseline()
+        if r4_independent:
+            results["redteam4_independent"] = r4_independent
+            r4_block["seen"] = True
+            r4_block["independent"] = False
+            r4_block["tuned_in"] = "v0.45.0"
+            r4_block["note"] = (
+                "Post-generalization numbers on the same 80 samples after the v0.45.0 "
+                "structure-based rule changes. Round 4 was the development set; this is now a 'seen' score."
+            )
+        else:
+            r4_block["seen"] = False
+            r4_block["independent"] = True
+        results["redteam4"] = r4_block
+
+    if REDTEAM5_MANIFEST_PATH.is_file():
+        ensure_redteam5_fixtures()
+        r5_manifest = json.loads(REDTEAM5_MANIFEST_PATH.read_text(encoding="utf-8"))
+        r5_raw = run_corpus(r5_manifest, root=REDTEAM5_DIR)
+        results["redteam5"] = {
+            "sample_count": r5_raw["sample_count"],
+            "positive_definition": r5_manifest.get("positive_definition"),
+            "overall": r5_raw["overall"],
+            "per_tool": r5_raw["per_tool"],
+            "false_positives": r5_raw["false_positives"],
+            "false_negatives": r5_raw["false_negatives"],
+            "evasion_false_negatives": r5_raw["evasion_false_negatives"],
+            "unexpected_false_negatives": r5_raw["unexpected_false_negatives"],
+            "samples": [slim_sample(r) for r in r5_raw["samples"]],
+            "written_by": r5_manifest.get("written_by"),
+            "written_against": r5_manifest.get("written_against"),
+            "method": r5_manifest.get("method"),
             "seen": False,
             "independent": True,
         }
@@ -1105,6 +1213,10 @@ def main(argv=None) -> int:
             or (REDTEAM4_MANIFEST_PATH.is_file() and (
                 "Independent red-team round 4" not in body
                 or "v0.44.0, unseen" not in body
+            ))
+            or (REDTEAM5_MANIFEST_PATH.is_file() and (
+                "Independent red-team round 5" not in body
+                or "v0.45.0, unseen" not in body
             ))
         ):
             sys.stderr.write("run_benchmark: docs/benchmarks/index.html is missing or stale.\n")
@@ -1155,9 +1267,20 @@ def main(argv=None) -> int:
             )
             sys.stdout.write("\n%s:\n" % label)
             sys.stdout.write(text_report(results["redteam3"]))
-        if results.get("redteam4"):
+        if results.get("redteam4_independent"):
             sys.stdout.write("\nindependent red-team round 4 (v0.44.0, unseen):\n")
+            sys.stdout.write(text_report(results["redteam4_independent"]))
+        if results.get("redteam4"):
+            label = (
+                "same round-4 set after v0.45.0 generalization (now seen)"
+                if results["redteam4"].get("seen")
+                else "independent red-team round 4 (v0.44.0, unseen)"
+            )
+            sys.stdout.write("\n%s:\n" % label)
             sys.stdout.write(text_report(results["redteam4"]))
+        if results.get("redteam5"):
+            sys.stdout.write("\nindependent red-team round 5 (v0.45.0, unseen):\n")
+            sys.stdout.write(text_report(results["redteam5"]))
     return 0
 
 

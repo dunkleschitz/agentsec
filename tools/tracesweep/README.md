@@ -41,6 +41,7 @@ The JSON walk is generic. Role comes from `role`, `message.role`, `author.role`,
 | TS-AZURE-CONN | critical | Azure Storage connection string `AccountKey=` |
 | TS-TELEGRAM | high | Telegram bot token (`123456789:AA…` in text or an `api.telegram.org` URL) |
 | TS-NPM | high | npm access token (`npm_…`) |
+| TS-AGE-SECRET | critical | age secret key (`AGE-SECRET-KEY-1…`) |
 | TS-GOOGLE-API | high | `AIza…` (39 chars) |
 | TS-JWT | medium | `eyJ….….…` where the header base64url-decodes to JSON containing `alg` |
 | TS-URL-CREDS | high | `scheme://user:pass@host` (the password is the secret) |

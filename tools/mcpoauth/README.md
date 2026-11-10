@@ -42,6 +42,7 @@ yourself (for example with `curl`) and point the tool at the files.
 | MO12 | critical / high | Endpoint on a cloud-metadata or link-local address (critical) or private IP / internal hostname (high) |
 | MO13 | info | Open dynamic client registration endpoint (MCP SHOULD support DCR; review confused-deputy risk for proxy servers) |
 | MO14 | info | Inventory of metadata documents found |
+| MO15 | critical | JWT `none` algorithm advertised for token or request signing |
 
 Secret values are **masked** in all output formats.
 

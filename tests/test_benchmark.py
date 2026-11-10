@@ -85,6 +85,8 @@ class ResultsTests(unittest.TestCase):
         self.assertIn("v0.43.0, unseen", page)
         self.assertIn("Independent red-team round 4", page)
         self.assertIn("v0.44.0, unseen", page)
+        self.assertIn("Independent red-team round 5", page)
+        self.assertIn("v0.45.0, unseen", page)
         self.assertIn("now seen", page)
         self.assertIn("no longer an independent score", page.lower())
         results = json.loads(RESULTS.read_text(encoding="utf-8"))
@@ -267,7 +269,7 @@ class ResultsTests(unittest.TestCase):
         self.assertIn("v0.43.0, unseen", page)
         self.assertIn("v0.44.0 generalization", page)
 
-    def test_redteam4_is_unseen_and_separate(self):
+    def test_redteam4_is_seen_and_frozen_baseline_kept(self):
         import sys
 
         sys.path.insert(0, str(BENCH))
@@ -304,16 +306,71 @@ class ResultsTests(unittest.TestCase):
         results = json.loads(RESULTS.read_text(encoding="utf-8"))
         r4 = results["redteam4"]
         self.assertEqual(r4["sample_count"], len(samples))
-        self.assertFalse(r4["seen"])
-        self.assertTrue(r4["independent"])
-        self.assertIn("overall", r4)
-        self.assertIn("false_negatives", r4)
-        self.assertIn("false_positives", r4)
+        self.assertTrue(r4["seen"])
+        self.assertFalse(r4["independent"])
+        frozen = json.loads((BENCH / "baseline_redteam4_v0.44.0.json").read_text(encoding="utf-8"))
+        self.assertEqual(frozen["version"], "v0.44.0")
+        self.assertEqual(frozen["sample_count"], len(samples))
+        self.assertEqual(frozen["overall"]["tp"], 32)
+        self.assertEqual(frozen["overall"]["fp"], 1)
+        self.assertEqual(frozen["overall"]["fn"], 21)
+        self.assertEqual(frozen["overall"]["tn"], 26)
+        self.assertEqual(results["redteam4_independent"]["overall"], frozen["overall"])
         page = (ROOT / "docs" / "benchmarks" / "index.html").read_text(encoding="utf-8")
         self.assertIn("Independent red-team round 4", page)
         self.assertIn("v0.44.0, unseen", page)
+        self.assertIn("v0.45.0 generalization", page)
+
+
+    def test_redteam5_is_unseen_and_separate(self):
+        import sys
+
+        sys.path.insert(0, str(BENCH))
+        import run_benchmark
+
+        run_benchmark.ensure_redteam5_fixtures()
+        r5_dir = BENCH / "redteam5"
+        r5_manifest = json.loads((r5_dir / "manifest.json").read_text(encoding="utf-8"))
+        samples = r5_manifest["samples"]
+        self.assertGreaterEqual(len(samples), 70)
+        ids = [s["id"] for s in samples]
+        self.assertEqual(len(ids), len(set(ids)))
+        tools = {s["tool"] for s in samples}
+        for name in (
+            "resultguard", "toolpoison", "tracesweep", "secretflow", "shellfence",
+            "piiguard", "fetchfence", "pathfence", "mcpposture", "memfence", "mcpoauth",
+        ):
+            self.assertIn(name, tools)
+        self.assertEqual({s["label"] for s in samples}, {"malicious", "benign"})
+        r1_ids = {s["id"] for s in json.loads((BENCH / "redteam" / "manifest.json").read_text(encoding="utf-8"))["samples"]}
+        r2_ids = {s["id"] for s in json.loads((BENCH / "redteam2" / "manifest.json").read_text(encoding="utf-8"))["samples"]}
+        r3_ids = {s["id"] for s in json.loads((BENCH / "redteam3" / "manifest.json").read_text(encoding="utf-8"))["samples"]}
+        r4_ids = {s["id"] for s in json.loads((BENCH / "redteam4" / "manifest.json").read_text(encoding="utf-8"))["samples"]}
+        main_ids = {s["id"] for s in json.loads(MANIFEST.read_text(encoding="utf-8"))["samples"]}
+        self.assertTrue(set(ids).isdisjoint(r1_ids | r2_ids | r3_ids | r4_ids | main_ids))
+        for sample in samples:
+            path = r5_dir / sample["path"]
+            self.assertTrue(path.is_file(), sample["path"])
+            self.assertTrue(path.read_text(encoding="utf-8").strip(), sample["path"])
+            self.assertTrue(sample.get("source"), sample["id"])
+        sources = (r5_dir / "SOURCES.md").read_text(encoding="utf-8")
+        self.assertIn("Base32", sources)
+        self.assertIn("TCKN", sources)
+        self.assertIn("after v0.45.0", sources.lower())
+        results = json.loads(RESULTS.read_text(encoding="utf-8"))
+        r5 = results["redteam5"]
+        self.assertEqual(r5["sample_count"], len(samples))
+        self.assertFalse(r5["seen"])
+        self.assertTrue(r5["independent"])
+        self.assertIn("overall", r5)
+        self.assertIn("false_negatives", r5)
+        self.assertIn("false_positives", r5)
+        page = (ROOT / "docs" / "benchmarks" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("Independent red-team round 5", page)
+        self.assertIn("v0.45.0, unseen", page)
 
     def test_baseline_is_the_v038_snapshot(self):
+
         baseline = json.loads((BENCH / "baseline_v0.38.0.json").read_text(encoding="utf-8"))
         self.assertEqual(baseline["version"], "v0.38.0")
         self.assertEqual(baseline["sample_count"], 85)

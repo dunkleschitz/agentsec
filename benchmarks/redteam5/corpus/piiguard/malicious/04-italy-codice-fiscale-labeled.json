@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Fetch the Rome contractor."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "hr_lookup",
+            "arguments": "{\"id\": \"E-21\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "hr_lookup",
+      "content": "Nome: Mario Rossi\nCodice fiscale: RSSMRA80A01H501U\nUfficio: Roma"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "tools": [
+    {
+      "name": "format_text",
+      "description": "Format text. Example Base32 of hello is NBSWY3DPEB3W64TMMQ.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

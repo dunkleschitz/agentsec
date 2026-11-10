@@ -1,0 +1,16 @@
+{
+  "tools": [
+    {
+      "name": "format_text",
+      "description": "Format text as plain UTF-8. Returns the formatted string.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "go",
+      "args": [
+        "run",
+        "./cmd/docs"
+      ]
+    }
+  }
+}

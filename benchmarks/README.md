@@ -39,7 +39,8 @@ Numbers will move when a single sample is added or re-labeled; treat percentages
 - **Independent red-team** (`benchmarks/redteam/`): 100 adversarial + benign look-alike samples written without reading detector source/rule files, citing published research in `SOURCES.md`. The v0.40.0 score on that set is frozen in `baseline_redteam_v0.40.0.json` and stays on the Pages page as the unseen number. After issues #12–#16 were closed in v0.41.0, the same set was re-run and is labeled **seen**; those post-fix numbers are no longer independent.
 - **Independent red-team round 2** (`benchmarks/redteam2/`): 134 new adversarial + benign look-alike samples across eleven tools (adds `mcpoauth`), written against v0.41.0 without reading detector source, rule files, or the round-1 fixtures, and favoring published techniques round 1 did not use (`redteam2/SOURCES.md`). The v0.41.0 score is frozen in `baseline_redteam2_v0.41.0.json` and stays on the Pages page as the unseen number. After the v0.43.0 generalization (and later v0.44.0 changes), the same set was re-run and is labeled **seen**.
 - **Independent red-team round 3** (`benchmarks/redteam3/`): 84 new adversarial + benign look-alike samples across the same eleven tools, written after the v0.43.0 rules were frozen, from published techniques rounds 1 and 2 did not use (`redteam3/SOURCES.md`). The v0.43.0 score is frozen in `baseline_redteam3_v0.43.0.json` and stays on the Pages page as the unseen number. After the v0.44.0 generalization, the same set was re-run and is labeled **seen** (it was the development set for those rules).
-- **Independent red-team round 4** (`benchmarks/redteam4/`): 80 new adversarial + benign look-alike samples across the same eleven tools, written after the v0.44.0 rules were frozen, from published techniques rounds 1–3 did not use (`redteam4/SOURCES.md`). This is the current **unseen** score; it was scored once and was not used to retune rules.
+- **Independent red-team round 4** (`benchmarks/redteam4/`): 80 new adversarial + benign look-alike samples across the same eleven tools, written after the v0.44.0 rules were frozen, from published techniques rounds 1–3 did not use (`redteam4/SOURCES.md`). The v0.44.0 score is frozen in `baseline_redteam4_v0.44.0.json` and stays on the Pages page as the unseen number. After the v0.45.0 generalization, the same set was re-run and is labeled **seen** (it was the development set for those rules).
+- **Independent red-team round 5** (`benchmarks/redteam5/`): 80 new adversarial + benign look-alike samples across the same eleven tools, written after the v0.45.0 rules were frozen, from published techniques rounds 1–4 did not use (`redteam5/SOURCES.md`). This is the current **unseen** score; it was scored once and was not used to retune rules.
 
 ## Layout
 
@@ -52,6 +53,7 @@ benchmarks/
 ├── baseline_redteam_v0.40.0.json  frozen independent red-team score (round 1, unseen)
 ├── baseline_redteam2_v0.41.0.json frozen independent red-team round 2 score (unseen)
 ├── baseline_redteam3_v0.43.0.json frozen independent red-team round 3 score (unseen)
+├── baseline_redteam4_v0.44.0.json frozen independent red-team round 4 score (unseen)
 ├── run_benchmark.py           stdlib runner and Pages generator
 ├── corpus/                    main corpus, including the original 85 plus five new tools
 ├── heldout/
@@ -78,7 +80,13 @@ benchmarks/
     ├── SOURCES.md
     ├── manifest.json
     ├── generate.py
-    └── corpus/                80 round-4 samples across eleven tools (unseen)
+    └── corpus/                80 round-4 samples across eleven tools (now seen)
+└── redteam5/
+    ├── README.md
+    ├── SOURCES.md
+    ├── manifest.json
+    ├── generate.py
+    └── corpus/                80 round-5 samples across eleven tools (unseen)
 ```
 
 `difficulty: evasion` samples are malicious on purpose but written to stress a known heuristic gap (typos, split words, encodings, non-English text, transformed secrets, unusual spellings). On the original 85-sample corpus those evasions were missed in v0.38.0 and are caught after the v0.39.0 rule changes. Held-out evasions use *different* wording; a miss there is reported and is not patched away against the held-out set.

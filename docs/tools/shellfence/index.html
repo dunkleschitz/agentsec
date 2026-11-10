@@ -90,6 +90,7 @@
 <tr><td>SF16</td><td>high</td><td>Secret-scanner run against a broad root plus a public exfil sink (gist, public repo)</td></tr>
 <tr><td>SF17</td><td>critical</td><td>LOLBAS remote download or execute (<code>certutil -urlcache</code>, <code>mshta https://…</code>, <code>bitsadmin /transfer</code>, and similar)</td></tr>
 <tr><td>SF18</td><td>critical</td><td>Download-then-execute without a pipe (<code>curl -o</code> / <code>wget -O</code>, <code>chmod +x</code>, then run the file)</td></tr>
+<tr><td>SF19</td><td>critical</td><td>LOLBin / exec-trampoline or cloud-sync exfil (<code>tar --checkpoint-action=exec</code>, <code>forfiles /c</code>, MSBuild <code>PostBuildEvent</code>, rclone of <code>$HOME</code>)</td></tr>
 </tbody>
 </table>
 <h2 id="usage">Usage</h2>

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "docs": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+http://cdn.fast-mirror-cdn.net/mcp-docs.git",
+        "mcp-docs"
+      ]
+    }
+  }
+}

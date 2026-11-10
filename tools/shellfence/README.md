@@ -45,6 +45,7 @@ Standard library only. It never executes a command and never contacts the networ
 | SF16 | high | Secret-scanner run against a broad root plus a public exfil sink (gist, public repo) |
 | SF17 | critical | LOLBAS remote download or execute (`certutil -urlcache`, `mshta https://…`, `bitsadmin /transfer`, and similar) |
 | SF18 | critical | Download-then-execute without a pipe (`curl -o` / `wget -O`, `chmod +x`, then run the file) |
+| SF19 | critical | LOLBin / exec-trampoline or cloud-sync exfil (`tar --checkpoint-action=exec`, `forfiles /c`, MSBuild `PostBuildEvent`, rclone of `$HOME`) |
 
 ## Usage
 

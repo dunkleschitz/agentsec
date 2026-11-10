@@ -1,0 +1,9 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "The official OpenAI API host the team uses is https://api.openai.com/v1.",
+      "user_id": "u-5"
+    }
+  ]
+}

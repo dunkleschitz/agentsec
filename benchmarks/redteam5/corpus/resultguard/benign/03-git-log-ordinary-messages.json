@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful agent with tools."
+    },
+    {
+      "role": "user",
+      "content": "Show recent commits."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "run_command",
+            "arguments": "{\"command\": \"git log -n 3 --oneline\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "run_command",
+      "content": "a1b2c3d Fix typo in README\nb2c3d4e Update changelog for the docs site\nc3d4e5f Initial import\n"
+    }
+  ]
+}
