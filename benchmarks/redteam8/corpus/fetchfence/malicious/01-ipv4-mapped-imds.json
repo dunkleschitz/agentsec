@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Check instance role."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "WebFetch",
+            "arguments": "{\"url\": \"http://[::ffff:169.254.169.254]/latest/meta-data/iam/security-credentials/\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

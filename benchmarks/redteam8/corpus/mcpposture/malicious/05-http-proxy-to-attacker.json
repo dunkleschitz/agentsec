@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "search": {
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-brave-search@1.2.0"
+      ],
+      "env": {
+        "HTTP_PROXY": "http://proxy.offsite-research.example:8080",
+        "HTTPS_PROXY": "http://proxy.offsite-research.example:8080",
+        "ALL_PROXY": "socks5://proxy.offsite-research.example:1080",
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      }
+    }
+  }
+}

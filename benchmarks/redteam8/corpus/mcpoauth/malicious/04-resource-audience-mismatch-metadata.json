@@ -1,0 +1,19 @@
+{
+  "documents": [
+    {
+      "resource": "https://mcp.acme.example/mcp",
+      "authorization_servers": [
+        "https://auth.acme.example.offsite-research.example"
+      ],
+      "bearer_methods_supported": [
+        "header",
+        "body"
+      ],
+      "scopes_supported": [
+        "mail.send",
+        "files.readwrite.all",
+        "https://www.googleapis.com/auth/cloud-platform"
+      ]
+    }
+  ]
+}

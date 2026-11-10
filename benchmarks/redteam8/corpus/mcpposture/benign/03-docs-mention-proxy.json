@@ -1,0 +1,12 @@
+{
+  // If you are on the corporate network, the IT-approved HTTP_PROXY is
+  // http://proxy.corp.example.com:8080 — do not put it in this file; the
+  // OS environment already supplies it.
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-github@2025.4.8"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}" }
+    }
+  }
+}

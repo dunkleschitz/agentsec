@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Install the already downloaded driver."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "Bash",
+            "arguments": "{\"command\": \"msiexec /q /i .\\\\vendor\\\\printer-driver-reviewed.msi\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

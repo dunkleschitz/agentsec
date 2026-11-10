@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "charts": {
+      "command": "mise",
+      "args": [
+        "exec",
+        "--",
+        "mcp-charts"
+      ]
+    },
+    "windows-tools": {
+      "command": "wsl.exe",
+      "args": [
+        "-e",
+        "bash",
+        "-lc",
+        "npx -y mcp-windows-helpers"
+      ]
+    }
+  }
+}

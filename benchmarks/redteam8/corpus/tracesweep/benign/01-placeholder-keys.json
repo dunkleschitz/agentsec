@@ -1,0 +1,10 @@
+[
+  {
+    "role": "user",
+    "content": "How do I set keys?"
+  },
+  {
+    "role": "assistant",
+    "content": "Set OPENAI_API_KEY=your_api_key_here and ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}. See AKIAIOSFODNN7EXAMPLE in the AWS docs. max_tokens: 4096."
+  }
+]

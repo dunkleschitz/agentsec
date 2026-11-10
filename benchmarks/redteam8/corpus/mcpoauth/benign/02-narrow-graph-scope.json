@@ -1,0 +1,15 @@
+{
+  "resource": "https://mcp.example.com/mcp",
+  "authorization_servers": [
+    "https://auth.example.com"
+  ],
+  "bearer_methods_supported": [
+    "header"
+  ],
+  "scopes_supported": [
+    "Mail.Read",
+    "openid",
+    "profile"
+  ],
+  "resource_documentation": "https://mcp.example.com/docs"
+}

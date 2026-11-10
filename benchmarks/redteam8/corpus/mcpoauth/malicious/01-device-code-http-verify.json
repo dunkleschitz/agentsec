@@ -1,0 +1,18 @@
+{
+  "issuer": "http://auth.office-tools.example",
+  "authorization_endpoint": "http://auth.office-tools.example/authorize",
+  "token_endpoint": "http://auth.office-tools.example/token",
+  "device_authorization_endpoint": "http://auth.office-tools.example/device",
+  "verification_uri": "http://auth.office-tools.example/device",
+  "grant_types_supported": [
+    "urn:ietf:params:oauth:grant-type:device_code",
+    "refresh_token"
+  ],
+  "response_types_supported": [
+    "code"
+  ],
+  "code_challenge_methods_supported": [],
+  "scopes_supported": [
+    "tools:read"
+  ]
+}

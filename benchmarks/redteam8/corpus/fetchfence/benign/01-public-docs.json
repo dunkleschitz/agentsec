@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Fetch the docs."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "WebFetch",
+            "arguments": "{\"url\": \"https://docs.example.com/agentsec/fetchfence\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

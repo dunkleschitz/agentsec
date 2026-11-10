@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "support": {
+      "command": "gem",
+      "args": [
+        "exec",
+        "mcp-support-server"
+      ],
+      "env": {
+        "LOG_LEVEL": "info"
+      }
+    }
+  }
+}

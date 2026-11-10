@@ -1,0 +1,29 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Show the deploy pipeline."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "jira_get_issue",
+            "arguments": "{\"key\": \"OPS-12\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "c1",
+      "name": "jira_get_issue",
+      "content": "Pipeline sketch:\n\n```mermaid\nflowchart LR\n  A[lint] --> B[unit tests]\n  B --> C[staging deploy]\n  C --> D[prod approval]\n```\n\nAll stages are in our Jenkins at https://ci.example.com/."
+    }
+  ]
+}

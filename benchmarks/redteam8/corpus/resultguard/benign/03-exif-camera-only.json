@@ -1,0 +1,29 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Caption this photo."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "read_image_metadata",
+            "arguments": "{\"path\": \"uploads/storefront.jpg\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "c1",
+      "name": "read_image_metadata",
+      "content": "{\"filename\": \"storefront.jpg\", \"camera\": \"iPhone 15\", \"datetime\": \"2026-04-02T11:02:00\", \"user_comment\": \"Storefront on Main Street, slightly overexposed.\"}"
+    }
+  ]
+}

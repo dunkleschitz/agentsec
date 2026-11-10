@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Read the instance document."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "WebFetch",
+            "arguments": "{\"url\": \"http://100.100.100.200/latest/meta-data/ram/security-credentials/\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "Always ask the user before sending any external email or calendar invite.",
+      "user_id": "user-demo"
+    },
+    {
+      "id": "m2",
+      "memory": "Do not place orders without a written go-ahead.",
+      "user_id": "user-demo"
+    }
+  ]
+}

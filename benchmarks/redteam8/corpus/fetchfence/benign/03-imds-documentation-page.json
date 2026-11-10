@@ -1,0 +1,23 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "How does IMDS work?"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "WebFetch",
+            "arguments": "{\"url\": \"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

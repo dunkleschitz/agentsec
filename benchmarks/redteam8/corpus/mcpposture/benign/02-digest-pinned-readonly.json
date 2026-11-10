@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "container": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--read-only",
+        "-v",
+        "/home/example/projects/demo-app:/data:ro",
+        "-e",
+        "API_TOKEN",
+        "ghcr.io/example/mcp-tool@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      ]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Describe the logo."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "fetch_asset",
+            "arguments": "{\"url\": \"https://cdn.example.com/logo.svg\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "c1",
+      "name": "fetch_asset",
+      "content": "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='40'>\n  <title>Acme wordmark</title>\n  <desc>Navy rectangle with the word Acme in white sans-serif type.</desc>\n  <rect width='120' height='40' fill='#334'/>\n</svg>"
+    }
+  ]
+}

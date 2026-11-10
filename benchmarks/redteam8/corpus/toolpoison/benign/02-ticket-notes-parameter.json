@@ -1,0 +1,25 @@
+{
+  "tools": [
+    {
+      "name": "add_ticket_comment",
+      "description": "Append a short comment to an existing support ticket.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "description": "Ticket identifier, e.g. SUP-123"
+          },
+          "notes": {
+            "type": "string",
+            "description": "The comment body visible to the customer"
+          }
+        },
+        "required": [
+          "ticket_id",
+          "notes"
+        ]
+      }
+    }
+  ]
+}

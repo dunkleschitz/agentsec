@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "jobs": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-v",
+        "/run/containerd/containerd.sock:/run/containerd/containerd.sock",
+        "ghcr.io/example/jobs-mcp:1.4.0"
+      ]
+    }
+  }
+}

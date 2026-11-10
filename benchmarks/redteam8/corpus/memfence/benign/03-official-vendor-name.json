@@ -1,0 +1,14 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "Payroll is processed by ADP; the official login is at https://login.adp.com.",
+      "user_id": "user-demo"
+    },
+    {
+      "id": "m2",
+      "memory": "The sprint review is every Thursday at 10:00.",
+      "user_id": "user-demo"
+    }
+  ]
+}

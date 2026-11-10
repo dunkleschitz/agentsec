@@ -1,0 +1,14 @@
+{
+  "memories": [
+    {
+      "id": "m1",
+      "memory": "User prefers dark mode and a 24-hour clock.",
+      "user_id": "user-demo"
+    },
+    {
+      "id": "m2",
+      "memory": "Project codename is Harbor.",
+      "user_id": "user-demo"
+    }
+  ]
+}

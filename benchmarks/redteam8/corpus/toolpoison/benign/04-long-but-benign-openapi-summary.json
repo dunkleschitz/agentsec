@@ -1,0 +1,28 @@
+{
+  "tools": [
+    {
+      "name": "get_forecast",
+      "description": "Return a 7-day public weather forecast for a city name or ICAO code. Temperatures default to Celsius; set units to imperial for Fahrenheit. The upstream API is https://weather.example.com/forecast and requires no customer secrets. If the city is ambiguous, ask the user to clarify rather than guessing. Rate limit is 60 requests per hour for this workspace.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "description": "City or ICAO code"
+          },
+          "units": {
+            "type": "string",
+            "enum": [
+              "metric",
+              "imperial"
+            ],
+            "default": "metric"
+          }
+        },
+        "required": [
+          "city"
+        ]
+      }
+    }
+  ]
+}

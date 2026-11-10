@@ -1,0 +1,15 @@
+[
+  {
+    "role": "user",
+    "content": "Show the sanitized env."
+  },
+  {
+    "role": "tool",
+    "name": "read_file",
+    "content": "password=REDACTED\napi_token=xxxx\nAuthorization=Bearer <token>\n"
+  },
+  {
+    "role": "assistant",
+    "content": "All values are masked."
+  }
+]

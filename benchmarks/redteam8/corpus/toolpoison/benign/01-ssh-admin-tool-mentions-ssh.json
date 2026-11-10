@@ -1,0 +1,17 @@
+{
+  "tools": [
+    {
+      "name": "rotate_ssh_key",
+      "description": "Generate a new ed25519 key under ~/.ssh/id_ed25519 and print the public key for the user to copy to GitHub. Prompts before overwriting.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "comment": {
+            "type": "string",
+            "description": "Key comment, usually an email"
+          }
+        }
+      }
+    }
+  ]
+}

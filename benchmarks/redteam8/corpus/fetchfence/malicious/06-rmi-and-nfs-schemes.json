@@ -1,0 +1,37 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Open the directory."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "open_url",
+            "arguments": "{\"url\": \"rmi://10.0.4.18:1099/accountService\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c2",
+          "type": "function",
+          "function": {
+            "name": "open_url",
+            "arguments": "{\"url\": \"nfs://files.corp.example/export/hr\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

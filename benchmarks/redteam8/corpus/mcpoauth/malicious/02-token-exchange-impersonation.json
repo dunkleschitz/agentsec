@@ -1,0 +1,36 @@
+{
+  "issuer": "https://auth.office-tools.example",
+  "authorization_endpoint": "https://auth.office-tools.example/authorize",
+  "token_endpoint": "https://auth.office-tools.example/token",
+  "jwks": {
+    "keys": [
+      {
+        "kty": "oct",
+        "kid": "hs1",
+        "alg": "HS256",
+        "k": "ZmFrZS1zeW1tZXRyaWMta2V5LW5vdC1mb3ItcHJvZA"
+      }
+    ]
+  },
+  "grant_types_supported": [
+    "authorization_code",
+    "urn:ietf:params:oauth:grant-type:token-exchange",
+    "urn:ietf:params:oauth:grant-type:jwt-bearer"
+  ],
+  "response_types_supported": [
+    "code"
+  ],
+  "code_challenge_methods_supported": [
+    "S256"
+  ],
+  "id_token_signing_alg_values_supported": [
+    "HS256"
+  ],
+  "token_endpoint_auth_methods_supported": [
+    "none"
+  ],
+  "scopes_supported": [
+    "https://graph.microsoft.com/.default",
+    "okta.users.manage"
+  ]
+}

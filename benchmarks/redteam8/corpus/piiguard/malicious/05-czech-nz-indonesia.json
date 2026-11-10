@@ -1,0 +1,33 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Please extract the customer record."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "crm_get",
+            "arguments": "{\"id\": \"cust-1\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "c1",
+      "name": "crm_get",
+      "content": "KYC pack: rodné číslo 990101/1230; NZ IRD 001000004; Indonesian NIK 3171010101990001."
+    },
+    {
+      "role": "assistant",
+      "content": "I have the record."
+    }
+  ]
+}

@@ -42,7 +42,8 @@ Numbers will move when a single sample is added or re-labeled; treat percentages
 - **Independent red-team round 4** (`benchmarks/redteam4/`): 80 new adversarial + benign look-alike samples across the same eleven tools, written after the v0.44.0 rules were frozen, from published techniques rounds 1–3 did not use (`redteam4/SOURCES.md`). The v0.44.0 score is frozen in `baseline_redteam4_v0.44.0.json` and stays on the Pages page as the unseen number. After the v0.45.0 generalization, the same set was re-run and is labeled **seen** (it was the development set for those rules).
 - **Independent red-team round 5** (`benchmarks/redteam5/`): 80 new adversarial + benign look-alike samples across the same eleven tools, written after the v0.45.0 rules were frozen, from published techniques rounds 1–4 did not use (`redteam5/SOURCES.md`). The v0.45.0 score is frozen in `baseline_redteam5_v0.45.0.json` and stays on the Pages page as the unseen number (P=96.0% R=45.3% F1=61.5%). After the v0.46.0 generalization, the same set was re-run and is labeled **seen** (live P/R/F1 100% (53/0/0/27); it was the development set for those rules).
 - **Independent red-team round 6** (`benchmarks/redteam6/`): 80 new adversarial + benign look-alike samples across the same eleven tools, written after the v0.46.0 rules were frozen, from published techniques rounds 1–5 did not use (`redteam6/SOURCES.md`). The v0.46.0 score is frozen in `baseline_redteam6_v0.46.0.json` and stays on the Pages page as the unseen number (P=97.4% R=69.8% F1=81.3%). After the v0.47.0 generalization, the same set was re-run and is labeled **seen** (live P/R/F1 100%; it was the development set for those rules).
-- **Independent red-team round 7** (`benchmarks/redteam7/`): 80 new adversarial + benign look-alike samples across the same eleven tools, written after the v0.47.0 rules were frozen, from published techniques rounds 1–6 did not use (`redteam7/SOURCES.md`). This is the current **unseen** score; it was scored once and was not used to retune rules (P=100.0% R=92.5% F1=96.1%). Unseen F1 across successive independent rounds: 78.3 (r3) → 74.4 (r4) → 61.5 (r5) → 81.3 (r6) → 96.1 (r7).
+- **Independent red-team round 7** (`benchmarks/redteam7/`): 80 new adversarial + benign look-alike samples across the same eleven tools, written after the v0.47.0 rules were frozen, from published techniques rounds 1–6 did not use (`redteam7/SOURCES.md`). It was scored once on v0.47.0 and was not used to retune rules (P=100.0% R=92.5% F1=96.1%). It remains an **unseen** score on these frozen detectors.
+- **Independent red-team round 8** (`benchmarks/redteam8/`): 100 new adversarial + benign look-alike samples (65 malicious, 35 hard negatives) across the same eleven tools, written against the frozen v0.47.0 detectors by a separate author who did not read tool source, rule lists, tests, prior red-team fixtures, or the private dev set (`redteam8/SOURCES.md`). It was scored once and was not used to retune rules: P=95.6% R=66.2% F1=78.2% (43/2/22/33). Unseen F1 across successive independent rounds: 78.3 (r3) → 74.4 (r4) → 61.5 (r5) → 81.3 (r6) → 96.1 (r7) → 78.2 (r8).
 
 ## Layout
 
@@ -56,6 +57,8 @@ benchmarks/
 ├── baseline_redteam2_v0.41.0.json frozen independent red-team round 2 score (unseen)
 ├── baseline_redteam3_v0.43.0.json frozen independent red-team round 3 score (unseen)
 ├── baseline_redteam4_v0.44.0.json frozen independent red-team round 4 score (unseen)
+├── baseline_redteam5_v0.45.0.json frozen independent red-team round 5 score (unseen)
+├── baseline_redteam6_v0.46.0.json frozen independent red-team round 6 score (unseen)
 ├── run_benchmark.py           stdlib runner and Pages generator
 ├── corpus/                    main corpus, including the original 85 plus five new tools
 ├── heldout/
@@ -88,7 +91,25 @@ benchmarks/
     ├── SOURCES.md
     ├── manifest.json
     ├── generate.py
-    └── corpus/                80 round-5 samples across eleven tools (unseen)
+    └── corpus/                80 round-5 samples across eleven tools (now seen)
+└── redteam6/
+    ├── README.md
+    ├── SOURCES.md
+    ├── manifest.json
+    ├── generate.py
+    └── corpus/                80 round-6 samples across eleven tools (now seen)
+└── redteam7/
+    ├── README.md
+    ├── SOURCES.md
+    ├── manifest.json
+    ├── generate.py
+    └── corpus/                80 round-7 samples across eleven tools (unseen on v0.47.0)
+└── redteam8/
+    ├── README.md
+    ├── SOURCES.md
+    ├── manifest.json
+    ├── generate.py
+    └── corpus/                100 round-8 samples across eleven tools (unseen on v0.47.0)
 ```
 
 `difficulty: evasion` samples are malicious on purpose but written to stress a known heuristic gap (typos, split words, encodings, non-English text, transformed secrets, unusual spellings). On the original 85-sample corpus those evasions were missed in v0.38.0 and are caught after the v0.39.0 rule changes. Held-out evasions use *different* wording; a miss there is reported and is not patched away against the held-out set.

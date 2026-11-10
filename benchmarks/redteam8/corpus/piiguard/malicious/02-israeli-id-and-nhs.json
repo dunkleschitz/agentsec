@@ -1,0 +1,33 @@
+{
+  "model": "gpt-4o-fake",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Please extract the customer record."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "c1",
+          "type": "function",
+          "function": {
+            "name": "crm_get",
+            "arguments": "{\"id\": \"cust-1\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "c1",
+      "name": "crm_get",
+      "content": "Intake form: Teudat zehut 123456782. UK NHS number 943 476 5919. Clinic: demo only."
+    },
+    {
+      "role": "assistant",
+      "content": "I have the record."
+    }
+  ]
+}
