@@ -1,0 +1,7 @@
+{
+  "resource": "https://mcp.example.com/mcp-old",
+  "authorization_servers": ["http://auth.example.com", "http://169.254.169.254/latest"],
+  "bearer_methods_supported": ["header", "query"],
+  "scopes_supported": ["tools:read", "*"],
+  "resource_documentation": "https://mcp.example.com/docs"
+}

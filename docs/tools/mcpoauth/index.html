@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>mcpoauth: detect weak OAuth settings in MCP server metadata in AI agents — agentsec</title>
+  <meta name="description" content="Offline auditor for MCP server OAuth discovery metadata.">
+  <link rel="canonical" href="https://dunkleschitz.github.io/agentsec/tools/mcpoauth/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d0f12">
+  <link rel="stylesheet" href="https://dunkleschitz.github.io/agentsec/styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="agentsec">
+  <meta property="og:title" content="mcpoauth: detect weak OAuth settings in MCP server metadata in AI agents — agentsec">
+  <meta property="og:description" content="Offline auditor for MCP server OAuth discovery metadata.">
+  <meta property="og:url" content="https://dunkleschitz.github.io/agentsec/tools/mcpoauth/">
+  <meta property="og:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="mcpoauth: detect weak OAuth settings in MCP server metadata in AI agents — agentsec">
+  <meta name="twitter:description" content="Offline auditor for MCP server OAuth discovery metadata.">
+  <meta name="twitter:image" content="https://dunkleschitz.github.io/agentsec/og.png">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "mcpoauth: detect weak OAuth settings in MCP server metadata in AI agents",
+  "description": "Offline auditor for MCP server OAuth discovery metadata.",
+  "url": "https://dunkleschitz.github.io/agentsec/tools/mcpoauth/",
+  "image": "https://dunkleschitz.github.io/agentsec/og.png",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "Organization",
+    "name": "agentsec",
+    "url": "https://dunkleschitz.github.io/agentsec"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "agentsec contributors"
+  },
+  "license": "https://github.com/dunkleschitz/agentsec/blob/main/LICENSE"
+}
+  </script>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="top" aria-label="Site">
+      <a href="https://dunkleschitz.github.io/agentsec/">Home</a>
+      <a href="https://dunkleschitz.github.io/agentsec/tools/" aria-current="page">Tools</a>
+      <a href="https://dunkleschitz.github.io/agentsec/playground/">Playground</a>
+      <a href="https://dunkleschitz.github.io/agentsec/benchmarks/">Benchmark</a>
+      <a href="https://dunkleschitz.github.io/agentsec/guides/">Guides</a>
+      <a href="https://dunkleschitz.github.io/agentsec/why/">Why agentsec</a>
+      <a href="https://github.com/dunkleschitz/agentsec">GitHub</a>
+    </nav>
+    <p class="crumbs"><a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://dunkleschitz.github.io/agentsec/tools/">Tools</a> · mcpoauth</p>
+    <p class="kicker">Offline · stdlib-only · MIT</p>
+    <h1>mcpoauth: detect weak OAuth settings in MCP server metadata in AI agents</h1>
+    <hr class="rule">
+    <p class="lede">Offline auditor for MCP server OAuth discovery metadata.</p>
+
+    <article>
+<h2 id="what-it-detects">What it detects</h2>
+<p>Offline auditor for <strong>MCP server OAuth discovery metadata</strong>.</p>
+<p>Remote MCP servers that require sign-in publish two JSON documents: OAuth 2.0 Protected Resource Metadata (RFC 9728, at <code>/.well-known/oauth-protected-resource</code>) and Authorization Server Metadata (RFC 8414 or OpenID Connect discovery). MCP clients trust those documents to decide where to send users and tokens. <strong>mcpoauth</strong> reads saved copies and flags settings that the MCP authorization spec and OAuth 2.1 warn against: no PKCE S256, implicit or password grants, cleartext endpoints, tokens in URLs, a <code>resource</code> that does not match the server, broad scopes, and secrets or private keys published by mistake.</p>
+<p>Standard library only. It never connects to a network; fetch the documents yourself (for example with <code>curl</code>) and point the tool at the files.</p>
+<h2 id="rules">Rules</h2>
+<table>
+<thead><tr><th>Rule</th><th>Severity</th><th>What it flags</th></tr></thead>
+<tbody>
+<tr><td>MO01</td><td>critical</td><td>Authorization server does not advertise PKCE <code>S256</code> (field missing, or no S256)</td></tr>
+<tr><td>MO02</td><td>high</td><td>PKCE <code>plain</code> method advertised</td></tr>
+<tr><td>MO03</td><td>high</td><td>Implicit flow (<code>response_type</code> containing <code>token</code>, or <code>implicit</code> grant)</td></tr>
+<tr><td>MO04</td><td>high</td><td>Resource-owner <code>password</code> grant</td></tr>
+<tr><td>MO05</td><td>high</td><td><code>http://</code> endpoint or identifier on a non-loopback host</td></tr>
+<tr><td>MO06</td><td>medium</td><td>Issuer not https, or has a query or fragment</td></tr>
+<tr><td>MO07</td><td>high</td><td><code>bearer_methods_supported</code> includes <code>query</code> (tokens in URLs)</td></tr>
+<tr><td>MO08</td><td>high / medium</td><td>Protected resource metadata missing <code>authorization_servers</code> (high) or <code>resource</code> (medium)</td></tr>
+<tr><td>MO09</td><td>high</td><td><code>resource</code> does not match <code>--resource-url</code> (medium: has a fragment)</td></tr>
+<tr><td>MO10</td><td>medium</td><td>Broad scope advertised (<code>*</code>, <code>all</code>, <code>admin</code>, <code>root</code>, <code>full_access</code>, ...)</td></tr>
+<tr><td>MO11</td><td>critical</td><td>Secret or private key material in metadata (<code>client_secret</code>, private JWK members <code>d</code>/<code>k</code>/...)</td></tr>
+<tr><td>MO12</td><td>critical / high</td><td>Endpoint on a cloud-metadata or link-local address (critical) or private IP / internal hostname (high)</td></tr>
+<tr><td>MO13</td><td>low</td><td>Open dynamic client registration endpoint (review confused-deputy risk for proxy servers)</td></tr>
+<tr><td>MO14</td><td>info</td><td>Inventory of metadata documents found</td></tr>
+</tbody>
+</table>
+<h2 id="usage">Usage</h2>
+<pre><code>python3 mcpoauth.py PATH [PATH ...] [--resource-url URL] [--json | --sarif]
+                    [--min-severity LEVEL] [--fail-on LEVEL|none] [--disable RULE ...]
+python3 mcpoauth.py --list-rules
+# or, from a kit install:
+agentsec mcpoauth examples/risky</code></pre><p>After <code>pip install</code> of the kit, the same options work as <code>agentsec mcpoauth …</code>. Every tool also accepts <code>--help</code> and almost every tool accepts <code>--json</code>.</p>
+<h2 id="example">Example output</h2>
+<p><code>examples/clean</code> shows the same server configured well and produces only the MO14 inventory line.</p>
+<pre><code>$ python3 mcpoauth.py examples/risky --resource-url https://mcp.example.com/mcp --min-severity high
+CRITICAL  MO01  examples/risky/oauth-authorization-server.json:9  /code_challenge_methods_supported  PKCE methods [&#x27;plain&#x27;] do not include S256
+CRITICAL  MO11  examples/risky/oauth-authorization-server.json:12  /client_secret  metadata contains &#x27;client_secret&#x27; value (FAKE…00)
+CRITICAL  MO11  examples/risky/oauth-authorization-server.json:13  /jwks/keys/0/k  JWK publishes private member &#x27;k&#x27; (FAKE…00)
+CRITICAL  MO12  examples/risky/oauth-protected-resource.json:3  /authorization_servers/1  authorization_servers/1 points at a metadata address (169.254.169.254)
+HIGH      MO05  examples/risky/oauth-authorization-server.json:2  /issuer  issuer uses cleartext http: http://auth.example.com?tenant=1
+HIGH      MO05  examples/risky/oauth-authorization-server.json:3  /authorization_endpoint  authorization_endpoint uses cleartext http: http://auth.example.com/authorize
+HIGH      MO03  examples/risky/oauth-authorization-server.json:7  /response_types_supported  implicit flow returns tokens in the browser redirect; OAuth 2.1 removes it
+HIGH      MO04  examples/risky/oauth-authorization-server.json:8  /grant_types_supported  password grant lets a client collect user credentials; OAuth 2.1 removes it
+...</code></pre>
+<h2 id="sarif-ci">SARIF and CI</h2>
+<pre><code>agentsec mcpoauth path/to/input --sarif &gt; mcpoauth.sarif
+
+# GitHub Actions (composite action ships with the repo)
+- uses: dunkleschitz/agentsec@v0
+  with:
+    tools: mcpoauth
+    paths: path/to/input
+    fail-on: high
+</code></pre><p>SARIF 2.1.0 can be uploaded to GitHub code scanning. The composite action writes per-tool reports under <code>agentsec-sarif/</code> by default.</p>
+<h2 id="owasp">OWASP mapping</h2>
+<p>Heuristic mapping of what this tool helps a reviewer look for. Not an official OWASP endorsement, and not complete coverage of any item. Sources: <a href="https://genai.owasp.org/llm-top-10/">OWASP Top 10 for LLM Applications 2025</a> and <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/">OWASP Top 10 for Agentic Applications 2026</a>.</p><ul><li><strong>LLM06 Excessive Agency</strong> — OWASP LLM Top 10 (2025)</li><li><strong>ASI03 Identity and Privilege Abuse</strong> — OWASP Agentic Top 10 (2026)</li></ul>
+<h2 id="limits">Known limits</h2>
+<ul><li>It reads saved JSON only. It does not fetch metadata, follow <code>authorization_servers</code>,</li></ul>
+<p>validate JWKS signatures, or test the live flow (redirect URI checks, token audience validation, consent screens). Those need a dynamic test.</p>
+<ul><li>Document type is inferred from keys; an unusual document with neither <code>resource</code></li></ul>
+<p>nor standard authorization-server keys is ignored.</p>
+<ul><li>MO09 compares scheme, host, and path (case-insensitive host, trailing slash ignored)</li></ul>
+<p>only when you pass <code>--resource-url</code>.</p>
+<ul><li>The broad-scope list (MO10) is a short heuristic list, not a policy.</li><li>Hostname classification for MO12 uses literal IPs and a few internal suffixes</li></ul>
+<p>(<code>.internal</code>, <code>.local</code>, <code>.corp</code>, ...); it does not resolve DNS.</p>
+<p>Full source, tests, and fixtures: <a href="https://github.com/dunkleschitz/agentsec/tree/main/tools/mcpoauth">tools/mcpoauth/</a> in the repository. Install the kit with <code>pip install git+https://github.com/dunkleschitz/agentsec.git</code>.</p>
+    </article>
+
+    <footer>
+      <p>MIT License · Python 3.10–3.13 · <a href="https://dunkleschitz.github.io/agentsec/">agentsec</a> · <a href="https://github.com/dunkleschitz/agentsec">github.com/dunkleschitz/agentsec</a></p>
+    </footer>
+  </main>
+</body>
+</html>

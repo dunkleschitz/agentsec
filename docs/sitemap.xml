@@ -69,6 +69,10 @@
     <changefreq>monthly</changefreq>
   </url>
   <url>
+    <loc>https://dunkleschitz.github.io/agentsec/tools/mcpoauth/</loc>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
     <loc>https://dunkleschitz.github.io/agentsec/tools/mcpposture/</loc>
     <changefreq>monthly</changefreq>
   </url>

@@ -1,0 +1,14 @@
+{
+  "issuer": "http://auth.example.com?tenant=1",
+  "authorization_endpoint": "http://auth.example.com/authorize",
+  "token_endpoint": "https://auth.example.com/token",
+  "registration_endpoint": "https://auth.example.com/register",
+  "jwks_uri": "https://auth.example.com/jwks.json",
+  "response_types_supported": ["code", "token"],
+  "grant_types_supported": ["authorization_code", "password", "refresh_token"],
+  "code_challenge_methods_supported": ["plain"],
+  "token_endpoint_auth_methods_supported": ["none", "client_secret_post"],
+  "scopes_supported": ["openid", "admin"],
+  "client_secret": "FAKE-EXAMPLE-client-secret-0000",
+  "jwks": {"keys": [{"kty": "oct", "kid": "k1", "k": "FAKE-EXAMPLE-symmetric-key-0000"}]}
+}
